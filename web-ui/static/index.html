@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CodeAtlas</title>
+    <title>ArchMAP</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,16 +15,16 @@
   <body>
     <div class="workspace">
       <nav class="nav-rail" aria-label="Main">
-        <div class="rail-logo">CA</div>
-        <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">◎</button>
-        <button class="rail-btn" type="button" aria-label="Metrics">◫</button>
-        <button class="rail-btn" type="button" aria-label="Cycles">↺</button>
-        <button class="rail-btn" type="button" aria-label="Settings">⚙</button>
+        <div class="rail-logo">AM</div>
+        <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">G</button>
+        <button class="rail-btn" type="button" aria-label="Metrics">M</button>
+        <button class="rail-btn" type="button" aria-label="Cycles">C</button>
+        <button class="rail-btn" type="button" aria-label="Settings">S</button>
       </nav>
 
       <aside class="left-panel">
         <header class="panel-header card">
-          <p class="eyebrow">CodeAtlas</p>
+          <p class="eyebrow">ArchMAP</p>
           <h1>Service Map</h1>
           <p class="subtitle">Dependency topology and architectural risk hotspots.</p>
         </header>
@@ -39,6 +39,11 @@
           <label class="switch">
             <input id="cyclesOnly" type="checkbox" />
             <span>Highlight only circular dependencies</span>
+          </label>
+
+          <label class="switch">
+            <input id="heatmapMode" type="checkbox" />
+            <span>Heatmap mode (complexity)</span>
           </label>
 
           <div class="actions">
@@ -86,6 +91,18 @@
         <section class="card">
           <h2>Circular deps</h2>
           <ol id="cyclesList"></ol>
+        </section>
+
+        <section class="card">
+          <h2>Heatmap legend</h2>
+          <div id="heatmapLegend" class="legend legend-hidden">
+            <div class="legend-bar"></div>
+            <div class="legend-labels">
+              <span>Low</span>
+              <span>Medium</span>
+              <span>High</span>
+            </div>
+          </div>
         </section>
       </aside>
     </div>

@@ -1,13 +1,12 @@
 export function parsePythonImports(sourceCode) {
   const dependencies = [];
 
-  const importRegex = /^\s*import\s+([a-zA-Z0-9_.,\s]+)$/gm;
-  const fromRegex =
-    /^\s*from\s+([.a-zA-Z0-9_]+)\s+import\s+([a-zA-Z0-9_.*, \t]+)$/gm;
+  const importRegex = /^\s*import\s+([^\n#]+)$/gm;
+  const fromRegex = /^\s*from\s+([.a-zA-Z0-9_]+)\s+import\s+([^\n#]+)$/gm;
 
   let importMatch = importRegex.exec(sourceCode);
   while (importMatch) {
-    const modules = importMatch[1]
+    const modules = sanitizeImportPart(importMatch[1])
       .split(",")
       .map((entry) => entry.trim())
       .filter(Boolean)
@@ -24,7 +23,7 @@ export function parsePythonImports(sourceCode) {
   let fromMatch = fromRegex.exec(sourceCode);
   while (fromMatch) {
     const moduleName = fromMatch[1].trim();
-    const names = fromMatch[2]
+    const names = sanitizeImportPart(fromMatch[2])
       .split(",")
       .map((entry) => entry.trim())
       .filter(Boolean)
@@ -36,4 +35,8 @@ export function parsePythonImports(sourceCode) {
   }
 
   return dependencies;
+}
+
+function sanitizeImportPart(value) {
+  return String(value).split("#")[0].trim();
 }

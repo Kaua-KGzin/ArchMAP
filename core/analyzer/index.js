@@ -6,11 +6,25 @@ export function analyzeGraph(graph) {
   const cycles = findCircularDependencies(fileNodes, fileAdjacency);
 
   const cycleMap = buildCycleMembershipMap(cycles);
+  const maxOutgoing = Math.max(...fileNodes.map((node) => node.outgoing), 0);
 
-  const nodes = graph.nodes.map((node) => ({
-    ...node,
-    isCircular: cycleMap.has(node.id),
-  }));
+  const nodes = graph.nodes.map((node) => {
+    if (node.type !== "file") {
+      return {
+        ...node,
+        isCircular: cycleMap.has(node.id),
+        complexityImports: 0,
+        complexityScore: 0,
+      };
+    }
+
+    return {
+      ...node,
+      isCircular: cycleMap.has(node.id),
+      complexityImports: node.outgoing,
+      complexityScore: toComplexityScore(node.outgoing, maxOutgoing),
+    };
+  });
 
   const edges = graph.edges.map((edge) => ({
     ...edge,
@@ -57,8 +71,9 @@ function summarizeComplexity(nodes) {
     .map((node) => ({
       file: node.id,
       imports: node.outgoing,
+      score: node.complexityScore,
     }))
-    .sort((left, right) => right.imports - left.imports || left.file.localeCompare(right.file));
+    .sort((left, right) => right.score - left.score || left.file.localeCompare(right.file));
 }
 
 function summarizeCriticalFiles(nodes) {
@@ -91,6 +106,13 @@ function isCircularEdge(edge, cycleMap) {
   }
 
   return cycleMap.get(edge.source) === cycleMap.get(edge.target);
+}
+
+function toComplexityScore(outgoingImports, maxOutgoingImports) {
+  if (maxOutgoingImports <= 0) {
+    return 0;
+  }
+  return Number((outgoingImports / maxOutgoingImports).toFixed(6));
 }
 
 function findCircularDependencies(fileNodes, adjacency) {
