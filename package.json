@@ -1,0 +1,26 @@
+{
+  "name": "code-arch-visualizer",
+  "version": "0.1.0",
+  "description": "Visualize and analyze code architecture through dependency graphs",
+  "type": "module",
+  "bin": {
+    "code-arch": "./cli/index.js"
+  },
+  "scripts": {
+    "start": "node cli/index.js .",
+    "analyze": "node cli/index.js analyze .",
+    "serve": "node cli/index.js serve ."
+  },
+  "keywords": [
+    "architecture",
+    "dependency-graph",
+    "visualization",
+    "cytoscape"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.1.0",
+    "fast-glob": "^3.3.3"
+  }
+}
