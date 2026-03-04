@@ -27,6 +27,14 @@
     "mermaid"
   ],
   "author": "Kaua-KGzin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kaua-KGzin/ArchMAP.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kaua-KGzin/ArchMAP/issues"
+  },
+  "homepage": "https://github.com/Kaua-KGzin/ArchMAP#readme",
   "license": "MIT",
   "dependencies": {
     "express": "^5.1.0",
