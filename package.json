@@ -1,23 +1,32 @@
 {
-  "name": "code-arch-visualizer",
-  "version": "0.1.0",
+  "name": "archmap",
+  "version": "0.1.0-beta.0",
   "description": "Visualize and analyze code architecture through dependency graphs",
   "type": "module",
   "bin": {
+    "archmap": "./cli/index.js",
     "code-arch": "./cli/index.js"
   },
   "scripts": {
     "start": "node cli/index.js .",
     "analyze": "node cli/index.js analyze .",
-    "serve": "node cli/index.js serve ."
+    "serve": "node cli/index.js serve .",
+    "test": "node --test",
+    "test:smoke": "node cli/index.js analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd",
+    "check": "npm run test && npm run test:smoke"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "keywords": [
+    "archmap",
     "architecture",
     "dependency-graph",
     "visualization",
-    "cytoscape"
+    "cytoscape",
+    "mermaid"
   ],
-  "author": "",
+  "author": "Kaua-KGzin",
   "license": "MIT",
   "dependencies": {
     "express": "^5.1.0",
