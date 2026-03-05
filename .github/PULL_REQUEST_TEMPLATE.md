@@ -13,8 +13,9 @@
 
 ## Validation
 
-- [ ] `npm test`
-- [ ] `npm run test:smoke`
+- [ ] `ruff check .`
+- [ ] `pytest`
+- [ ] `archmap analyze . --format both --out .codeatlas/pr-graph.json --out-mermaid .codeatlas/pr-graph.mmd --include-cytoscape`
 - [ ] Manual UI smoke check (`archmap serve .`)
 
 ## Release impact

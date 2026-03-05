@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "archmap"
+version = "0.2.0-beta.0"
+description = "Static architecture analysis and visualization for software projects."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Kaua-KGzin" }]
+keywords = ["archmap", "architecture", "dependency-graph", "static-analysis", "visualization"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2.0", "pytest-cov>=5.0.0", "ruff>=0.11.0"]
+
+[project.scripts]
+archmap = "archmap.cli.main:main"
+code-arch = "archmap.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/archmap"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --cov=archmap --cov-report=term-missing"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+extend-exclude = ["examples/sample-project"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "UP"]
