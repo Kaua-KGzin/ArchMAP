@@ -4,27 +4,35 @@ on:
   push:
     branches:
       - main
-      - feat/**
+      - dev
+      - release/**
+      - feature/**
+      - fix/**
+      - docs/**
   pull_request:
 
 jobs:
-  test:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          node-version: 20
-          cache: npm
+          python-version: "3.13"
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
 
-      - name: Run tests
-        run: npm test
+      - name: Lint
+        run: ruff check .
+
+      - name: Run tests with coverage
+        run: pytest
 
       - name: Run smoke analysis
-        run: npm run test:smoke
+        run: archmap analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd --include-cytoscape

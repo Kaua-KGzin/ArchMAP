@@ -1,23 +1,30 @@
-# Changelog
+﻿# Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project are documented in this file.
 
-## [0.1.0-beta.0] - 2026-03-04
+## [0.2.0-beta.0] - 2026-03-04
 
 ### Added
-- ArchMAP branding across CLI, UI, and docs.
-- Complexity heatmap mode in the web UI.
-- Mermaid exporter (`graph TD`) with sanitized identifiers.
-- CLI format selection via `--format json|mermaid|both`.
-- New CLI option `--out-mermaid`.
-- CI workflow with tests and smoke analysis.
-- Project governance files: roadmap, contributing, PR template.
+- Full Python implementation under `src/archmap`.
+- New Python CLI with commands:
+  - `analyze`
+  - `serve`
+  - `diff`
+- Architecture risk engine with:
+  - god module detection
+  - layer violation detection
+  - dependency explosion detection
+- Cytoscape exporter (`cytoscape_exporter.py`).
+- `pyproject.toml` with package metadata and scripts.
+- Pytest suite for parser, analyzer, exporters, CLI, and diff.
+- CI pipeline with Ruff lint + pytest coverage + smoke analysis.
 
 ### Changed
-- Package name changed to `archmap`.
-- CLI now exposes `archmap` as primary command.
-- `code-arch` remains available as compatibility alias.
-- Analyzer now includes `complexityImports` and `complexityScore` per file node.
+- Canonical runtime migrated from Node.js to Python.
+- Repository structure aligned to `src/archmap` layout.
+- Branch strategy documented as:
+  - `feature/* -> dev -> release/* -> main`
 
 ### Notes
-- Next planned release: `v0.2.0` on `2026-03-10`.
+- JavaScript implementation is no longer the primary runtime.
+- Next target: `v0.3.0` architecture policy and trend analysis.

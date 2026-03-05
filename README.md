@@ -1,39 +1,68 @@
-# ArchMAP
+﻿# ArchMAP
 
-ArchMAP visualizes the architecture of your codebase through dependency graphs, cycle detection, and complexity insights.
+ArchMAP is a static architecture analysis tool that scans source code, detects dependencies,
+finds cycles, computes complexity, and ranks risky files.
 
 ## Status
 
-- Current release: `v0.1.0-beta.0`
-- Next planned release: `v0.2.0` on `2026-03-10`
-- Node.js required: `>=20`
+- Current release: `v0.2.0-beta.0`
+- Primary stack: Python (`>=3.11`)
+- Current supported languages: JavaScript, TypeScript, Python, Rust
+
+## Why ArchMAP migrated to Python
+
+ArchMAP was migrated from Node.js to Python to make the analysis engine easier to evolve and
+package for automation workflows. The migration was done to unlock:
+
+- A cleaner modular architecture under `src/archmap`
+- Better compatibility with data/analysis tooling ecosystems
+- Easier CLI packaging and CI quality gates (lint + coverage)
+- Faster iteration for architecture analysis features like `diff` and risk scoring
+
+The old JavaScript implementation can remain in history, but Python is now the canonical runtime.
+
+## How ArchMAP Works
+
+Pipeline:
+
+Source Code
+-> Parser
+-> Dependency Graph
+-> Analyzer (cycles, complexity, risk)
+-> Exporters (JSON, Mermaid, Cytoscape)
+-> Visualization
 
 ## Features
 
-- Dependency graph generation from source imports
-- Supported languages (v0.1): JavaScript, TypeScript, Python, Rust
+- Static dependency analysis
 - Circular dependency detection
-- Complexity metrics per file
-- Critical files ranking (most depended-on files)
-- Interactive web UI (Cytoscape.js)
-- Complexity heatmap mode in the graph
-- Export formats: JSON and Mermaid
+- Complexity scoring by imports
+- Critical files ranking (incoming dependencies)
+- Architecture risk detection:
+  - god modules
+  - layer violations
+  - dependency explosion
+- Commit/ref comparison:
+  - `archmap diff <base> <head>`
+  - dependency/cycle/complexity deltas
+- Export formats: JSON, Mermaid, Cytoscape JSON
+- Interactive UI server (`archmap serve`)
 
 ## Installation
 
 ```bash
-npm install
+python -m pip install -e ".[dev]"
 ```
 
-Optional: expose CLI globally in your machine:
+Optional global installation:
 
 ```bash
-npm link
+python -m pip install .
 ```
 
-## CLI
+## CLI Usage
 
-Primary command:
+Main command:
 
 ```bash
 archmap
@@ -48,85 +77,84 @@ code-arch
 ### Analyze
 
 ```bash
-archmap analyze <path> [--format json|mermaid|both] [--out <file>] [--out-mermaid <file>]
+archmap analyze <path> [--format json|mermaid|both] [--out <file>] [--out-mermaid <file>] [--include-cytoscape]
 ```
 
-Defaults for `analyze`:
-- `--format json`
-- `--out .codeatlas/graph.json`
-- `--out-mermaid .codeatlas/graph.mmd`
-
-### Serve (UI)
+### Serve
 
 ```bash
-archmap serve <path> [--format json|mermaid|both] [--port 3000] [--no-open] [--out <file>] [--out-mermaid <file>]
+archmap serve <path> [--port 3000] [--no-open] [--format json|mermaid|both]
 ```
 
-Defaults for `serve`:
-- `--format both`
-- `--port 3000`
-
-### Quick start
+### Diff between refs
 
 ```bash
-archmap analyze ./project --format both
-archmap serve ./project
+archmap diff HEAD~5 HEAD
 ```
 
-## Output data
+Example output:
 
-JSON graph output includes:
+```text
++12 dependencies
++1 circular dependencies
+complexity +18.00%
+```
 
-- `nodes[]`
-- `edges[]`
-- `metrics`
-- `cycles`
-- node-level `complexityImports` and `complexityScore`
+## Recommended Repository Structure
 
-Mermaid output:
+```text
+ArchMAP
+├── src/
+│   └── archmap/
+│       ├── cli/
+│       │   └── main.py
+│       ├── core/
+│       │   ├── parser/
+│       │   ├── analyzer/
+│       │   └── graph/
+│       ├── exporters/
+│       └── utils/
+├── tests/
+├── docs/
+├── examples/
+├── scripts/
+├── README.md
+├── ROADMAP.md
+├── CONTRIBUTING.md
+├── CHANGELOG.md
+└── pyproject.toml
+```
 
-- `graph TD`
-- sanitized node identifiers
-- package node prefixing to avoid collisions
+## Branch Strategy
+
+- `main`: stable production code only
+- `dev`: integration branch for upcoming release
+- `feature/*`: isolated features
+- `release/*`: stabilization, docs, tests, and release prep
+
+Flow:
+
+`feature/* -> dev -> release/* -> main`
 
 ## Development
 
-Run tests:
+Run lint:
 
 ```bash
-npm test
+ruff check .
 ```
 
-Run smoke check:
+Run tests with coverage:
 
 ```bash
-npm run test:smoke
+pytest
 ```
 
-Run full validation:
+Smoke analysis:
 
 ```bash
-npm run check
+archmap analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd --include-cytoscape
 ```
-
-## Project structure
-
-```text
-code-arch-visualizer
-├── core
-│   ├── parser
-│   ├── analyzer
-│   └── graph
-├── cli
-├── web-ui
-└── exporters
-```
-
-## PT-BR resumo rapido
-
-- Rode `archmap analyze ./projeto` para gerar analise em JSON.
-- Rode `archmap serve ./projeto` para abrir o grafo interativo em `http://localhost:3000`.
-- Use `--format mermaid` ou `--format both` para exportar diagrama Mermaid.
 
 ## License
 

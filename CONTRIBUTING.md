@@ -1,33 +1,49 @@
-# Contributing
+﻿# Contributing to ArchMAP
 
-Thanks for contributing to ArchMAP.
+Thanks for contributing.
 
 ## Prerequisites
 
-- Node.js >= 20
-- npm >= 10
+- Python >= 3.11
+- pip >= 23
 
 ## Setup
 
 ```bash
-npm install
+python -m pip install -e ".[dev]"
 ```
 
-## Development workflow
+## Branching model
 
-1. Create a branch from `main`.
-2. Implement your change with tests.
-3. Run validation:
+- `main`: stable branch only
+- `dev`: integration branch
+- `feature/*`: one feature per branch
+- `fix/*`: bugfix branches
+- `docs/*`: documentation branches
+- `release/*`: stabilization and release prep
+
+Recommended flow:
+
+`feature/* -> dev -> release/* -> main`
+
+## Development checklist
+
+1. Create a branch from `dev` (or `main` for urgent fixes).
+2. Implement the change with tests.
+3. Run quality gates:
 
 ```bash
-npm run check
+ruff check .
+pytest
+archmap analyze . --format both --out .codeatlas/local-graph.json --out-mermaid .codeatlas/local-graph.mmd --include-cytoscape
 ```
 
-4. Open a pull request using the project PR template.
+4. Update docs (`README.md`, `ROADMAP.md`, `CHANGELOG.md`) if behavior changes.
+5. Open a pull request using the repository template.
 
-## Code guidelines
+## Coding guidelines
 
-- Keep changes focused and scoped.
-- Preserve CLI compatibility when possible.
-- Add or update tests for parser/analyzer/export logic changes.
-- Update `README.md`, `CHANGELOG.md`, and `ROADMAP.md` when behavior changes.
+- Keep modules focused and composable.
+- Prefer explicit data contracts for analyzer outputs.
+- Add tests for parser/analyzer/exporter behavior changes.
+- Preserve CLI compatibility unless a major release justifies breaking changes.
