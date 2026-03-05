@@ -229,6 +229,8 @@ def _print_export_summary(export_result: dict) -> None:
 
 
 def _resolve_static_dir() -> Path:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / "web-ui" / "static"
     return Path(__file__).resolve().parents[3] / "web-ui" / "static"
 
 
