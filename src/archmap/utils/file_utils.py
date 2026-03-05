@@ -49,6 +49,11 @@ def should_ignore_parts(parts: Iterable[str]) -> bool:
 
 
 def discover_source_files(project_root: Path) -> list[Path]:
+    if project_root.is_file():
+        if project_root.suffix.lower() in SUPPORTED_EXTENSIONS:
+            return [project_root]
+        return []
+
     files: list[Path] = []
 
     for file_path in project_root.rglob("*"):
@@ -64,6 +69,8 @@ def discover_source_files(project_root: Path) -> list[Path]:
 
 
 def to_file_id(project_root: Path, file_path: Path) -> str:
+    if project_root.is_file() and project_root == file_path:
+        return normalize_file_id(file_path.name)
     return normalize_file_id(file_path.relative_to(project_root).as_posix())
 
 
