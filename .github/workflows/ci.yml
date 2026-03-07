@@ -14,14 +14,17 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
@@ -30,9 +33,11 @@ jobs:
 
       - name: Lint
         run: ruff check .
+        if: matrix.python-version == '3.13'
 
       - name: Run tests with coverage
         run: pytest
 
       - name: Run smoke analysis
         run: archmap analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd --include-cytoscape
+        if: matrix.python-version == '3.13'

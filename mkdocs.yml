@@ -1,0 +1,73 @@
+site_name: ArchMAP
+site_description: Static architecture analysis and visualization for any codebase
+site_url: https://kaua-kgzin.github.io/code-arch-visualizer/
+repo_url: https://github.com/Kaua-KGzin/code-arch-visualizer
+repo_name: Kaua-KGzin/code-arch-visualizer
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+  - CLI Reference:
+      - analyze: cli/analyze.md
+      - serve: cli/serve.md
+      - diff: cli/diff.md
+  - Internals:
+      - Architecture: architecture.md
+      - API Reference: api.md
+  - Contributing:
+      - Guide: contributing.md
+      - Code of Conduct: code-of-conduct.md
+  - Changelog: changelog.md
+  - Roadmap: roadmap.md
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Kaua-KGzin/code-arch-visualizer
