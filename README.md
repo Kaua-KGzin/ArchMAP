@@ -1,7 +1,13 @@
 ﻿# ArchMAP
 
-ArchMAP is a static architecture analysis tool that scans source code, detects dependencies,
-finds cycles, computes complexity, and ranks risky files.
+[![CI](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+[![Version](https://img.shields.io/badge/version-0.2.0--beta.0-orange)](./CHANGELOG.md)
+
+**Static architecture analysis for any codebase.** ArchMAP scans your source code, builds a dependency graph, detects circular dependencies, flags risky files, and lets you explore everything through an interactive web UI — in one command.
+
+Supports **Python · JavaScript · TypeScript · Rust**.
 
 ## Status
 
@@ -51,13 +57,15 @@ Source Code
 ## Installation
 
 ```bash
-python -m pip install -e ".[dev]"
+pip install archmap
 ```
 
-Optional global installation:
+For local development (editable + dev tools):
 
 ```bash
-python -m pip install .
+git clone https://github.com/Kaua-KGzin/code-arch-visualizer
+cd code-arch-visualizer
+pip install -e ".[dev]"
 ```
 
 ## CLI Usage
@@ -155,6 +163,10 @@ Smoke analysis:
 ```bash
 archmap analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd --include-cytoscape
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Please read our [Code of Conduct](./CODE_OF_CONDUCT.md) before opening issues or pull requests.
 
 ## License
 

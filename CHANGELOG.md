@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.1] - 2026-03-07
+
+### Added
+- **OSS Professionalization:** Added Issue Templates (Bug/Feature), Code of Conduct, and detailed architecture & API documentation.
+- **Documentation Site:** Implemented MkDocs Material site with automated GitHub Pages deployment.
+- **Professional CI:** Expanded CI to test against Python 3.11, 3.12, and 3.13.
+- **Automated Releases:** Added GitHub Actions workflow to automate package building and releases on version tags.
+- **Rich Examples:** Enriched `examples/sample-project` with intentional cycles and layer violations for demonstration.
+- **Benchmark Tool:** Added `scripts/benchmark.py` for performance testing.
+
+### Fixed
+- **Static Assets:** Fixed "Web UI static directory not found" error in packaged (wheel) installations by using `importlib.resources`.
+- **Parser Precision:** Fixed dependency resolution for absolute `from ... import ...` submodules that were previously misidentified as package-level dependencies.
+
 ## [0.1.3] - 2026-03-05
 
 ### Added

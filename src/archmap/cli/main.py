@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.resources
 import json
 import sys
 import webbrowser
@@ -229,8 +230,20 @@ def _print_export_summary(export_result: dict) -> None:
 
 
 def _resolve_static_dir() -> Path:
+    # PyInstaller frozen bundle
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS) / "web-ui" / "static"
+
+    # Installed wheel: static files are bundled inside the archmap package
+    try:
+        pkg_ref = importlib.resources.files("archmap") / "web-ui" / "static"
+        pkg_path = Path(str(pkg_ref))
+        if pkg_path.is_dir():
+            return pkg_path
+    except (TypeError, AttributeError):
+        pass
+
+    # Source-checkout fallback: repo_root/web-ui/static
     return Path(__file__).resolve().parents[3] / "web-ui" / "static"
 
 

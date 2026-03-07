@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ArchMAP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="workspace">
+      <nav class="nav-rail" aria-label="Main">
+        <div class="rail-logo">AM</div>
+        <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">G</button>
+        <button class="rail-btn" type="button" aria-label="Metrics">M</button>
+        <button class="rail-btn" type="button" aria-label="Cycles">C</button>
+        <button class="rail-btn" type="button" aria-label="Settings">S</button>
+      </nav>
+
+      <aside class="left-panel">
+        <header class="panel-header card">
+          <p class="eyebrow">ArchMAP</p>
+          <h1>Service Map</h1>
+          <p class="subtitle">Dependency topology and architectural risk hotspots.</p>
+        </header>
+
+        <section class="card">
+          <h2>Flows</h2>
+          <label class="field">
+            <span>Filter by folder</span>
+            <select id="folderFilter"></select>
+          </label>
+
+          <label class="switch">
+            <input id="cyclesOnly" type="checkbox" />
+            <span>Highlight only circular dependencies</span>
+          </label>
+
+          <label class="switch">
+            <input id="heatmapMode" type="checkbox" />
+            <span>Heatmap mode (complexity)</span>
+          </label>
+
+          <div class="actions">
+            <button id="zoomInBtn" type="button">Zoom +</button>
+            <button id="zoomOutBtn" type="button">Zoom -</button>
+            <button id="fitBtn" type="button">Fit</button>
+            <button id="layoutBtn" type="button">Relayout</button>
+            <button id="resetBtn" type="button">Clear highlight</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Critical files</h2>
+          <ol id="criticalList"></ol>
+        </section>
+      </aside>
+
+      <main class="canvas-panel">
+        <header class="canvas-toolbar">
+          <div class="toolbar-title-group">
+            <p class="toolbar-kicker">Production</p>
+            <h2 class="toolbar-title">Dependency Graph</h2>
+          </div>
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Search files or packages"
+            aria-label="Search files or packages"
+          />
+        </header>
+        <div id="graph"></div>
+      </main>
+
+      <aside class="right-panel">
+        <section class="card">
+          <h2>Summary</h2>
+          <div id="summary"></div>
+        </section>
+
+        <section class="card">
+          <h2>Selection</h2>
+          <div id="selectionInfo" class="selection-muted">Click a node to inspect dependencies.</div>
+        </section>
+
+        <section class="card">
+          <h2>Circular deps</h2>
+          <ol id="cyclesList"></ol>
+        </section>
+
+        <section class="card">
+          <h2>Heatmap legend</h2>
+          <div id="heatmapLegend" class="legend legend-hidden">
+            <div class="legend-bar"></div>
+            <div class="legend-labels">
+              <span>Low</span>
+              <span>Medium</span>
+              <span>High</span>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
