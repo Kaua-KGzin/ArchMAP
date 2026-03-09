@@ -1,6 +1,8 @@
 import re
 from typing import Any, TypedDict
+
 from archmap.core.parser.registry import Dependency, ParserPlugin
+
 
 class RustImportEntry(TypedDict):
     type: str
@@ -23,12 +25,18 @@ class RustParser(ParserPlugin):
             if normalized:
                 dependencies.append({"type": "use", "path": normalized, "module": "", "crate": ""})
         for match in MOD_RE.finditer(source_code):
-            dependencies.append({"type": "mod", "path": "", "module": match.group(1).strip(), "crate": ""})
+            dependencies.append(
+                {"type": "mod", "path": "", "module": match.group(1).strip(), "crate": ""}
+            )
         for match in EXTERN_RE.finditer(source_code):
-            dependencies.append({"type": "extern", "path": "", "module": "", "crate": match.group(1).strip()})
+            dependencies.append(
+                {"type": "extern", "path": "", "module": "", "crate": match.group(1).strip()}
+            )
         return dependencies
 
-    def resolve(self, import_entries: list[Any], file_id: str, file_ids: set[str]) -> list[Dependency]:
+    def resolve(
+        self, import_entries: list[Any], file_id: str, file_ids: set[str]
+    ) -> list[Dependency]:
         from archmap.core.parser import _resolve_rust_dependency
         resolved: list[Dependency] = []
         for entry in import_entries:

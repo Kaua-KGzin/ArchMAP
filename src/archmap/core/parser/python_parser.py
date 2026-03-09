@@ -1,6 +1,8 @@
 import re
 from typing import Any, TypedDict
+
 from archmap.core.parser.registry import Dependency, ParserPlugin
+
 
 class PythonImportEntry(TypedDict):
     type: str
@@ -33,7 +35,9 @@ class PythonParser(ParserPlugin):
             dependencies.append({"type": "from", "module": module, "names": names})
         return dependencies
 
-    def resolve(self, import_entries: list[Any], file_id: str, file_ids: set[str]) -> list[Dependency]:
+    def resolve(
+        self, import_entries: list[Any], file_id: str, file_ids: set[str]
+    ) -> list[Dependency]:
         from archmap.core.parser import _resolve_python_dependency
         resolved: list[Dependency] = []
         for entry in import_entries:

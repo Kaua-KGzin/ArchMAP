@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol, TypedDict
+from typing import Any, Protocol, TypedDict
 
 
 class Dependency(TypedDict):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from archmap.core.parser import parse_project
 
+
 def _virtual(files: dict[str, str]):
     return parse_project(".", virtual_files=files)
 

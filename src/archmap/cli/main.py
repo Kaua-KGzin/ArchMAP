@@ -26,11 +26,11 @@ DEFAULT_PORT = 3000
 
 def _print_banner() -> None:
     banner = rf"""
-    ___          _      __  __   _   ___ 
+    ___          _      __  __   _   ___
    / _ \ _ _ ___| |_   |  \/  | /_\ | _ \\
   | (_) | '_/ __| ' \  | |\/| |/ _ \|  _/
-   \___/|_| \___|_||_| |_|  |_/_/ \_\_|  
-   
+   \___/|_| \___|_||_| |_|  |_/_/ \_\_|
+
    ArchMAP Architectural Visualizer v{__version__}
    Professional Analysis for Modern Codebases
     """
@@ -300,7 +300,9 @@ def _build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTP
                         self.send_response(HTTPStatus.OK)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({"status": "success", "path": str(new_path)}).encode())
+                        self.wfile.write(
+                            json.dumps({"status": "success", "path": str(new_path)}).encode()
+                        )
                     except Exception as e:
                         self.send_response(HTTPStatus.INTERNAL_SERVER_ERROR)
                         self.end_headers()

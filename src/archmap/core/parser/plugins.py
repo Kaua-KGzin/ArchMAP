@@ -12,7 +12,9 @@ registry.register(
         extensions=[".go"],
         patterns=[
             re.compile(r'^\s*import\s+"([^"]+)"', re.MULTILINE),
-            re.compile(r'^\s*import\s+\((?:[^"]*"([^"]+)")+[^)]*\)', re.MULTILINE | re.DOTALL), # This might be complex
+            re.compile(
+                r'^\s*import\s+\((?:[^"]*"([^"]+)")+[^)]*\)', re.MULTILINE | re.DOTALL
+            ),  # This might be complex
             # Simpler: just match any quoted string in lines that look like parts of an import block
             re.compile(r'^\s*"([^"]+)"', re.MULTILINE), # Rough but effective for multi-line imports
         ],

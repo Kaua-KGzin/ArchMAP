@@ -4,12 +4,11 @@ import posixpath
 from pathlib import Path, PurePosixPath
 from typing import Any, TypedDict
 
+from archmap.core.parser import plugins as plugins  # Register new languages (Go, PHP, etc)
 from archmap.core.parser.js_parser import JSParser, TSParser
-from archmap.core.parser.python_parser import PythonParser
+from archmap.core.parser.python_parser import PythonImportEntry, PythonParser
 from archmap.core.parser.registry import Dependency, registry
-from archmap.core.parser.rust_parser import RustParser
-from archmap.core.parser import plugins  # Register new languages (Go, PHP, etc)
-
+from archmap.core.parser.rust_parser import RustImportEntry, RustParser
 from archmap.utils.file_utils import (
     JS_TS_EXTENSIONS,
     discover_source_files,
@@ -24,12 +23,6 @@ registry.register(TSParser())
 registry.register(RustParser())
 
 JS_TS_RESOLUTION_EXTENSIONS = sorted(JS_TS_EXTENSIONS | {".json"})
-
-
-class Dependency(TypedDict):
-    id: str
-    label: str
-    type: str
 
 
 class ParsedFile(TypedDict):

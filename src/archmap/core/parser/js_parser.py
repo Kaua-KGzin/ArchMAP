@@ -1,5 +1,6 @@
 import re
 from typing import Any
+
 from archmap.core.parser.registry import Dependency, ParserPlugin
 
 IMPORT_EXPORT_RE = re.compile(
@@ -21,7 +22,9 @@ class JSParser(ParserPlugin):
                     imports.add(specifier)
         return sorted(imports)
 
-    def resolve(self, import_entries: list[Any], file_id: str, file_ids: set[str]) -> list[Dependency]:
+    def resolve(
+        self, import_entries: list[Any], file_id: str, file_ids: set[str]
+    ) -> list[Dependency]:
         from archmap.core.parser import _resolve_js_ts_dependency
         resolved: list[Dependency] = []
         for specifier in import_entries:
