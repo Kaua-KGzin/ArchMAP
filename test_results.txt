@@ -1,0 +1,37 @@
+....                                                                     [100%]
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.13.12-final-0 _______________
+
+Name                                               Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------------
+src\archmap\__init__.py                                2      0   100%
+src\archmap\__main__.py                                4      4     0%   1-5
+src\archmap\cli\__init__.py                            0      0   100%
+src\archmap\cli\main.py                              251    251     0%   1-364
+src\archmap\core\__init__.py                          11      5    55%   11-19
+src\archmap\core\analyzer\__init__.py                  3      0   100%
+src\archmap\core\analyzer\complexity_analyzer.py      32     27    16%   7-35, 39-50, 54-64, 68-70
+src\archmap\core\analyzer\cycle_detector.py           39     37     5%   7-53
+src\archmap\core\analyzer\dependency_graph.py         39     31    21%   13-36, 49-58, 62-66, 70-85
+src\archmap\core\analyzer\diff_analyzer.py            59     47    20%   13-23, 27-48, 81-85, 89-100, 104-116
+src\archmap\core\analyzer\risk_analyzer.py            58     53     9%   27-125
+src\archmap\core\graph\__init__.py                     2      0   100%
+src\archmap\core\graph\graph_builder.py               29     25    14%   7-61, 69
+src\archmap\core\parser\__init__.py                  254    185    27%   61, 65, 96, 100-107, 118-121, 127-145, 151-192, 198-221, 227-275, 281-289, 293-297, 301-304, 308-316, 320-328, 334-351, 355-364, 368-376, 380-381, 385-386, 390-395
+src\archmap\core\parser\generic_parser.py             25      1    96%   47
+src\archmap\core\parser\js_parser.py                  29     15    48%   16-22, 25-32
+src\archmap\core\parser\plugins.py                    11      0   100%
+src\archmap\core\parser\python_parser.py              36     21    42%   18-34, 37-42, 45
+src\archmap\core\parser\registry.py                   26      2    92%   45, 48
+src\archmap\core\parser\rust_parser.py                38     21    45%   20-29, 32-37, 40-44
+src\archmap\core\parser\ts_parser.py                   3      3     0%   1-5
+src\archmap\exporters\__init__.py                      4      4     0%   1-5
+src\archmap\exporters\cytoscape_exporter.py           10     10     0%   1-25
+src\archmap\exporters\json_exporter.py                11     11     0%   1-29
+src\archmap\exporters\mermaid_exporter.py             30     30     0%   1-44
+src\archmap\utils\__init__.py                          0      0   100%
+src\archmap\utils\file_utils.py                       49     32    35%   49, 54, 58, 62-78, 82-84, 88-89, 93, 97-106
+src\archmap\web-ui\__init__.py                         0      0   100%
+--------------------------------------------------------------------------------
+TOTAL                                               1055    815    23%
+4 passed in 0.25s

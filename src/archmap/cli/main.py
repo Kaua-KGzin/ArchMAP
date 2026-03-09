@@ -24,14 +24,36 @@ DEFAULT_CYTOSCAPE_OUTPUT_PATH = ".codeatlas/graph-cytoscape.json"
 DEFAULT_PORT = 3000
 
 
+def _print_banner() -> None:
+    banner = rf"""
+    ___          _      __  __   _   ___ 
+   / _ \ _ _ ___| |_   |  \/  | /_\ | _ \\
+  | (_) | '_/ __| ' \  | |\/| |/ _ \|  _/
+   \___/|_| \___|_||_| |_|  |_/_/ \_\_|  
+   
+   ArchMAP Architectural Visualizer v{__version__}
+   Professional Analysis for Modern Codebases
+    """
+    print(banner)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
     if not args.command:
-        parser.print_help()
-        return 0
+        # Default to 'serve .' if no command provided (friendly for double-clicking)
+        args.command = "serve"
+        args.path = "."
+        args.port = DEFAULT_PORT
+        args.no_open = False
+        args.format = "both"
+        args.out = DEFAULT_JSON_OUTPUT_PATH
+        args.out_mermaid = DEFAULT_MERMAID_OUTPUT_PATH
+        args.out_cytoscape = DEFAULT_CYTOSCAPE_OUTPUT_PATH
+        args.include_cytoscape = False
 
+    _print_banner()
     try:
         if args.command == "version":
             print(f"archmap {__version__}")
@@ -44,6 +66,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run_diff(args)
     except Exception as exc:  # noqa: BLE001
         print(f"[error] {exc}", file=sys.stderr)
+        if getattr(sys, "frozen", False):
+            input("\n[info] Press Enter to exit...")
         return 1
 
     parser.print_help()
@@ -124,12 +148,15 @@ def _run_serve(args: argparse.Namespace) -> int:
     if not static_dir.exists():
         raise RuntimeError(f"Web UI static directory not found: {static_dir}")
 
+    state = ReportState(args.path, report)
     url = f"http://localhost:{args.port}"
     if not args.no_open:
         webbrowser.open(url, new=2, autoraise=False)
 
-    handler = _build_http_handler(report, static_dir)
+    handler = _build_http_handler(state, static_dir)
     server = ThreadingHTTPServer(("0.0.0.0", args.port), handler)
+    print(f"[info] ArchMAP Service Map v{__version__}")
+    print(f"[info] Analyzing: {state.path.absolute()}")
     print(f"[info] Web UI available at {url}")
     print("[info] Press Ctrl+C to stop.")
     try:
@@ -139,6 +166,16 @@ def _run_serve(args: argparse.Namespace) -> int:
     finally:
         server.server_close()
     return 0
+
+
+class ReportState:
+    def __init__(self, path: str | Path, report: dict):
+        self.path = Path(path).resolve()
+        self.report = report
+
+    def update(self, new_path: Path):
+        self.path = new_path
+        self.report = analyze_project(new_path)
 
 
 def _run_diff(args: argparse.Namespace) -> int:
@@ -247,16 +284,35 @@ def _resolve_static_dir() -> Path:
     return Path(__file__).resolve().parents[3] / "web-ui" / "static"
 
 
-def _build_http_handler(report: dict, static_dir: Path) -> type[SimpleHTTPRequestHandler]:
-    report_bytes = json.dumps(report).encode("utf-8")
+def _build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPRequestHandler]:
     health_bytes = b'{"status":"ok"}'
 
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=str(static_dir), **kwargs)
 
+        def do_POST(self):  # noqa: N802
+            if self.path == "/api/open":
+                new_path = self._pick_directory()
+                if new_path:
+                    try:
+                        state.update(new_path)
+                        self.send_response(HTTPStatus.OK)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"status": "success", "path": str(new_path)}).encode())
+                    except Exception as e:
+                        self.send_response(HTTPStatus.INTERNAL_SERVER_ERROR)
+                        self.end_headers()
+                        self.wfile.write(str(e).encode())
+                else:
+                    self.send_response(HTTPStatus.NO_CONTENT)
+                    self.end_headers()
+                return
+
         def do_GET(self):  # noqa: N802
             if self.path == "/api/graph":
+                report_bytes = json.dumps(state.report).encode("utf-8")
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(report_bytes)))
@@ -276,6 +332,19 @@ def _build_http_handler(report: dict, static_dir: Path) -> type[SimpleHTTPReques
                 self.path = "/index.html"
 
             super().do_GET()
+
+        def _pick_directory(self) -> Path | None:
+            try:
+                import tkinter as tk
+                from tkinter import filedialog
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes("-topmost", True)
+                directory = filedialog.askdirectory(title="ArchMAP - Select Project Folder")
+                root.destroy()
+                return Path(directory) if directory else None
+            except Exception:
+                return None
 
         def log_message(self, _format: str, *args) -> None:
             return

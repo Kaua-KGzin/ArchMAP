@@ -15,6 +15,23 @@
   --edge: #b7bfca;
   --ring: rgba(56, 104, 247, 0.28);
   --shadow: 0 10px 24px rgba(24, 38, 60, 0.08);
+  --canvas-bg: #fcfdff;
+  --canvas-dots: #dfe4ef;
+}
+
+[data-theme="dark"] {
+  --bg: #090a0c;
+  --panel: #13171f;
+  --panel-soft: #1a1f29;
+  --border: #2d3544;
+  --text: #e1e7f0;
+  --muted: #98a2b3;
+  --accent: #527bff;
+  --accent-strong: #a4b5ff;
+  --ring: rgba(82, 123, 255, 0.35);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  --canvas-bg: #0e1117;
+  --canvas-dots: #2a3140;
 }
 
 * {
@@ -31,7 +48,8 @@ body {
 body {
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
   color: var(--text);
-  background: radial-gradient(circle at 10% 10%, #eef2ff 0, rgba(238, 242, 255, 0) 40%), var(--bg);
+  background: var(--bg);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .workspace {
@@ -52,6 +70,41 @@ body {
   align-items: center;
   gap: 10px;
   padding: 10px 8px;
+}
+
+.theme-toggle {
+  margin-top: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid var(--rail-border);
+  color: #bdc9e9;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.theme-toggle:hover {
+  background: #243149;
+  color: #ebf0ff;
+}
+
+.refresh-btn {
+  margin-left: 8px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.refresh-btn:hover {
+  background: var(--accent);
+  color: #fff;
 }
 
 .rail-logo {
@@ -105,7 +158,7 @@ body {
 }
 
 .panel-header {
-  background: linear-gradient(178deg, #ffffff 0, #f8faff 100%);
+  background: linear-gradient(178deg, var(--panel) 0, var(--panel-soft) 100%);
 }
 
 h1 {
@@ -148,14 +201,10 @@ select,
 button,
 input[type="search"] {
   font-family: inherit;
-}
-
-select,
-button,
-input[type="search"] {
   border-radius: 9px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--panel);
+  color: var(--text);
 }
 
 select,
@@ -191,7 +240,7 @@ button {
 
 button:hover {
   border-color: var(--accent);
-  background-color: #f4f7ff;
+  background-color: var(--panel-soft);
   transform: translateY(-1px);
 }
 
@@ -231,7 +280,7 @@ ol li {
   justify-content: space-between;
   gap: 10px;
   padding: 10px 14px;
-  background: linear-gradient(180deg, #ffffff, #f9fbff);
+  background: var(--panel);
 }
 
 .toolbar-title-group {
@@ -256,8 +305,8 @@ ol li {
   width: 100%;
   height: 100%;
   min-height: 520px;
-  background-color: #fcfdff;
-  background-image: radial-gradient(#dfe4ef 1.1px, transparent 0);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dots) 1.1px, transparent 0);
   background-size: 18px 18px;
 }
 
@@ -350,4 +399,48 @@ ol li {
   .canvas-panel {
     min-height: 62vh;
   }
+}
+
+/* Technical Debt & Risks Display */
+.risk-item {
+  border-left: 4px solid var(--border);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--panel-soft);
+  border-radius: 4px 10px 10px 4px;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.risk-high {
+  border-left-color: var(--cycle);
+  background: rgba(221, 77, 83, 0.05);
+}
+
+.risk-medium {
+  border-left-color: #f2bf43;
+  background: rgba(242, 191, 67, 0.05);
+}
+
+.risk-msg {
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.risk-tip {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+  cursor: wait;
+}
+
+.loading::after {
+  content: "...";
 }

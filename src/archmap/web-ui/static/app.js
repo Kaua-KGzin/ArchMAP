@@ -24,30 +24,44 @@ const elements = {
   criticalList: document.getElementById("criticalList"),
   cyclesList: document.getElementById("cyclesList"),
   selectionInfo: document.getElementById("selectionInfo"),
+  themeToggle: document.getElementById("themeToggle"),
+  refreshBtn: document.getElementById("refreshBtn"),
+  risksSummary: document.getElementById("risksSummary"),
+  openProjectBtn: document.getElementById("openProjectBtn"),
 };
 
 let cy = null;
+
+// Apply saved theme early
+const savedTheme = localStorage.getItem("archmap-theme") || "light";
+document.documentElement.setAttribute("data-theme", savedTheme);
 
 init().catch((error) => {
   elements.selectionInfo.textContent = `Failed to load graph: ${error.message}`;
 });
 
 async function init() {
-  const response = await fetch("/api/graph");
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
+  elements.refreshBtn?.classList.add("loading");
+  try {
+    const response = await fetch("/api/graph");
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-  const reportData = await response.json();
-  fillSidebar(reportData);
-  initializeGraph(reportData);
-  bindControls();
+    const reportData = await response.json();
+    fillSidebar(reportData);
+    initializeGraph(reportData);
+    bindControls();
+  } finally {
+    elements.refreshBtn?.classList.remove("loading");
+  }
 }
 
 function fillSidebar(report) {
   renderSummary(report.metrics);
   renderCriticalFiles(report.metrics.criticalFiles);
   renderCycles(report.cycles);
+  renderRisks(report);
   populateFolderFilter(report.nodes);
 }
 
@@ -68,6 +82,43 @@ function renderSummary(metrics) {
   });
 }
 
+function renderRisks(report) {
+  elements.risksSummary.innerHTML = "";
+  const risks = [];
+
+  if (report.cycles && report.cycles.length > 0) {
+    risks.push({
+      level: "high",
+      msg: `${report.cycles.length} Circular dependencies detected.`,
+      tip: "Refactor to use interfaces or events.",
+    });
+  }
+
+  const criticalHigh = report.metrics.criticalFiles.filter((f) => f.dependents > 8);
+  if (criticalHigh.length > 0) {
+    risks.push({
+      level: "medium",
+      msg: `${criticalHigh.length} Hub files detected (many dependents).`,
+      tip: "Consider splitting these into smaller modules.",
+    });
+  }
+
+  if (risks.length === 0) {
+    elements.risksSummary.textContent = "No architectural smells detected.";
+    return;
+  }
+
+  for (const risk of risks) {
+    const div = document.createElement("div");
+    div.className = `risk-item risk-${risk.level}`;
+    div.innerHTML = `
+      <div class="risk-msg"><strong>${risk.msg}</strong></div>
+      <div class="risk-tip">${risk.tip}</div>
+    `;
+    elements.risksSummary.appendChild(div);
+  }
+}
+
 function renderCriticalFiles(criticalFiles) {
   elements.criticalList.innerHTML = "";
   const topCriticalFiles = criticalFiles.slice(0, 10);
@@ -85,7 +136,6 @@ function renderCriticalFiles(criticalFiles) {
     elements.criticalList.appendChild(item);
   }
 }
-
 function renderCycles(cycles) {
   elements.cyclesList.innerHTML = "";
 
@@ -239,6 +289,32 @@ function bindControls() {
   elements.resetBtn.addEventListener("click", () => {
     clearHighlight();
     elements.selectionInfo.textContent = "Click a node to inspect dependencies.";
+  });
+
+  elements.themeToggle.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") || "light";
+    const next = current === "light" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("archmap-theme", next);
+  });
+
+  elements.refreshBtn.addEventListener("click", () => {
+    init();
+  });
+
+  elements.openProjectBtn.addEventListener("click", async () => {
+    elements.openProjectBtn.classList.add("loading");
+    try {
+      const response = await fetch("/api/open", { method: "POST" });
+      if (response.status === 200) {
+        // Full refresh on successful pick
+        await init();
+      }
+    } catch (e) {
+      console.error("Failed to open project:", e);
+    } finally {
+      elements.openProjectBtn.classList.remove("loading");
+    }
   });
 }
 
