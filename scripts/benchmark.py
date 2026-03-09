@@ -17,7 +17,9 @@ from pathlib import Path
 # Allow running from repo root without installing
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from archmap.core import analyze_project
+sys.setrecursionlimit(10000)
+
+from archmap.core import analyze_project  # noqa: E402
 
 SIZES = [100, 500, 1_000, 5_000]
 IMPORTS_PER_FILE = 5  # each file imports from 5 others (approximate)
