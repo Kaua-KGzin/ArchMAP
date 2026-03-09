@@ -19,7 +19,9 @@ def test_from_pkg_import_submodule_resolves_to_submodule_file() -> None:
     main_file = next(f for f in result["parsedFiles"] if f["id"] == "main.py")
     dep_ids = {d["id"] for d in main_file["dependencies"]}
     assert "pkg/utils.py" in dep_ids, f"Expected pkg/utils.py in deps, got {dep_ids}"
-    assert "pkg/__init__.py" not in dep_ids, "Should not depend on __init__.py when submodule exists"
+    assert "pkg/__init__.py" not in dep_ids, (
+        "Should not depend on __init__.py when submodule exists"
+    )
 
 
 def test_from_pkg_import_multiple_submodules() -> None:

@@ -30,8 +30,8 @@ jobs:
 
       - name: Run quality gates
         run: |
-          ruff check .
-          pytest
+          python -m ruff check .
+          python -m pytest
 
       - name: Build distribution
         run: python -m build
