@@ -1,8 +1,8 @@
-181 INFO: PyInstaller: 6.19.0, contrib hooks: 2026.2
-181 INFO: Python: 3.13.12
-204 INFO: Platform: Windows-11-10.0.26200-SP0
-205 INFO: Python environment: C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0
-209 INFO: Module search paths (PYTHONPATH):
+178 INFO: PyInstaller: 6.19.0, contrib hooks: 2026.2
+179 INFO: Python: 3.13.12
+202 INFO: Platform: Windows-11-10.0.26200-SP0
+202 INFO: Python environment: C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0
+207 INFO: Module search paths (PYTHONPATH):
 ['C:\\Users\\kauag\\Downloads\\Nova pasta\\code-arch-visualizer',
  'C:\\Program '
  'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\\python313.zip',
@@ -20,57 +20,56 @@
  'C:\\Program '
  'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\\Lib\\site-packages',
  'C:\\Users\\kauag\\Downloads\\Nova pasta\\code-arch-visualizer\\src']
-715 INFO: Appending 'datas' from .spec
-716 INFO: checking Analysis
-720 INFO: Building because C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\src\archmap\web-ui\static\app.js changed
-720 INFO: Looking for Python shared library...
-720 INFO: Using Python shared library: C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\python313.dll
-720 INFO: Running Analysis Analysis-00.toc
-720 INFO: Target bytecode optimization level: 0
-720 INFO: Initializing module dependency graph...
-722 INFO: Initializing module graph hook caches...
-752 INFO: Analyzing modules for base_library.zip ...
-2396 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-3173 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-4433 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-6094 INFO: Caching module dependency graph...
-6137 INFO: Analyzing C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\src\archmap\cli\main.py
-6242 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-6248 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-6598 INFO: Processing pre-find-module-path hook 'hook-tkinter.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
-6619 INFO: TclTkInfo: initializing cached Tcl/Tk info...
-7120 INFO: Processing standard module hook 'hook-_tkinter.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-7180 INFO: Processing module hooks (post-graph stage)...
-7183 INFO: Processing standard module hook 'hook-_tkinter.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
-7193 INFO: Performing binary vs. data reclassification (930 entries)
-7785 INFO: Looking for ctypes DLLs
-7797 INFO: Analyzing run-time hooks ...
-7798 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
-7801 INFO: Including run-time hook 'pyi_rth__tkinter.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
-7838 INFO: Creating base_library.zip...
-7859 INFO: Looking for dynamic libraries
-8069 INFO: Extra DLL search directories (AddDllDirectory): []
-8070 INFO: Extra DLL search directories (PATH): []
-8537 INFO: Warnings written to C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\build\archmap\warn-archmap.txt
-8556 INFO: Graph cross-reference written to C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\build\archmap\xref-archmap.html
-8595 INFO: checking PYZ
-8597 INFO: Building because toc changed
-8597 INFO: Building PYZ (ZlibArchive) C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\build\archmap\PYZ-00.pyz
-8779 INFO: Building PYZ (ZlibArchive) C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\build\archmap\PYZ-00.pyz completed successfully.
-8802 INFO: checking PKG
-8803 INFO: Building because toc changed
-8803 INFO: Building PKG (CArchive) archmap.pkg
-11589 INFO: Building PKG (CArchive) archmap.pkg completed successfully.
-11612 INFO: Bootloader C:\Users\kauag\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
-11612 INFO: checking EXE
-11614 INFO: Building because toc changed
-11614 INFO: Building EXE from EXE-00.toc
-11615 INFO: Copying bootloader EXE to C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\dist\archmap.exe
-11672 INFO: Copying icon to EXE
-11843 INFO: Copying 0 resources to EXE
-11843 INFO: Embedding manifest in EXE
-11884 WARNING: Execution of 'write_manifest_to_executable' failed on attempt #1 / 20: error(110, 'EndUpdateResourceW', 'O sistema n“o pode abrir o dispositivo ou arquivo especificado.'). Retrying in 0.05 second(s)...
-11943 INFO: Appending PKG archive to EXE
-12094 INFO: Fixing EXE headers
-12940 INFO: Building EXE from EXE-00.toc completed successfully.
-12963 INFO: Build complete! The results are available in: C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\dist
+710 INFO: Appending 'datas' from .spec
+711 INFO: checking Analysis
+727 INFO: Building because C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\src\archmap\__init__.py changed
+727 INFO: Looking for Python shared library...
+727 INFO: Using Python shared library: C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\python313.dll
+727 INFO: Running Analysis Analysis-00.toc
+727 INFO: Target bytecode optimization level: 0
+727 INFO: Initializing module dependency graph...
+729 INFO: Initializing module graph hook caches...
+746 INFO: Analyzing modules for base_library.zip ...
+2354 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+3196 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+4424 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+5857 INFO: Caching module dependency graph...
+5895 INFO: Analyzing C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\src\archmap\cli\main.py
+5984 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+5990 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+6326 INFO: Processing pre-find-module-path hook 'hook-tkinter.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+6327 INFO: TclTkInfo: initializing cached Tcl/Tk info...
+6734 INFO: Processing standard module hook 'hook-_tkinter.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+6778 INFO: Processing module hooks (post-graph stage)...
+6781 INFO: Processing standard module hook 'hook-_tkinter.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks'
+6790 INFO: Performing binary vs. data reclassification (930 entries)
+6905 INFO: Looking for ctypes DLLs
+6919 INFO: Analyzing run-time hooks ...
+6920 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
+6923 INFO: Including run-time hook 'pyi_rth__tkinter.py' from 'C:\\Users\\kauag\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PyInstaller\\hooks\\rthooks'
+6947 INFO: Creating base_library.zip...
+6974 INFO: Looking for dynamic libraries
+7182 INFO: Extra DLL search directories (AddDllDirectory): []
+7183 INFO: Extra DLL search directories (PATH): []
+7588 INFO: Warnings written to C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\build\archmap\warn-archmap.txt
+7606 INFO: Graph cross-reference written to C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\build\archmap\xref-archmap.html
+7643 INFO: checking PYZ
+7645 INFO: Building because C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\src\archmap\__init__.py changed
+7645 INFO: Building PYZ (ZlibArchive) C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\build\archmap\PYZ-00.pyz
+7818 INFO: Building PYZ (ZlibArchive) C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\build\archmap\PYZ-00.pyz completed successfully.
+7838 INFO: checking PKG
+7846 INFO: Building because toc changed
+7846 INFO: Building PKG (CArchive) archmap.pkg
+10472 INFO: Building PKG (CArchive) archmap.pkg completed successfully.
+10495 INFO: Bootloader C:\Users\kauag\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+10495 INFO: checking EXE
+10504 INFO: Building because toc changed
+10504 INFO: Building EXE from EXE-00.toc
+10505 INFO: Copying bootloader EXE to C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\dist\archmap.exe
+10553 INFO: Copying icon to EXE
+10721 INFO: Copying 0 resources to EXE
+10721 INFO: Embedding manifest in EXE
+10767 INFO: Appending PKG archive to EXE
+10776 INFO: Fixing EXE headers
+11598 INFO: Building EXE from EXE-00.toc completed successfully.
+11623 INFO: Build complete! The results are available in: C:\Users\kauag\Downloads\Nova pasta\code-arch-visualizer\dist

@@ -3,17 +3,17 @@
 [![CI](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.0--beta.0-orange)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.4.0--beta-orange)](./CHANGELOG.md)
 
-**Static architecture analysis for any codebase.** ArchMAP scans your source code, builds a dependency graph, detects circular dependencies, flags risky files, and lets you explore everything through an interactive web UI — in one command.
+**Static architecture analysis for any codebase.** ArchMAP scans your source code, builds a dependency graph, detects circular dependencies, flags risky files, and lets you explore everything through a premium interactive web UI — in one command.
 
-Supports **Python · JavaScript · TypeScript · Rust**.
+Supports **Python · JavaScript · TypeScript · Go · PHP · Java · C# · C · C++**.
 
 ## Status
 
-- Current release: `v0.4.0-beta.0`
+- Current release: `v0.4.0-beta` (The "Respect" Update)
 - Primary stack: Python (`>=3.11`)
-- Current supported languages: JavaScript, TypeScript, Python, Rust
+- Current supported languages: Python, JS, TS, Rust, Go, PHP, Java, C#, C, C++
 
 ## Why ArchMAP migrated to Python
 
@@ -38,21 +38,22 @@ Source Code
 -> Exporters (JSON, Mermaid, Cytoscape)
 -> Visualization
 
-## Features
-
-- Static dependency analysis
-- Circular dependency detection
-- Complexity scoring by imports
-- Critical files ranking (incoming dependencies)
-- Architecture risk detection:
-  - god modules
-  - layer violations
-  - dependency explosion
-- Commit/ref comparison:
+- Static dependency analysis for 9+ languages
+- Circular dependency detection with visual cycle mapping
+- Complexity scoring by imports & incoming dependency ranking
+- **Architecture Risk Engine**:
+  - God modules (Hubs) detection
+  - Layer violations & Dependency explosions
+- **Commit/Ref Comparison**:
   - `archmap diff <base> <head>`
-  - dependency/cycle/complexity deltas
-- Export formats: JSON, Mermaid, Cytoscape JSON
-- Interactive UI server (`archmap serve`)
+  - Dependency/cycle/complexity deltas
+- **Interactive "UI of Respect"**:
+  - **Dark Mode** & Premium glassmorphism styling
+  - **Dynamic Project Import**: Switch projects inside the UI
+  - **Architectural Risk Dashboard**
+- **Distribution**:
+  - Standalone Windows Executable with embedded assets
+  - Export formats: JSON, Mermaid, Cytoscape JSON
 
 ## Installation
 
