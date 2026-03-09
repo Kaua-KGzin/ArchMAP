@@ -11,7 +11,7 @@ Supports **Python · JavaScript · TypeScript · Rust**.
 
 ## Status
 
-- Current release: `v0.2.0-beta.0`
+- Current release: `v0.4.0-beta.0`
 - Primary stack: Python (`>=3.11`)
 - Current supported languages: JavaScript, TypeScript, Python, Rust
 
