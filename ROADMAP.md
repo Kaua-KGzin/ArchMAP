@@ -1,22 +1,30 @@
-# Roadmap
+﻿# ArchMAP Roadmap
 
-## Release calendar
+## v0.2.0 (current beta)
 
-- `v0.1.0-beta.0`: 2026-03-04
-- `v0.2.0`: 2026-03-10
+- Python migration completed (`src/archmap` as canonical source)
+- New command: `archmap diff <base> <head>`
+- Architecture risk detection:
+  - god modules
+  - layer violations
+  - dependency explosion
+- CI pipeline with lint + tests + coverage + smoke
 
-## v0.2.0 focus
+## v0.3.0
 
-Expand language support with baseline import parsing and dependency resolution for:
+- Layer configuration file support (`archmap.toml`)
+- More precise language resolvers (workspace aliases, monorepos)
+- Risk trend report over commit history
+- SARIF export for CI integration
 
-- Java
-- Go
-- C#
+## v0.4.0
 
-## Planned v0.2.0 deliverables
+- Drift detection between architecture snapshots
+- Architecture policy checks (allowed/blocked dependencies)
+- Incremental analysis cache for large repositories
 
-- Java parser for `import` and `package` relationships.
-- Go parser for grouped and single `import` statements.
-- C# parser for `using` and `global using`.
-- Test coverage for each new parser and resolver path.
-- Updated docs and examples by language.
+## v1.0.0
+
+- Stable plugin system for custom parsers/analyzers
+- Official VS Code extension integration
+- Full release hardening and compatibility guarantees
