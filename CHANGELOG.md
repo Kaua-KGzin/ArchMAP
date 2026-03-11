@@ -5,6 +5,11 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- No entries yet.
+
+## [0.4.0-beta.1] - 2026-03-11
+
+### Added
 - Governance and release assets:
   - `NOTICE.md` with original distribution attribution for Kauã Gabriel.
   - PR template with mandatory quality checklist.
