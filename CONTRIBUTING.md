@@ -55,16 +55,17 @@ pyinstaller archmap.spec
 
 - `main`: stable branch only
 - `dev`: integration branch for upcoming release
-- `feature/*`: one feature per branch
+- `feat/*`: one feature per branch
+- `feature/*`: legacy alias supported
 - `fix/*`: bugfix branches
 - `docs/*`: documentation-only changes
 - `release/*`: stabilization and release prep
 
-Flow: `feature/* → dev → release/* → main`
+Flow: `feat/* -> dev -> release/* -> main`
 
 ## Development checklist before opening a PR
 
-1. Branch from `dev` (or `main` for urgent fixes).
+1. Branch from `dev` (or `main` only for urgent production fixes).
 2. Implement changes with tests.
 3. Run quality gates:
 
@@ -72,6 +73,7 @@ Flow: `feature/* → dev → release/* → main`
 ruff check .
 pytest
 archmap analyze . --format both --out .codeatlas/local-graph.json --out-mermaid .codeatlas/local-graph.mmd --include-cytoscape
+python -m archmap.cli.main analyze . --fail-on-risks
 ```
 
 4. Update `CHANGELOG.md`, `README.md`, or `ROADMAP.md` if behavior changes.
@@ -83,4 +85,12 @@ archmap analyze . --format both --out .codeatlas/local-graph.json --out-mermaid 
 - Prefer explicit data contracts for analyzer outputs (typed dicts).
 - Add tests for any parser/analyzer/exporter behavior changes.
 - Preserve CLI compatibility unless a major release justifies breaking changes.
+
+## Original distribution attribution
+
+ArchMAP is originally distributed by **Kaua Gabriel** (Kaua-KGzin).
+
+When redistributing source code or binaries, preserve:
+- `LICENSE`
+- `NOTICE.md`
 

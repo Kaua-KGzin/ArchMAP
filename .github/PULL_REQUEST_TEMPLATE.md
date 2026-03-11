@@ -1,25 +1,28 @@
 ## Summary
 
-- What does this PR change?
-- Why is this change needed?
+Describe the purpose of this PR in 2-5 lines.
 
-## Scope checklist
+## Branch Flow
 
-- [ ] Parser behavior
-- [ ] Graph/analyzer behavior
-- [ ] CLI behavior
-- [ ] Web UI behavior
-- [ ] Docs updated (if needed)
+- Source branch: `feat/*` or `fix/*` or `docs/*`
+- Target branch: `dev` (default) or `release/*` (stabilization only)
 
-## Validation
+## Checklist
 
-- [ ] `ruff check .`
-- [ ] `pytest`
-- [ ] `archmap analyze . --format both --out .codeatlas/pr-graph.json --out-mermaid .codeatlas/pr-graph.mmd --include-cytoscape`
-- [ ] Manual UI smoke check (`archmap serve .`)
+- [ ] I ran `python -m ruff check .`
+- [ ] I ran `python -m pytest -q`
+- [ ] I ran smoke analysis:
+  - `python -m archmap.cli.main analyze . --format both --out .codeatlas/local-graph.json --out-mermaid .codeatlas/local-graph.mmd --include-cytoscape`
+- [ ] I updated docs/changelog when behavior changed
+- [ ] I did not commit local runtime logs or build artifacts
+- [ ] I preserved attribution files (`LICENSE`, `NOTICE.md`)
 
-## Release impact
+## Impact
 
-- [ ] Backward compatible
-- [ ] Breaking change
-- [ ] No release impact
+- Breaking change: `yes` / `no`
+- New CLI flags/endpoints:
+- Risk to release:
+
+## Validation Notes
+
+Paste key command outputs or explain test coverage for this PR.

@@ -51,6 +51,7 @@ nav:
   - Getting Started:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quickstart.md
+      - Live Demo: getting-started/demo.md
   - CLI Reference:
       - analyze: cli/analyze.md
       - serve: cli/serve.md
@@ -58,11 +59,17 @@ nav:
   - Internals:
       - Architecture: architecture.md
       - API Reference: api.md
-  - Contributing:
-      - Guide: contributing.md
+      - Migration Notes: MIGRATION_TO_PYTHON.md
+  - Governance:
+      - Branching Strategy: BRANCHING.md
+      - Contributing Guide: contributing.md
       - Code of Conduct: code-of-conduct.md
-  - Changelog: changelog.md
-  - Roadmap: roadmap.md
+      - Original Distribution Notice: notice.md
+  - Operations:
+      - Logging and Artifacts: operations/logging.md
+  - Project:
+      - Changelog: changelog.md
+      - Roadmap: roadmap.md
 
 plugins:
   - search
