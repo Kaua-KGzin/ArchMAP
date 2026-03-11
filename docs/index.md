@@ -1,41 +1,39 @@
 # ArchMAP
 
-[![CI](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/Kaua-KGzin/code-arch-visualizer/blob/main/LICENSE)
+ArchMAP is a static architecture analysis toolkit for source repositories.
 
-**Static architecture analysis for any codebase.** ArchMAP scans your source code, builds a dependency graph, detects circular dependencies, flags risky files, and lets you explore everything through an interactive web UI — in one command.
+It parses code, builds dependency graphs, detects circular dependencies, computes complexity/risk signals, and exposes results through exports and an interactive web UI.
 
-Supports **Python · JavaScript · TypeScript · Rust**.
+## Highlights
 
----
+- Multi-language parsing (Python, JS/TS, Rust, Go, PHP, Java, C#, C/C++)
+- Circular dependency detection
+- Architecture risk scoring:
+  - god modules
+  - layer violations
+  - dependency explosions
+- Git ref diff (`archmap diff`)
+- Exporters: JSON, Mermaid, Cytoscape
+- Interactive service map (`archmap serve`)
 
-## Quick start
+## Recommended path
 
-```bash
-pip install archmap
-archmap serve .
-```
+1. [Installation](getting-started/installation.md)
+2. [Quick Start](getting-started/quickstart.md)
+3. [Live Demo](getting-started/demo.md)
+4. [CLI analyze](cli/analyze.md)
+5. [CLI serve](cli/serve.md)
+6. [CLI diff](cli/diff.md)
 
-That's it. A browser window opens with the interactive graph.
+## Governance and release
 
----
+- [Branching Strategy](BRANCHING.md)
+- [Contributing Guide](contributing.md)
+- [Code of Conduct](code-of-conduct.md)
+- [Changelog](changelog.md)
+- [Roadmap](roadmap.md)
 
-## What you get
+## Attribution
 
-- **Dependency graph** — every file-to-file and file-to-package edge
-- **Circular dependency detection** — exact cycles, highlighted in the UI
-- **Complexity ranking** — top files by outgoing import count
-- **Architecture risk detection** — god modules, layer violations, dependency explosions
-- **Git diff mode** — compare architecture between any two commits
-- **Export formats** — JSON, Mermaid diagram, Cytoscape.js
-
----
-
-## Navigation
-
-- [**Getting Started → Installation**](getting-started/installation.md)
-- [**Getting Started → Quick Start**](getting-started/quickstart.md)
-- [**CLI Reference**](cli/analyze.md)
-- [**Architecture Internals**](architecture.md)
-- [**JSON API Reference**](api.md)
+Original distributor: **Kaua Gabriel / Kauã Gabriel** (Kaua-KGzin).  
+See [Original Distribution Notice](notice.md) and the [MIT License](https://github.com/Kaua-KGzin/code-arch-visualizer/blob/main/LICENSE).

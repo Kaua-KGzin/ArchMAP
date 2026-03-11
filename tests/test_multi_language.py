@@ -8,7 +8,11 @@ def _virtual(files: dict[str, str]):
 
 def test_go_imports() -> None:
     virtual = {
-        "main.go": 'import "fmt"\nimport (\n\t"os"\n\t"net/http"\n)\n',
+        "main.go": (
+            'import "fmt"\n'
+            'import (\n\t"os"\n\talias "net/http"\n\t. "strings"\n)\n'
+            'func main() {\n\tprintln("hello")\n}\n'
+        ),
     }
     result = _virtual(virtual)
     main_file = result["parsedFiles"][0]
@@ -16,6 +20,8 @@ def test_go_imports() -> None:
     assert "pkg:fmt" in dep_ids
     assert "pkg:os" in dep_ids
     assert "pkg:net/http" in dep_ids
+    assert "pkg:strings" in dep_ids
+    assert "pkg:hello" not in dep_ids
 
 def test_php_imports() -> None:
     virtual = {

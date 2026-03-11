@@ -1,0 +1,18 @@
+=================================== ERRORS ====================================
+________________ ERROR collecting tests/test_multi_language.py ________________
+tests\test_multi_language.py:3: in <module>
+    from archmap.core.parser import parse_project
+src\archmap\core\__init__.py:5: in <module>
+    from archmap.core.analyzer.dependency_graph import analyze_graph
+src\archmap\core\analyzer\__init__.py:2: in <module>
+    from archmap.core.analyzer.diff_analyzer import analyze_git_ref, diff_reports
+src\archmap\core\analyzer\diff_analyzer.py:8: in <module>
+    from archmap.core.parser import parse_project
+src\archmap\core\parser\__init__.py:25: in <module>
+    JS_TS_RESOLUTION_EXTENSIONS = sorted(JS_TS_EXTENSIONS | {".json"})
+                                         ^^^^^^^^^^^^^^^^
+E   NameError: name 'JS_TS_EXTENSIONS' is not defined
+=========================== short test summary info ===========================
+ERROR tests/test_multi_language.py - NameError: name 'JS_TS_EXTENSIONS' is no...
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.32s

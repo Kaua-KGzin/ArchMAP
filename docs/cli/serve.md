@@ -14,6 +14,7 @@ archmap serve [path] [options]
 
 | Option | Default | Description |
 |---|---|---|
+| `--host` | `0.0.0.0` | Host/interface to bind the server |
 | `--port` | `3000` | Port to listen on |
 | `--no-open` | off | Skip opening the browser automatically |
 | `--format` | `both` | Output format for exports: `json`, `mermaid`, or `both` |
@@ -35,6 +36,9 @@ archmap serve . --no-open
 
 # Serve a specific project
 archmap serve /path/to/project --port 4000
+
+# Bind to localhost only
+archmap serve . --host 127.0.0.1 --port 4000
 ```
 
 ## Live API endpoints
@@ -45,9 +49,12 @@ While running, the server exposes:
 |---|---|
 | `GET /` | Interactive graph UI |
 | `GET /api/graph` | Full JSON report (same as `archmap analyze` output) |
+| `GET /api/project` | Current analyzed project path |
 | `GET /api/health` | `{"status":"ok"}` |
+| `POST /api/reanalyze` | Recompute report for current project path |
+| `POST /api/open` | Open folder picker and switch project |
 
 ## Notes
 
 - Press `Ctrl+C` to stop the server.
-- The graph is computed once at startup. Restart to reflect code changes.
+- The UI `Refresh` button triggers `POST /api/reanalyze`, so restart is no longer required.

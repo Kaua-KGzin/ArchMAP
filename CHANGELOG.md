@@ -2,7 +2,37 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.4.0-beta] - 2026-03-09
+## [Unreleased]
+
+### Added
+- No entries yet.
+
+## [0.4.0-beta.1] - 2026-03-11
+
+### Added
+- Governance and release assets:
+  - `NOTICE.md` with original distribution attribution for Kauã Gabriel.
+  - PR template with mandatory quality checklist.
+  - Demo script: `scripts/demo.ps1`.
+  - EXE build automation: `scripts/build-exe.ps1` with hash manifest and smoke test.
+- Documentation pages for:
+  - live demo
+  - logging/artifact policy
+  - MkDocs governance/project wrapper pages
+
+### Changed
+- Branch flow documentation standardized to `feat/* -> dev -> release/* -> main` (with legacy `feature/*` support).
+- Repository hygiene:
+  - root loose logs moved to `logs/archive/`
+  - runtime logs standardized in `logs/runtime/`
+  - generated build artifacts removed from source tracking policy
+- README rewritten with:
+  - professional Git workflow
+  - demo commands
+  - folder governance
+  - attribution section
+
+## [0.4.0-beta.0] - 2026-03-09
 
 ### Added
 - **Multi-Language Registry:** Overhauled the parser architecture to support plugin-based language detection. Added support for **Go, PHP, Java, C#, C, and C++**.

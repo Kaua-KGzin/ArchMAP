@@ -1,6 +1,6 @@
 ﻿# ArchMAP Roadmap
 
-## v0.2.0 (current beta)
+## v0.4.0-beta.0 (current beta)
 
 - Python migration completed (`src/archmap` as canonical source)
 - New command: `archmap diff <base> <head>`
