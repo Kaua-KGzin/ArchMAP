@@ -64,6 +64,30 @@ def test_cli_analyze_with_mermaid_only_exports_mermaid(tmp_path) -> None:
     assert not json_output.exists()
 
 
+def test_cli_analyze_fail_on_cycles_returns_code_2(tmp_path) -> None:
+    fixture = tmp_path / "fixture3"
+    fixture.mkdir()
+    (fixture / "a.py").write_text("import b\n", encoding="utf-8")
+    (fixture / "b.py").write_text("import a\n", encoding="utf-8")
+
+    json_output = tmp_path / "cycle.json"
+
+    result = _run_cli(
+        [
+            "analyze",
+            str(fixture),
+            "--format",
+            "json",
+            "--out",
+            str(json_output),
+            "--fail-on-cycles",
+        ]
+    )
+
+    assert result.returncode == 2
+    assert "cycle gate failed" in (result.stderr or "")
+
+
 def _run_cli(args: list[str]) -> subprocess.CompletedProcess[str]:
     repo_root = Path(__file__).resolve().parents[1]
     env = os.environ.copy()
