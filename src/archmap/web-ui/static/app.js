@@ -31,6 +31,7 @@ const elements = {
 };
 
 let cy = null;
+let controlsBound = false;
 
 // Apply saved theme early
 const savedTheme = localStorage.getItem("archmap-theme") || "light";
@@ -50,8 +51,15 @@ async function init() {
 
     const reportData = await response.json();
     fillSidebar(reportData);
+    if (cy) {
+      cy.destroy();
+      cy = null;
+    }
     initializeGraph(reportData);
-    bindControls();
+    if (!controlsBound) {
+      bindControls();
+      controlsBound = true;
+    }
   } finally {
     elements.refreshBtn?.classList.remove("loading");
   }
@@ -298,8 +306,13 @@ function bindControls() {
     localStorage.setItem("archmap-theme", next);
   });
 
-  elements.refreshBtn.addEventListener("click", () => {
-    init();
+  elements.refreshBtn.addEventListener("click", async () => {
+    try {
+      await requestReanalyze();
+    } catch (error) {
+      console.error("Failed to reanalyze project:", error);
+    }
+    await init();
   });
 
   elements.openProjectBtn.addEventListener("click", async () => {
@@ -316,6 +329,13 @@ function bindControls() {
       elements.openProjectBtn.classList.remove("loading");
     }
   });
+}
+
+async function requestReanalyze() {
+  const response = await fetch("/api/reanalyze", { method: "POST" });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
 }
 
 function applyFilters() {

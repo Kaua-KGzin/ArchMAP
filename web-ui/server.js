@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,32 +10,347 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const staticDirectory = path.join(__dirname, "static");
 
-export async function startWebUi({ report, port = 3000, openBrowser = true }) {
-  const app = express();
+const DEFAULT_HOST = "0.0.0.0";
+const DEFAULT_PORT = 3000;
+const DEFAULT_SEARCH_LIMIT = 30;
 
-  app.get("/api/graph", (_request, response) => {
-    response.json(report);
+export async function startWebUi(options = {}) {
+  const {
+    report = null,
+    reportProvider = null,
+    projectPath = ".",
+    host = DEFAULT_HOST,
+    port = DEFAULT_PORT,
+    openBrowser = true,
+    staticDir = staticDirectory,
+  } = options;
+
+  const provider = reportProvider ?? createInMemoryReportStore({ report, projectPath });
+  await provider.ensureLoaded();
+
+  const app = express();
+  app.use(express.json({ limit: "256kb" }));
+
+  app.get("/api/graph", async (_request, response) => {
+    const currentReport = await provider.getReport();
+    response.json(currentReport);
+  });
+
+  app.get("/api/project", (_request, response) => {
+    response.json({
+      path: provider.getProjectPath(),
+      updatedAt: provider.getUpdatedAt(),
+    });
+  });
+
+  app.get("/api/metrics", async (_request, response) => {
+    const currentReport = await provider.getReport();
+    response.json({
+      metrics: currentReport.metrics ?? {},
+      riskSummary: summarizeRiskCounts(currentReport),
+    });
+  });
+
+  app.get("/api/search", async (request, response) => {
+    const query = String(request.query.q ?? "").trim();
+    const limit = clampLimit(request.query.limit);
+    const currentReport = await provider.getReport();
+    response.json(searchInReport(currentReport, query, limit));
+  });
+
+  app.get("/api/node/:id", async (request, response) => {
+    const nodeId = decodeURIComponent(request.params.id);
+    const currentReport = await provider.getReport();
+    const nodeData = inspectNode(currentReport, nodeId);
+    if (!nodeData) {
+      response.status(404).json({ error: "Node not found", id: nodeId });
+      return;
+    }
+    response.json(nodeData);
+  });
+
+  app.post("/api/reanalyze", async (_request, response) => {
+    try {
+      await provider.reanalyze();
+      response.json({
+        status: "success",
+        path: provider.getProjectPath(),
+        updatedAt: provider.getUpdatedAt(),
+      });
+    } catch (error) {
+      response.status(500).json({
+        status: "error",
+        message: formatError(error),
+      });
+    }
+  });
+
+  app.post("/api/project", async (request, response) => {
+    const nextPath = String(request.body?.path ?? "").trim();
+    if (!nextPath) {
+      response.status(400).json({ status: "error", message: "body.path is required" });
+      return;
+    }
+    try {
+      await provider.setProjectPath(nextPath);
+      response.json({
+        status: "success",
+        path: provider.getProjectPath(),
+        updatedAt: provider.getUpdatedAt(),
+      });
+    } catch (error) {
+      response.status(500).json({
+        status: "error",
+        message: formatError(error),
+      });
+    }
   });
 
   app.get("/api/health", (_request, response) => {
-    response.json({ status: "ok" });
+    response.json({
+      status: "ok",
+      path: provider.getProjectPath(),
+      updatedAt: provider.getUpdatedAt(),
+    });
   });
 
-  app.use(express.static(staticDirectory));
+  app.use(express.static(staticDir));
   app.get(/.*/, (_request, response) => {
-    response.sendFile(path.join(staticDirectory, "index.html"));
+    response.sendFile(path.join(staticDir, "index.html"));
   });
 
   return new Promise((resolve, reject) => {
-    const server = app.listen(port, () => {
-      const url = `http://localhost:${port}`;
+    const server = app.listen(port, host, () => {
+      const browserHost = browserHostFor(host);
+      const url = `http://${browserHost}:${port}`;
       if (openBrowser) {
         tryOpenBrowser(url);
       }
-      resolve({ server, url });
+      resolve({
+        server,
+        url,
+        close: () => closeServer(server),
+        reportProvider: provider,
+      });
     });
 
     server.on("error", reject);
+  });
+}
+
+export function createInMemoryReportStore({ report = null, projectPath = "." } = {}) {
+  let currentReport = report ?? {
+    projectRoot: projectPath,
+    nodes: [],
+    edges: [],
+    metrics: {},
+    cycles: [],
+    risks: {},
+  };
+  let currentPath = projectPath;
+  let updatedAt = new Date().toISOString();
+
+  return {
+    async ensureLoaded() {
+      if (!currentReport) {
+        currentReport = {
+          projectRoot: currentPath,
+          nodes: [],
+          edges: [],
+          metrics: {},
+          cycles: [],
+          risks: {},
+        };
+      }
+    },
+    async getReport() {
+      return currentReport;
+    },
+    async setReport(nextReport) {
+      currentReport = nextReport ?? currentReport;
+      updatedAt = new Date().toISOString();
+    },
+    async setProjectPath(nextPath) {
+      currentPath = nextPath;
+      await this.reanalyze();
+    },
+    async reanalyze() {
+      updatedAt = new Date().toISOString();
+    },
+    getProjectPath() {
+      return currentPath;
+    },
+    getUpdatedAt() {
+      return updatedAt;
+    },
+  };
+}
+
+export function createPythonReportProvider({
+  projectPath = ".",
+  pythonCmd = "python",
+  extraArgs = [],
+} = {}) {
+  let currentPath = projectPath;
+  let currentReport = null;
+  let updatedAt = null;
+
+  async function analyzeWithPython() {
+    const tempFile = path.join(
+      os.tmpdir(),
+      `archmap-report-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.json`
+    );
+    const args = [
+      "-m",
+      "archmap.cli.main",
+      "analyze",
+      currentPath,
+      "--format",
+      "json",
+      "--out",
+      tempFile,
+      ...extraArgs,
+    ];
+
+    await runProcess(pythonCmd, args);
+    try {
+      const text = await fs.readFile(tempFile, "utf-8");
+      currentReport = JSON.parse(text);
+      updatedAt = new Date().toISOString();
+    } finally {
+      await fs.unlink(tempFile).catch(() => undefined);
+    }
+  }
+
+  return {
+    async ensureLoaded() {
+      if (!currentReport) {
+        await analyzeWithPython();
+      }
+    },
+    async getReport() {
+      await this.ensureLoaded();
+      return currentReport;
+    },
+    async reanalyze() {
+      await analyzeWithPython();
+    },
+    async setProjectPath(nextPath) {
+      currentPath = nextPath;
+      await analyzeWithPython();
+    },
+    getProjectPath() {
+      return currentPath;
+    },
+    getUpdatedAt() {
+      return updatedAt;
+    },
+  };
+}
+
+function clampLimit(rawLimit) {
+  const parsed = Number.parseInt(String(rawLimit ?? DEFAULT_SEARCH_LIMIT), 10);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_SEARCH_LIMIT;
+  }
+  return Math.max(1, Math.min(200, parsed));
+}
+
+function searchInReport(report, query, limit) {
+  const nodes = Array.isArray(report?.nodes) ? report.nodes : [];
+  const normalizedQuery = query.toLowerCase();
+  const filtered = normalizedQuery
+    ? nodes.filter((node) => {
+        const id = String(node?.id ?? "").toLowerCase();
+        const label = String(node?.label ?? "").toLowerCase();
+        return id.includes(normalizedQuery) || label.includes(normalizedQuery);
+      })
+    : nodes;
+
+  const results = filtered.slice(0, limit).map((node) => ({
+    id: node.id,
+    label: node.label,
+    type: node.type,
+    folder: node.folder,
+    language: node.language,
+  }));
+
+  return {
+    query,
+    limit,
+    total: filtered.length,
+    results,
+  };
+}
+
+function inspectNode(report, nodeId) {
+  const nodes = Array.isArray(report?.nodes) ? report.nodes : [];
+  const edges = Array.isArray(report?.edges) ? report.edges : [];
+  const node = nodes.find((candidate) => candidate?.id === nodeId);
+  if (!node) {
+    return null;
+  }
+
+  const incoming = edges.filter((edge) => edge.target === nodeId);
+  const outgoing = edges.filter((edge) => edge.source === nodeId);
+
+  return {
+    node,
+    incoming,
+    outgoing,
+  };
+}
+
+function summarizeRiskCounts(report) {
+  const risks = report?.risks ?? {};
+  return {
+    cycles: Array.isArray(report?.cycles) ? report.cycles.length : 0,
+    godModules: Array.isArray(risks.god_modules) ? risks.god_modules.length : 0,
+    layerViolations: Array.isArray(risks.layer_violations) ? risks.layer_violations.length : 0,
+    dependencyExplosions: Array.isArray(risks.dependency_explosions)
+      ? risks.dependency_explosions.length
+      : 0,
+  };
+}
+
+function browserHostFor(host) {
+  if (host === "0.0.0.0" || host === "::") {
+    return "localhost";
+  }
+  return host;
+}
+
+async function closeServer(server) {
+  await new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function runProcess(command, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      stdio: "pipe",
+      windowsHide: true,
+    });
+    let stderr = "";
+
+    child.stderr?.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(stderr.trim() || `${command} exited with code ${code}`));
+    });
   });
 }
 
@@ -52,7 +369,14 @@ function tryOpenBrowser(url) {
       return;
     }
     spawn("xdg-open", [url], { detached: true, stdio: "ignore" }).unref();
-  } catch (error) {
+  } catch (_error) {
     // Browser opening is best-effort only.
   }
+}
+
+function formatError(error) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }
