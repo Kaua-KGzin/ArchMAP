@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from archmap.utils.file_utils import first_segment, percentile
+from archmap.utils.file_utils import normalize_file_id, percentile
 
 LAYER_ORDER = {
     "cli": 5,
@@ -60,8 +60,8 @@ def detect_architectural_risks(
         if source not in file_ids or target not in file_ids:
             continue
 
-        source_layer = first_segment(source)
-        target_layer = first_segment(target)
+        source_layer = _detect_layer(source)
+        target_layer = _detect_layer(target)
         source_rank = LAYER_ORDER.get(source_layer)
         target_rank = LAYER_ORDER.get(target_layer)
         if source_rank is None or target_rank is None:
@@ -135,3 +135,11 @@ def detect_architectural_risks(
             "dependency_explosion_min_connections": explosion_threshold,
         },
     }
+
+
+def _detect_layer(file_id: str) -> str | None:
+    parts = [part for part in normalize_file_id(file_id).split("/") if part and part != "."]
+    for part in parts:
+        if part in LAYER_ORDER:
+            return part
+    return None

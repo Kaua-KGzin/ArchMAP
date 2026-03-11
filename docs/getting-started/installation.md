@@ -2,18 +2,13 @@
 
 ## Requirements
 
-- Python **3.11** or newer
-- pip ≥ 23
+- Python `>=3.11`
+- pip `>=23`
 
 ## Install from PyPI
 
 ```bash
 pip install archmap
-```
-
-Verify:
-
-```bash
 archmap version
 ```
 
@@ -22,15 +17,26 @@ archmap version
 ```bash
 git clone https://github.com/Kaua-KGzin/code-arch-visualizer
 cd code-arch-visualizer
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
-## Windows standalone executable
+## Node dependencies (optional, for `web-ui/dev-server.js`)
 
-A portable `.exe` (no Python required) is available on the [Releases](https://github.com/Kaua-KGzin/code-arch-visualizer/releases) page.
-
-Download `archmap.exe`, place it anywhere in your `PATH`, and run:
-
-```bat
-archmap version
+```bash
+npm ci
 ```
+
+## Windows executable
+
+Download `archmap.exe` from Releases, or build locally:
+
+```powershell
+python -m pip install pyinstaller
+powershell -ExecutionPolicy Bypass -File scripts/build-exe.ps1 -Clean
+```
+
+Generated artifacts:
+
+- `dist/archmap.exe`
+- `dist/archmap-<version>.exe`
+- `dist/archmap-build-info.json`

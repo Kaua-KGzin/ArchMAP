@@ -4,7 +4,8 @@ import posixpath
 from pathlib import Path, PurePosixPath
 from typing import Any, TypedDict
 
-from archmap.core.parser import plugins as plugins  # Register new languages (Go, PHP, etc)
+from archmap.core.parser import plugins as plugins  # Register additional generic languages
+from archmap.core.parser.go_parser import GoParser
 from archmap.core.parser.js_parser import JSParser, TSParser
 from archmap.core.parser.python_parser import PythonImportEntry, PythonParser
 from archmap.core.parser.registry import Dependency, registry
@@ -21,6 +22,7 @@ registry.register(PythonParser())
 registry.register(JSParser())
 registry.register(TSParser())
 registry.register(RustParser())
+registry.register(GoParser())
 
 JS_TS_RESOLUTION_EXTENSIONS = sorted(JS_TS_EXTENSIONS | {".json"})
 

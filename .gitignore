@@ -1,6 +1,8 @@
 node_modules/
 coverage/
 dist/
+build/
+site/
 *.log
 .codeatlas/
 .venv/
@@ -13,3 +15,7 @@ __pycache__/
 htmlcov/
 .coverage
 .coverage.*
+logs/runtime/*
+!logs/runtime/.gitkeep
+server_log.txt
+test_out.txt

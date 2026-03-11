@@ -1,18 +1,12 @@
 # Quick Start
 
-## 1. Install
+## 1. Analyze a repository
 
 ```bash
-pip install archmap
+archmap analyze /path/to/project --format both --include-cytoscape
 ```
 
-## 2. Analyze a project
-
-```bash
-archmap analyze /path/to/your/project
-```
-
-Sample output:
+Typical output:
 
 ```text
 [ok] 42 files analyzed
@@ -20,55 +14,38 @@ Sample output:
 [ok] 3 circular dependencies detected
 Top complexity (imports):
   - src/archmap/cli/main.py: 14 imports (87% score)
-  - src/archmap/core/analyzer/risk_analyzer.py: 6 imports (40% score)
 Top risk files:
-  - src/archmap/core/__init__.py: score 42 (god_module, circular_dependency)
-[info] JSON report exported to .codeatlas/graph.json
-[info] Mermaid graph exported to .codeatlas/graph.mmd
+  - src/core/__init__.py: score 42 (god_module, circular_dependency)
 ```
 
-## 3. Open the interactive Web UI
+## 2. Start the interactive UI
 
 ```bash
-archmap serve /path/to/your/project
+archmap serve /path/to/project --port 3000
 ```
 
-A browser window opens automatically at `http://localhost:3000`.
-
-Use `--port` to change the port:
+Optional:
 
 ```bash
-archmap serve . --port 8080
+archmap serve . --host 127.0.0.1 --port 8080 --no-open
 ```
 
-Use `--no-open` to prevent the browser from opening:
+## 3. Use quality gates in CI
 
 ```bash
-archmap serve . --no-open
+archmap analyze . --fail-on-risks --top 10
 ```
 
-## 4. Try the included example
+Exit code `2` means quality gate failed.
 
-```bash
-archmap serve examples/sample-project
-```
-
-This runs the bundled [sample project](https://github.com/Kaua-KGzin/code-arch-visualizer/tree/main/examples/sample-project) and opens the UI so you can explore a pre-built graph right away.
-
-## 5. Compare two git commits
+## 4. Compare two git refs
 
 ```bash
 archmap diff HEAD~5 HEAD
 ```
 
-Output:
+## 5. Run sample project
 
-```text
-Comparing HEAD~5 -> HEAD
-+12 dependencies
-+1 circular dependencies
-complexity +18.00%
-+0 layer violations
-+1 god modules
-+0 dependency explosions
+```bash
+archmap serve examples/sample-project
 ```

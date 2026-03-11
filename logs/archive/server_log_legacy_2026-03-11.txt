@@ -1,0 +1,1 @@
+C:\Users\kauag\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\python.exe: No module named archmap.__main__; 'archmap' is a package and cannot be directly executed

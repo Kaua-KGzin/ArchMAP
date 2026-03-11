@@ -1,19 +1,19 @@
 {
   "name": "archmap",
-  "version": "0.1.0-beta.0",
-  "description": "Visualize and analyze code architecture through dependency graphs",
+  "version": "0.4.0-beta.0",
+  "description": "Static architecture analysis and visualization for software projects",
+  "private": true,
   "type": "module",
-  "bin": {
-    "archmap": "./cli/index.js",
-    "code-arch": "./cli/index.js"
-  },
   "scripts": {
-    "start": "node cli/index.js .",
-    "analyze": "node cli/index.js analyze .",
-    "serve": "node cli/index.js serve .",
-    "test": "node --test",
-    "test:smoke": "node cli/index.js analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd",
-    "check": "npm run test && npm run test:smoke"
+    "analyze": "python -m archmap.cli.main analyze .",
+    "serve": "python -m archmap.cli.main serve .",
+    "serve:web": "node web-ui/dev-server.js .",
+    "diff": "python -m archmap.cli.main diff HEAD~1 HEAD",
+    "demo": "powershell -ExecutionPolicy Bypass -File scripts/demo.ps1",
+    "test": "python -m pytest -q",
+    "lint": "python -m ruff check .",
+    "build:exe": "powershell -ExecutionPolicy Bypass -File scripts/build-exe.ps1",
+    "check": "npm run lint && npm run test"
   },
   "engines": {
     "node": ">=20"

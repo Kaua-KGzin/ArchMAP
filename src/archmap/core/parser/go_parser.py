@@ -1,0 +1,60 @@
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from archmap.core.parser.registry import Dependency, ParserPlugin
+
+SINGLE_IMPORT_RE = re.compile(
+    r'^\s*import\s+(?:(?:[A-Za-z_][A-Za-z0-9_]*|\.|_)\s+)?"([^"]+)"',
+    re.MULTILINE,
+)
+BLOCK_IMPORT_RE = re.compile(
+    r"^\s*import\s*\((.*?)\)",
+    re.MULTILINE | re.DOTALL,
+)
+BLOCK_ENTRY_RE = re.compile(
+    r'^\s*(?:(?:[A-Za-z_][A-Za-z0-9_]*|\.|_)\s+)?"([^"]+)"',
+    re.MULTILINE,
+)
+
+
+class GoParser(ParserPlugin):
+    language = "go"
+    extensions = [".go"]
+
+    def parse(self, source_code: str) -> list[str]:
+        imports: set[str] = set()
+
+        for match in SINGLE_IMPORT_RE.finditer(source_code):
+            specifier = match.group(1).strip()
+            if specifier:
+                imports.add(specifier)
+
+        for block_match in BLOCK_IMPORT_RE.finditer(source_code):
+            block_content = block_match.group(1)
+            for entry_match in BLOCK_ENTRY_RE.finditer(block_content):
+                specifier = entry_match.group(1).strip()
+                if specifier:
+                    imports.add(specifier)
+
+        return sorted(imports)
+
+    def resolve(
+        self,
+        import_entries: list[Any],
+        file_id: str,
+        file_ids: set[str],
+    ) -> list[Dependency]:
+        dependencies: list[Dependency] = []
+        for specifier in import_entries:
+            if not isinstance(specifier, str):
+                continue
+            dependencies.append(
+                {
+                    "id": f"pkg:{specifier}",
+                    "label": specifier,
+                    "type": "package",
+                }
+            )
+        return dependencies
