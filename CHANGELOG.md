@@ -2,6 +2,49 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- Governance and release assets:
+  - `NOTICE.md` with original distribution attribution for Kauã Gabriel.
+  - PR template with mandatory quality checklist.
+  - Demo script: `scripts/demo.ps1`.
+  - EXE build automation: `scripts/build-exe.ps1` with hash manifest and smoke test.
+- Documentation pages for:
+  - live demo
+  - logging/artifact policy
+  - MkDocs governance/project wrapper pages
+
+### Changed
+- Branch flow documentation standardized to `feat/* -> dev -> release/* -> main` (with legacy `feature/*` support).
+- Repository hygiene:
+  - root loose logs moved to `logs/archive/`
+  - runtime logs standardized in `logs/runtime/`
+  - generated build artifacts removed from source tracking policy
+- README rewritten with:
+  - professional Git workflow
+  - demo commands
+  - folder governance
+  - attribution section
+
+## [0.4.0-beta.0] - 2026-03-09
+
+### Added
+- **Multi-Language Registry:** Overhauled the parser architecture to support plugin-based language detection. Added support for **Go, PHP, Java, C#, C, and C++**.
+- **"UI of Respect" (Web UI v2):**
+  - **Dark Mode Support:** Full dark theme with session persistence.
+  - **Architectural Risks Panel:** Live detection of circular dependencies and "Hub modules".
+  - **Dynamic Project Import:** New folder icon in the UI allows switching the analysis target on the fly via a native directory picker (no restart required).
+  - **Real-time Refresh:** Manual data re-polling for instant graph updates.
+- **Respectful Executable (EXE):**
+  - **Standalone Launcher:** Double-clicking the EXE now automatically launches the interactive Service Map.
+  - **Persistent Error Log:** Added a "Press Enter to exit" pause on errors in the frozen executable for easier troubleshooting.
+  - **Premium Branding:** Embedded high-resolution project icon and professional CLI banner.
+
+### Fixed
+- **CI Stabilization:** Resolved 22 linting regressions and updated the test suite to ensure 100% compatibility with the new parser architecture.
+- **Repository Cleanup:** Removed redundant legacy JavaScript files from the root to ensure a clean Python-centric distribution.
+
 ## [0.2.1] - 2026-03-07
 
 ### Added

@@ -14,6 +14,16 @@ SUPPORTED_EXTENSIONS = {
     ".cts": "typescript",
     ".py": "python",
     ".rs": "rust",
+    ".go": "go",
+    ".php": "php",
+    ".java": "java",
+    ".cs": "csharp",
+    ".c": "c",
+    ".h": "c",
+    ".cpp": "cpp",
+    ".hpp": "cpp",
+    ".cc": "cpp",
+    ".cxx": "cpp",
 }
 
 JS_TS_EXTENSIONS = {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}

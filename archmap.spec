@@ -6,7 +6,7 @@ a = Analysis(
     pathex=['src'],
     binaries=[],
     datas=[('src/archmap/web-ui/static', 'web-ui/static')],
-    hiddenimports=[],
+    hiddenimports=['tkinter', 'tkinter.filedialog'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,4 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='resources/icon.png',
 )

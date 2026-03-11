@@ -1,0 +1,14 @@
+# Original Distribution Notice
+
+Original distributor and primary author:
+
+- **Kaua Gabriel / Kauã Gabriel** (Kaua-KGzin)
+
+Redistributions must preserve:
+
+- the MIT license file
+- this distribution notice
+
+Reference:
+
+- https://github.com/Kaua-KGzin/code-arch-visualizer/blob/main/NOTICE.md

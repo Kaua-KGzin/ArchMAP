@@ -1,172 +1,164 @@
-﻿# ArchMAP
+# ArchMAP
 
 [![CI](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.0--beta.0-orange)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.4.0--beta.0-orange)](./CHANGELOG.md)
 
-**Static architecture analysis for any codebase.** ArchMAP scans your source code, builds a dependency graph, detects circular dependencies, flags risky files, and lets you explore everything through an interactive web UI — in one command.
+Static architecture analysis for software repositories.
 
-Supports **Python · JavaScript · TypeScript · Rust**.
+ArchMAP scans source code, builds dependency graphs, detects cycles, reports architectural risks, and serves an interactive web UI.
+
+Supported languages:
+- Python
+- JavaScript
+- TypeScript
+- Rust
+- Go
+- PHP
+- Java
+- C#
+- C/C++
 
 ## Status
 
-- Current release: `v0.2.0-beta.0`
-- Primary stack: Python (`>=3.11`)
-- Current supported languages: JavaScript, TypeScript, Python, Rust
-
-## Why ArchMAP migrated to Python
-
-ArchMAP was migrated from Node.js to Python to make the analysis engine easier to evolve and
-package for automation workflows. The migration was done to unlock:
-
-- A cleaner modular architecture under `src/archmap`
-- Better compatibility with data/analysis tooling ecosystems
-- Easier CLI packaging and CI quality gates (lint + coverage)
-- Faster iteration for architecture analysis features like `diff` and risk scoring
-
-The old JavaScript implementation can remain in history, but Python is now the canonical runtime.
-
-## How ArchMAP Works
-
-Pipeline:
-
-Source Code
--> Parser
--> Dependency Graph
--> Analyzer (cycles, complexity, risk)
--> Exporters (JSON, Mermaid, Cytoscape)
--> Visualization
-
-## Features
-
-- Static dependency analysis
-- Circular dependency detection
-- Complexity scoring by imports
-- Critical files ranking (incoming dependencies)
-- Architecture risk detection:
-  - god modules
-  - layer violations
-  - dependency explosion
-- Commit/ref comparison:
-  - `archmap diff <base> <head>`
-  - dependency/cycle/complexity deltas
-- Export formats: JSON, Mermaid, Cytoscape JSON
-- Interactive UI server (`archmap serve`)
+- Current release: `v0.4.0-beta.0`
+- Primary runtime: Python `>=3.11`
+- Interactive UI: built-in static UI + Node dev server option
+- Distribution: PyPI package + Windows executable
 
 ## Installation
+
+### From PyPI
 
 ```bash
 pip install archmap
 ```
 
-For local development (editable + dev tools):
+### For local development
 
 ```bash
 git clone https://github.com/Kaua-KGzin/code-arch-visualizer
 cd code-arch-visualizer
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
-## CLI Usage
+## Quick demo
 
-Main command:
+Run the bundled sample project:
 
 ```bash
-archmap
+archmap analyze examples/sample-project --format both --include-cytoscape
+archmap serve examples/sample-project
 ```
 
-Backward-compatible alias:
+Useful API endpoints while `serve` is running:
 
-```bash
-code-arch
-```
+- `GET /api/graph`
+- `GET /api/health`
+- `GET /api/project`
+- `POST /api/reanalyze`
+
+## CLI overview
 
 ### Analyze
 
 ```bash
-archmap analyze <path> [--format json|mermaid|both] [--out <file>] [--out-mermaid <file>] [--include-cytoscape]
+archmap analyze <path> --format json|mermaid|both
+```
+
+Quality gates for CI:
+
+```bash
+archmap analyze . --fail-on-risks --top 10
 ```
 
 ### Serve
 
 ```bash
-archmap serve <path> [--port 3000] [--no-open] [--format json|mermaid|both]
+archmap serve <path> --host 0.0.0.0 --port 3000
 ```
 
-### Diff between refs
+### Diff
 
 ```bash
 archmap diff HEAD~5 HEAD
 ```
 
-Example output:
+## Git workflow (professional flow)
+
+Branch promotion model:
+
+`feat/* -> dev -> release/* -> main`
+
+Also supported:
+- `feature/*` (legacy alias)
+- `fix/*`
+- `docs/*`
+
+Rules:
+
+1. No direct feature merge into `main`.
+2. `release/*` accepts only stabilization changes.
+3. CI must pass before merge.
+4. Update docs/changelog when behavior changes.
+
+See:
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [docs/BRANCHING.md](./docs/BRANCHING.md)
+
+## Repository layout
 
 ```text
-+12 dependencies
-+1 circular dependencies
-complexity +18.00%
+ArchMAP/
++-- .github/                  # CI/release workflows and PR template
++-- docs/                     # MkDocs documentation
++-- examples/                 # sample project for demos
++-- logs/                     # runtime/archive log organization
++-- scripts/                  # automation helpers (smoke, benchmark, exe build)
++-- src/archmap/              # Python source code
++-- tests/                    # automated test suite
++-- web-ui/                   # Node dev server + static assets
++-- archmap.spec              # PyInstaller spec
++-- NOTICE.md                 # original distribution notice
+`-- README.md
 ```
 
-## Recommended Repository Structure
+## Logs and artifacts
 
-```text
-ArchMAP
-├── src/
-│   └── archmap/
-│       ├── cli/
-│       │   └── main.py
-│       ├── core/
-│       │   ├── parser/
-│       │   ├── analyzer/
-│       │   └── graph/
-│       ├── exporters/
-│       └── utils/
-├── tests/
-├── docs/
-├── examples/
-├── scripts/
-├── README.md
-├── ROADMAP.md
-├── CONTRIBUTING.md
-├── CHANGELOG.md
-└── pyproject.toml
+- Runtime logs: `logs/runtime/` (git-ignored)
+- Historical logs: `logs/archive/`
+- Build artifacts: generated locally (`build/`, `dist/`) and should not be committed as source changes
+
+## Windows executable
+
+Build locally:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build-exe.ps1 -Clean
 ```
 
-## Branch Strategy
+This script:
+- Builds `dist/archmap.exe`
+- Creates a versioned binary copy
+- Writes `dist/archmap-build-info.json` with SHA256
+- Runs executable smoke test (`archmap.exe version`)
 
-- `main`: stable production code only
-- `dev`: integration branch for upcoming release
-- `feature/*`: isolated features
-- `release/*`: stabilization, docs, tests, and release prep
+## Node development server utilities
 
-Flow:
-
-`feature/* -> dev -> release/* -> main`
-
-## Development
-
-Run lint:
+For frontend/API exploration with dynamic Python analysis:
 
 ```bash
-ruff check .
+npm run serve:web -- --path .
 ```
 
-Run tests with coverage:
+## Original distributor rights
 
-```bash
-pytest
-```
+Original distributor and primary author: **Kaua Gabriel / Kauã Gabriel** (Kaua-KGzin).
 
-Smoke analysis:
-
-```bash
-archmap analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd --include-cytoscape
-```
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Please read our [Code of Conduct](./CODE_OF_CONDUCT.md) before opening issues or pull requests.
+Redistributions must preserve:
+- [LICENSE](./LICENSE)
+- [NOTICE.md](./NOTICE.md)
 
 ## License
 

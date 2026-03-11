@@ -19,6 +19,12 @@ archmap analyze [path] [options]
 | `--out-mermaid` | `.codeatlas/graph.mmd` | Mermaid output path |
 | `--out-cytoscape` | `.codeatlas/graph-cytoscape.json` | Cytoscape output path |
 | `--include-cytoscape` | off | Also write Cytoscape JSON |
+| `--top` | `5` | Number of top complexity/risk items printed to terminal |
+| `--fail-on-cycles` | off | Exit code `2` when cycles are found |
+| `--fail-on-layer-violations` | off | Exit code `2` when layer violations are found |
+| `--fail-on-god-modules` | off | Exit code `2` when god modules are found |
+| `--fail-on-dependency-explosions` | off | Exit code `2` when dependency explosions are found |
+| `--fail-on-risks` | off | Exit code `2` when any cycle/risk category is found |
 
 ## Examples
 
@@ -34,6 +40,9 @@ archmap analyze . --format both --include-cytoscape
 
 # Custom output paths
 archmap analyze . --out reports/graph.json --out-mermaid reports/graph.mmd
+
+# CI quality gate
+archmap analyze . --fail-on-risks --top 10
 ```
 
 ## Output

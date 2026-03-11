@@ -2,27 +2,29 @@ from __future__ import annotations
 
 import posixpath
 from pathlib import Path, PurePosixPath
-from typing import TypedDict
+from typing import Any, TypedDict
 
-from archmap.core.parser.js_parser import parse_js_imports
-from archmap.core.parser.python_parser import PythonImportEntry, parse_python_imports
-from archmap.core.parser.rust_parser import RustImportEntry, parse_rust_imports
-from archmap.core.parser.ts_parser import parse_ts_imports
+from archmap.core.parser import plugins as plugins  # Register additional generic languages
+from archmap.core.parser.go_parser import GoParser
+from archmap.core.parser.js_parser import JSParser, TSParser
+from archmap.core.parser.python_parser import PythonImportEntry, PythonParser
+from archmap.core.parser.registry import Dependency, registry
+from archmap.core.parser.rust_parser import RustImportEntry, RustParser
 from archmap.utils.file_utils import (
     JS_TS_EXTENSIONS,
     discover_source_files,
-    file_language_from_id,
     normalize_file_id,
     to_file_id,
 )
 
+# Register core languages
+registry.register(PythonParser())
+registry.register(JSParser())
+registry.register(TSParser())
+registry.register(RustParser())
+registry.register(GoParser())
+
 JS_TS_RESOLUTION_EXTENSIONS = sorted(JS_TS_EXTENSIONS | {".json"})
-
-
-class Dependency(TypedDict):
-    id: str
-    label: str
-    type: str
 
 
 class ParsedFile(TypedDict):
@@ -48,13 +50,18 @@ def parse_project(
     parsed_files: list[ParsedFile] = []
 
     for file_id in sorted(file_content_map.keys()):
-        language = file_language_from_id(file_id)
-        if language is None:
+        ext = Path(file_id).suffix.lower()
+        language = registry.get_language_by_ext(ext)
+        if not language:
+            continue
+
+        parser = registry.get_parser(language)
+        if not parser:
             continue
 
         source_code = file_content_map[file_id]
-        imports = _parse_imports(language, source_code)
-        dependencies = _resolve_dependencies(file_id, language, imports, file_ids)
+        import_entries = parser.parse(source_code)
+        dependencies = parser.resolve(import_entries, file_id, file_ids)
 
         parsed_files.append(
             {
@@ -79,7 +86,8 @@ def _load_source_map(
         source_map: dict[str, str] = {}
         for file_id, content in virtual_files.items():
             normalized = normalize_file_id(file_id)
-            if file_language_from_id(normalized) is None:
+            ext = Path(normalized).suffix.lower()
+            if not registry.get_language_by_ext(ext):
                 continue
             source_map[normalized] = content
         return source_map
@@ -89,56 +97,23 @@ def _load_source_map(
         file_id = to_file_id(project_root, file_path)
         try:
             source_map[file_id] = file_path.read_text(encoding="utf-8-sig")
-        except UnicodeDecodeError:
-            continue
-        except OSError:
+        except (UnicodeDecodeError, OSError):
             continue
     return source_map
-
-
-def _parse_imports(
-    language: str, source_code: str
-) -> list[str] | list[PythonImportEntry] | list[RustImportEntry]:
-    if language == "javascript":
-        return parse_js_imports(source_code)
-    if language == "typescript":
-        return parse_ts_imports(source_code)
-    if language == "python":
-        return parse_python_imports(source_code)
-    if language == "rust":
-        return parse_rust_imports(source_code)
-    return []
 
 
 def _resolve_dependencies(
     file_id: str,
     language: str,
-    imports: list[str] | list[PythonImportEntry] | list[RustImportEntry],
+    imports: list[Any],
     file_ids: set[str],
 ) -> list[Dependency]:
-    resolved: list[Dependency] = []
-
-    if language in {"javascript", "typescript"}:
-        for specifier in imports:
-            if not isinstance(specifier, str):
-                continue
-            dependency = _resolve_js_ts_dependency(specifier, file_id, file_ids)
-            if dependency:
-                resolved.append(dependency)
-
-    elif language == "python":
-        for import_entry in imports:
-            if not isinstance(import_entry, dict):
-                continue
-            resolved.extend(_resolve_python_dependency(import_entry, file_id, file_ids))
-
-    elif language == "rust":
-        for import_entry in imports:
-            if not isinstance(import_entry, dict):
-                continue
-            resolved.extend(_resolve_rust_dependency(import_entry, file_id, file_ids))
-
-    return _dedupe_dependencies(resolved)
+    # This is kept for compatibility with existing plugins that were
+    # refactored to call this. Eventually logic moves into the plugins.
+    parser = registry.get_parser(language)
+    if parser:
+        return parser.resolve(imports, file_id, file_ids)
+    return []
 
 
 def _resolve_js_ts_dependency(
