@@ -1,6 +1,6 @@
 # ArchMAP
 
-[![CI](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml)
+[![CI](https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml/badge.svg)](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Version](https://img.shields.io/badge/version-0.4.0--beta.0-orange)](./CHANGELOG.md)
@@ -38,8 +38,8 @@ pip install archmap
 ### For local development
 
 ```bash
-git clone https://github.com/Kaua-KGzin/code-arch-visualizer
-cd code-arch-visualizer
+git clone https://github.com/Kaua-KGzin/ArchMAP
+cd ArchMAP
 python -m pip install -e ".[dev]"
 ```
 
