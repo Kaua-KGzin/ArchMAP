@@ -112,6 +112,8 @@ jobs:
       - build-windows-exe
     permissions:
       contents: write
+    env:
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -172,13 +174,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python for PyPI publish
-        if: ${{ secrets.PYPI_TOKEN != '' }}
+        if: ${{ env.PYPI_TOKEN != '' }}
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
       - name: Publish to PyPI
-        if: ${{ secrets.PYPI_TOKEN != '' }}
+        if: ${{ env.PYPI_TOKEN != '' }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install twine
@@ -186,4 +188,4 @@ jobs:
           python -m twine upload dist/*.whl dist/*.tar.gz
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          TWINE_PASSWORD: ${{ env.PYPI_TOKEN }}
