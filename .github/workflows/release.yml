@@ -106,10 +106,16 @@ jobs:
             --noconfirm `
             --clean `
             --icon resources/icon.png `
+            --exclude-module tkinter `
+            --exclude-module _tkinter `
             --add-data "src/archmap/web-ui/static;web-ui/static"
 
-          if (-not (Test-Path "dist/archmap.exe")) {
-            throw "EXE not found after PyInstaller build."
+          $pyinstallerExit = $LASTEXITCODE
+          if ($pyinstallerExit -ne 0 -and -not (Test-Path "dist/archmap.exe")) {
+            throw "PyInstaller failed with exit code $pyinstallerExit and EXE was not generated."
+          }
+          if ($pyinstallerExit -ne 0) {
+            Write-Warning "PyInstaller exited with code $pyinstallerExit but EXE exists. Continuing release."
           }
 
           Copy-Item "dist/archmap.exe" "dist/archmap-$version.exe" -Force
