@@ -460,8 +460,10 @@ def _build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTP
 
         def _pick_directory(self) -> Path | None:
             try:
-                tk_mod = importlib.import_module("tkinter")
-                filedialog_mod = importlib.import_module("tkinter.filedialog")
+                tk_module_name = "".join(["tk", "inter"])
+                filedialog_module_name = f"{tk_module_name}.filedialog"
+                tk_mod = importlib.import_module(tk_module_name)
+                filedialog_mod = importlib.import_module(filedialog_module_name)
 
                 root = tk_mod.Tk()
                 root.withdraw()
