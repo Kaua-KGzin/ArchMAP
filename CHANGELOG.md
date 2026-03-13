@@ -19,6 +19,19 @@ All notable changes to this project are documented in this file.
   - live demo
   - logging/artifact policy
   - MkDocs governance/project wrapper pages
+- Architecture release assets:
+  - `dist/archmap.exe`
+  - `dist/archmap-0.4.0-beta.1.exe`
+  - `dist/archmap-build-info.json` (SHA256: `A20BA6CE1FAEADE8948F0628A1C79A5DBB4CBFC4E0A09B954FA3E386650BF67E`)
+- Graph UX improvements:
+  - semantic node coloring by role (controller/model/service/request/database/external/other)
+  - node sizing by dependency importance
+  - weighted edges and explicit circular edge highlighting
+  - mini-map navigation with viewport indicator
+  - dependency focus depth and expand/collapse controls
+  - cluster by folder mode
+  - architecture health score and hotspot panel
+  - PNG graph export
 
 ### Changed
 - Branch flow documentation standardized to `feat/* -> dev -> release/* -> main` (with legacy `feature/*` support).
@@ -31,6 +44,7 @@ All notable changes to this project are documented in this file.
   - demo commands
   - folder governance
   - attribution section
+- CLI startup banner now shows copyright line for `Kaua-KGzin`.
 
 ## [0.4.0-beta.0] - 2026-03-09
 
