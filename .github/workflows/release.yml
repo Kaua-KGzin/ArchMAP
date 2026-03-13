@@ -93,7 +93,36 @@ jobs:
 
       - name: Build Windows executable
         shell: pwsh
-        run: ./scripts/build-exe.ps1 -Clean -SkipSmoke
+        run: |
+          $version = (python -c "import sys; sys.path.insert(0, 'src'); from archmap import __version__; print(__version__)").Trim()
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "Failed to resolve package version."
+          }
+
+          python -m PyInstaller src/archmap/cli/main.py `
+            --onefile `
+            --name archmap `
+            --paths src `
+            --noconfirm `
+            --clean `
+            --icon resources/icon.png `
+            --add-data "src/archmap/web-ui/static;web-ui/static"
+
+          if (-not (Test-Path "dist/archmap.exe")) {
+            throw "EXE not found after PyInstaller build."
+          }
+
+          Copy-Item "dist/archmap.exe" "dist/archmap-$version.exe" -Force
+
+          $sha = (Get-FileHash "dist/archmap.exe" -Algorithm SHA256).Hash
+          $manifest = @{
+            version      = $version
+            builtAtUtc   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            exePath      = "dist/archmap.exe"
+            versionedExe = "dist/archmap-$version.exe"
+            sha256       = $sha
+          } | ConvertTo-Json -Depth 4
+          Set-Content -Path "dist/archmap-build-info.json" -Value $manifest -Encoding UTF8
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
