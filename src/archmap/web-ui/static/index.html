@@ -18,10 +18,8 @@
     <nav class="nav-rail" aria-label="Main">
       <div class="rail-logo">AM</div>
       <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">G</button>
-      <button class="rail-btn" id="openProjectBtn" title="Open Project (Folder)">
-        📁
-      </button>
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌓</button>
+      <button class="rail-btn" id="openProjectBtn" title="Open project folder">OP</button>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">TM</button>
     </nav>
 
     <aside class="left-panel">
@@ -32,16 +30,38 @@
       </header>
 
       <section class="card">
-        <h2>Risks & Anomalies</h2>
-        <div id="risksSummary" class="selection-muted">No high-risk architectural smells detected.</div>
+        <h2>Architecture Health</h2>
+        <div id="healthScore" class="health-score">0.0 / 10</div>
+        <p id="healthLabel" class="selection-muted">Waiting for analysis...</p>
+        <ul id="healthBreakdown" class="mini-list"></ul>
       </section>
 
       <section class="card">
-        <h2>Flows</h2>
+        <h2>Risks & Anomalies</h2>
+        <div id="risksSummary" class="selection-muted">No high-risk architectural smells detected.</div>
+        <h3 class="mini-title">Hotspots</h3>
+        <ol id="hotspotsList"></ol>
+        <h3 class="mini-title">Smells</h3>
+        <ul id="smellsList" class="mini-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Graph Controls</h2>
         <label class="field">
           <span>Filter by folder</span>
           <select id="folderFilter"></select>
         </label>
+
+        <fieldset class="field type-filters">
+          <legend>Filter by type</legend>
+          <label><input id="typeController" type="checkbox" checked /> Controllers</label>
+          <label><input id="typeModel" type="checkbox" checked /> Models</label>
+          <label><input id="typeService" type="checkbox" checked /> Services</label>
+          <label><input id="typeRequest" type="checkbox" checked /> Requests</label>
+          <label><input id="typeDatabase" type="checkbox" checked /> Database</label>
+          <label><input id="typeExternal" type="checkbox" checked /> External libs</label>
+          <label><input id="typeOther" type="checkbox" checked /> Other files</label>
+        </fieldset>
 
         <label class="switch">
           <input id="cyclesOnly" type="checkbox" />
@@ -53,11 +73,29 @@
           <span>Heatmap mode (complexity)</span>
         </label>
 
+        <label class="switch">
+          <input id="clusterMode" type="checkbox" />
+          <span>Cluster by folder</span>
+        </label>
+
+        <label class="field">
+          <span>Dependency focus depth</span>
+          <select id="focusDepth">
+            <option value="0">Off</option>
+            <option value="1">1 level</option>
+            <option value="2">2 levels</option>
+            <option value="3">3 levels</option>
+          </select>
+        </label>
+
         <div class="actions">
           <button id="zoomInBtn" type="button">Zoom +</button>
           <button id="zoomOutBtn" type="button">Zoom -</button>
           <button id="fitBtn" type="button">Fit</button>
           <button id="layoutBtn" type="button">Relayout</button>
+          <button id="expandBtn" type="button">Expand deps</button>
+          <button id="collapseBtn" type="button">Collapse deps</button>
+          <button id="exportPngBtn" type="button">Export PNG</button>
           <button id="resetBtn" type="button">Clear highlight</button>
         </div>
       </section>
@@ -72,7 +110,7 @@
       <header class="canvas-toolbar">
         <div class="toolbar-title-group">
           <p class="toolbar-kicker">Production</p>
-          <div style="display: flex; align-items: center;">
+          <div class="toolbar-title-row">
             <h2 class="toolbar-title">Dependency Graph</h2>
             <button id="refreshBtn" class="refresh-btn">Refresh</button>
           </div>
@@ -80,7 +118,15 @@
         <input id="searchInput" type="search" placeholder="Search files or packages"
           aria-label="Search files or packages" />
       </header>
-      <div id="graph"></div>
+      <div class="graph-shell">
+        <div id="graph"></div>
+        <aside id="miniMap" class="mini-map">
+          <p class="mini-map-title">Mini map</p>
+          <div id="miniMapGraph"></div>
+          <div id="miniMapViewport"></div>
+        </aside>
+        <div id="hoverCard" class="hover-card hidden"></div>
+      </div>
     </main>
 
     <aside class="right-panel">

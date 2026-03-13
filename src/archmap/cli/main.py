@@ -35,6 +35,7 @@ def _print_banner() -> None:
    \___/|_| \___|_||_| |_|  |_/_/ \_\_|
 
    ArchMAP Architectural Visualizer v{__version__}
+   Copyright (c) Kaua-KGzin
    Professional Analysis for Modern Codebases
     """
     print(banner)

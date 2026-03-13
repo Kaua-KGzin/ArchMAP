@@ -1,113 +1,166 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ArchMAP</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body>
-    <div class="workspace">
-      <nav class="nav-rail" aria-label="Main">
-        <div class="rail-logo">AM</div>
-        <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">G</button>
-        <button class="rail-btn" type="button" aria-label="Metrics">M</button>
-        <button class="rail-btn" type="button" aria-label="Cycles">C</button>
-        <button class="rail-btn" type="button" aria-label="Settings">S</button>
-      </nav>
 
-      <aside class="left-panel">
-        <header class="panel-header card">
-          <p class="eyebrow">ArchMAP</p>
-          <h1>Service Map</h1>
-          <p class="subtitle">Dependency topology and architectural risk hotspots.</p>
-        </header>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ArchMAP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
 
-        <section class="card">
-          <h2>Flows</h2>
-          <label class="field">
-            <span>Filter by folder</span>
-            <select id="folderFilter"></select>
-          </label>
+<body>
+  <div class="workspace">
+    <nav class="nav-rail" aria-label="Main">
+      <div class="rail-logo">AM</div>
+      <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">G</button>
+      <button class="rail-btn" id="openProjectBtn" title="Open project folder">OP</button>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">TM</button>
+    </nav>
 
-          <label class="switch">
-            <input id="cyclesOnly" type="checkbox" />
-            <span>Highlight only circular dependencies</span>
-          </label>
+    <aside class="left-panel">
+      <header class="panel-header card">
+        <p class="eyebrow">ArchMAP</p>
+        <h1>Service Map</h1>
+        <p class="subtitle">Dependency topology and architectural risk hotspots.</p>
+      </header>
 
-          <label class="switch">
-            <input id="heatmapMode" type="checkbox" />
-            <span>Heatmap mode (complexity)</span>
-          </label>
+      <section class="card">
+        <h2>Architecture Health</h2>
+        <div id="healthScore" class="health-score">0.0 / 10</div>
+        <p id="healthLabel" class="selection-muted">Waiting for analysis...</p>
+        <ul id="healthBreakdown" class="mini-list"></ul>
+      </section>
 
-          <div class="actions">
-            <button id="zoomInBtn" type="button">Zoom +</button>
-            <button id="zoomOutBtn" type="button">Zoom -</button>
-            <button id="fitBtn" type="button">Fit</button>
-            <button id="layoutBtn" type="button">Relayout</button>
-            <button id="resetBtn" type="button">Clear highlight</button>
-          </div>
-        </section>
+      <section class="card">
+        <h2>Risks & Anomalies</h2>
+        <div id="risksSummary" class="selection-muted">No high-risk architectural smells detected.</div>
+        <h3 class="mini-title">Hotspots</h3>
+        <ol id="hotspotsList"></ol>
+        <h3 class="mini-title">Smells</h3>
+        <ul id="smellsList" class="mini-list"></ul>
+      </section>
 
-        <section class="card">
-          <h2>Critical files</h2>
-          <ol id="criticalList"></ol>
-        </section>
-      </aside>
+      <section class="card">
+        <h2>Graph Controls</h2>
+        <label class="field">
+          <span>Filter by folder</span>
+          <select id="folderFilter"></select>
+        </label>
 
-      <main class="canvas-panel">
-        <header class="canvas-toolbar">
-          <div class="toolbar-title-group">
-            <p class="toolbar-kicker">Production</p>
+        <fieldset class="field type-filters">
+          <legend>Filter by type</legend>
+          <label><input id="typeController" type="checkbox" checked /> Controllers</label>
+          <label><input id="typeModel" type="checkbox" checked /> Models</label>
+          <label><input id="typeService" type="checkbox" checked /> Services</label>
+          <label><input id="typeRequest" type="checkbox" checked /> Requests</label>
+          <label><input id="typeDatabase" type="checkbox" checked /> Database</label>
+          <label><input id="typeExternal" type="checkbox" checked /> External libs</label>
+          <label><input id="typeOther" type="checkbox" checked /> Other files</label>
+        </fieldset>
+
+        <label class="switch">
+          <input id="cyclesOnly" type="checkbox" />
+          <span>Highlight only circular dependencies</span>
+        </label>
+
+        <label class="switch">
+          <input id="heatmapMode" type="checkbox" />
+          <span>Heatmap mode (complexity)</span>
+        </label>
+
+        <label class="switch">
+          <input id="clusterMode" type="checkbox" />
+          <span>Cluster by folder</span>
+        </label>
+
+        <label class="field">
+          <span>Dependency focus depth</span>
+          <select id="focusDepth">
+            <option value="0">Off</option>
+            <option value="1">1 level</option>
+            <option value="2">2 levels</option>
+            <option value="3">3 levels</option>
+          </select>
+        </label>
+
+        <div class="actions">
+          <button id="zoomInBtn" type="button">Zoom +</button>
+          <button id="zoomOutBtn" type="button">Zoom -</button>
+          <button id="fitBtn" type="button">Fit</button>
+          <button id="layoutBtn" type="button">Relayout</button>
+          <button id="expandBtn" type="button">Expand deps</button>
+          <button id="collapseBtn" type="button">Collapse deps</button>
+          <button id="exportPngBtn" type="button">Export PNG</button>
+          <button id="resetBtn" type="button">Clear highlight</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Critical files</h2>
+        <ol id="criticalList"></ol>
+      </section>
+    </aside>
+
+    <main class="canvas-panel">
+      <header class="canvas-toolbar">
+        <div class="toolbar-title-group">
+          <p class="toolbar-kicker">Production</p>
+          <div class="toolbar-title-row">
             <h2 class="toolbar-title">Dependency Graph</h2>
+            <button id="refreshBtn" class="refresh-btn">Refresh</button>
           </div>
-          <input
-            id="searchInput"
-            type="search"
-            placeholder="Search files or packages"
-            aria-label="Search files or packages"
-          />
-        </header>
+        </div>
+        <input id="searchInput" type="search" placeholder="Search files or packages"
+          aria-label="Search files or packages" />
+      </header>
+      <div class="graph-shell">
         <div id="graph"></div>
-      </main>
+        <aside id="miniMap" class="mini-map">
+          <p class="mini-map-title">Mini map</p>
+          <div id="miniMapGraph"></div>
+          <div id="miniMapViewport"></div>
+        </aside>
+        <div id="hoverCard" class="hover-card hidden"></div>
+      </div>
+    </main>
 
-      <aside class="right-panel">
-        <section class="card">
-          <h2>Summary</h2>
-          <div id="summary"></div>
-        </section>
+    <aside class="right-panel">
+      <section class="card">
+        <h2>Summary</h2>
+        <div id="summary"></div>
+      </section>
 
-        <section class="card">
-          <h2>Selection</h2>
-          <div id="selectionInfo" class="selection-muted">Click a node to inspect dependencies.</div>
-        </section>
+      <section class="card">
+        <h2>Selection</h2>
+        <div id="selectionInfo" class="selection-muted">Click a node to inspect dependencies.</div>
+      </section>
 
-        <section class="card">
-          <h2>Circular deps</h2>
-          <ol id="cyclesList"></ol>
-        </section>
+      <section class="card">
+        <h2>Circular deps</h2>
+        <ol id="cyclesList"></ol>
+      </section>
 
-        <section class="card">
-          <h2>Heatmap legend</h2>
-          <div id="heatmapLegend" class="legend legend-hidden">
-            <div class="legend-bar"></div>
-            <div class="legend-labels">
-              <span>Low</span>
-              <span>Medium</span>
-              <span>High</span>
-            </div>
+      <section class="card">
+        <h2>Heatmap legend</h2>
+        <div id="heatmapLegend" class="legend legend-hidden">
+          <div class="legend-bar"></div>
+          <div class="legend-labels">
+            <span>Low</span>
+            <span>Medium</span>
+            <span>High</span>
           </div>
-        </section>
-      </aside>
-    </div>
+        </div>
+      </section>
+    </aside>
+  </div>
 
-    <script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
-    <script src="/app.js" type="module"></script>
-  </body>
+  <script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+  <script src="/app.js" type="module"></script>
+</body>
+
 </html>
