@@ -460,13 +460,15 @@ def _build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTP
 
         def _pick_directory(self) -> Path | None:
             try:
-                import tkinter as tk
-                from tkinter import filedialog
+                tk_mod = importlib.import_module("tkinter")
+                filedialog_mod = importlib.import_module("tkinter.filedialog")
 
-                root = tk.Tk()
+                root = tk_mod.Tk()
                 root.withdraw()
                 root.attributes("-topmost", True)
-                directory = filedialog.askdirectory(title="ArchMAP - Select Project Folder")
+                directory = filedialog_mod.askdirectory(
+                    title="ArchMAP - Select Project Folder"
+                )
                 root.destroy()
                 return Path(directory) if directory else None
             except Exception:
