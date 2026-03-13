@@ -93,7 +93,7 @@ jobs:
 
       - name: Build Windows executable
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File ./scripts/build-exe.ps1 -Clean
+        run: ./scripts/build-exe.ps1 -Clean
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
