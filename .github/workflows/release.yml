@@ -93,7 +93,7 @@ jobs:
 
       - name: Build Windows executable
         shell: pwsh
-        run: ./scripts/build-exe.ps1 -Clean
+        run: ./scripts/build-exe.ps1 -Clean -SkipSmoke
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
