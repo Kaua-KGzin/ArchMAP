@@ -1,9 +1,9 @@
 # ArchMAP
 
-[![CI](https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml/badge.svg)](https://github.com/Kaua-KGzin/code-arch-visualizer/actions/workflows/ci.yml)
+[![CI](https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml/badge.svg)](https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.4.0--beta.0-orange)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.0--beta.0-orange)](./CHANGELOG.md)
 
 Static architecture analysis for software repositories.
 
@@ -22,7 +22,7 @@ Supported languages:
 
 ## Status
 
-- Current release: `v0.4.0-beta.0`
+- Current release: `v0.5.0-beta.0`
 - Primary runtime: Python `>=3.11`
 - Interactive UI: built-in static UI + Node dev server option
 - Distribution: PyPI package + Windows executable
@@ -52,9 +52,26 @@ archmap analyze examples/sample-project --format both --include-cytoscape
 archmap serve examples/sample-project
 ```
 
+Optional project configuration:
+
+```toml
+[analysis]
+ignore_dirs = ["generated", "vendor"]
+max_file_size_bytes = 1048576
+
+[architecture.rules]
+forbid = ["controller -> repository", "ui -> database"]
+allow = ["controller -> service", "service -> repository"]
+
+[risks.layer_order]
+platform = 6
+core = 3
+```
+
 Useful API endpoints while `serve` is running:
 
 - `GET /api/graph`
+- `GET /api/history?limit=12`
 - `GET /api/health`
 - `GET /api/project`
 - `POST /api/reanalyze`
@@ -71,6 +88,7 @@ Quality gates for CI:
 
 ```bash
 archmap analyze . --fail-on-risks --top 10
+archmap analyze . --fail-on-custom-rules --min-health 75
 ```
 
 ### Serve
@@ -83,6 +101,12 @@ archmap serve <path> --host 0.0.0.0 --port 3000
 
 ```bash
 archmap diff HEAD~5 HEAD
+```
+
+### History
+
+```bash
+archmap history --repo . --limit 12
 ```
 
 ## Git workflow (professional flow)
@@ -128,6 +152,7 @@ ArchMAP/
 
 - Runtime logs: `logs/runtime/` (git-ignored)
 - Historical logs: `logs/archive/`
+- Analysis outputs: `.codeatlas/` (generated locally and git-ignored)
 - Build artifacts: generated locally (`build/`, `dist/`) and should not be committed as source changes
 
 ## Windows executable
@@ -141,6 +166,7 @@ powershell -ExecutionPolicy Bypass -File scripts/build-exe.ps1 -Clean
 This script:
 - Builds `dist/archmap.exe`
 - Creates a versioned binary copy
+- Removes older `dist/archmap-*.exe` binaries after a successful build
 - Writes `dist/archmap-build-info.json` with SHA256
 - Runs executable smoke test (`archmap.exe version`)
 
@@ -154,7 +180,7 @@ npm run serve:web -- --path .
 
 ## Original distributor rights
 
-Original distributor and primary author: **Kaua Gabriel / Kauã Gabriel** (Kaua-KGzin).
+Original distributor and primary author: **Kaua Gabriel** (Kaua-KGzin).
 
 Redistributions must preserve:
 - [LICENSE](./LICENSE)

@@ -1,0 +1,7 @@
+[architecture.rules]
+forbid = [
+  "core -> cli",
+  "parser -> cli",
+  "analyzer -> cli",
+  "graph -> cli",
+]

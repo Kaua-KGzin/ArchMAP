@@ -49,6 +49,7 @@ While running, the server exposes:
 |---|---|
 | `GET /` | Interactive graph UI |
 | `GET /api/graph` | Full JSON report (same as `archmap analyze` output) |
+| `GET /api/history` | Git-backed architecture timeline, cycle origins, and blame summary |
 | `GET /api/project` | Current analyzed project path |
 | `GET /api/health` | `{"status":"ok"}` |
 | `POST /api/reanalyze` | Recompute report for current project path |
@@ -58,3 +59,4 @@ While running, the server exposes:
 
 - Press `Ctrl+C` to stop the server.
 - The UI `Refresh` button triggers `POST /api/reanalyze`, so restart is no longer required.
+- The history panel is based on committed Git snapshots, so local uncommitted edits stay visible in the current graph but not in the timeline until committed.

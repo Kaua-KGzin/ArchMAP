@@ -15,8 +15,8 @@ archmap version
 ## Install for development
 
 ```bash
-git clone https://github.com/Kaua-KGzin/code-arch-visualizer
-cd code-arch-visualizer
+git clone https://github.com/Kaua-KGzin/ArchMAP
+cd ArchMAP
 python -m pip install -e ".[dev]"
 ```
 
@@ -40,3 +40,5 @@ Generated artifacts:
 - `dist/archmap.exe`
 - `dist/archmap-<version>.exe`
 - `dist/archmap-build-info.json`
+
+On a successful new build, older `dist/archmap-*.exe` files are removed automatically.

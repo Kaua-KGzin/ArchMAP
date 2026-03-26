@@ -1,23 +1,29 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 
 from archmap.exporters.cytoscape_exporter import export_graph_as_cytoscape
 from archmap.exporters.json_exporter import export_graph_as_json
 from archmap.exporters.mermaid_exporter import export_graph_as_mermaid
 
+NodeFactory = Callable[..., dict]
+EdgeFactory = Callable[..., dict]
 
-def test_exporters_create_json_mermaid_and_cytoscape_files(tmp_path) -> None:
+
+def test_exporters_create_json_mermaid_and_cytoscape_files(
+    tmp_path,
+    make_file_node: NodeFactory,
+    make_edge: EdgeFactory,
+) -> None:
     report = {
         "projectRoot": "/repo",
         "nodes": [
             {
-                "id": "src/server.py",
-                "label": "src/server.py",
-                "type": "file",
-                "outgoing": 1,
-                "incoming": 0,
+                **make_file_node("src/server.py", outgoing=1),
                 "complexityImports": 1,
+                "complexityDependents": 0,
+                "complexityConnections": 1,
                 "complexityScore": 1.0,
             },
             {
@@ -27,17 +33,12 @@ def test_exporters_create_json_mermaid_and_cytoscape_files(tmp_path) -> None:
                 "outgoing": 0,
                 "incoming": 1,
                 "complexityImports": 0,
+                "complexityDependents": 0,
+                "complexityConnections": 0,
                 "complexityScore": 0.0,
             },
         ],
-        "edges": [
-            {
-                "id": "src/server.py->pkg:requests",
-                "source": "src/server.py",
-                "target": "pkg:requests",
-                "isCircular": False,
-            }
-        ],
+        "edges": [make_edge("src/server.py", "pkg:requests")],
         "metrics": {
             "filesAnalyzed": 1,
             "totalDependencies": 1,
@@ -48,6 +49,11 @@ def test_exporters_create_json_mermaid_and_cytoscape_files(tmp_path) -> None:
         },
         "cycles": [],
         "risks": {"top_risk_files": []},
+        "architecture": {
+            "detectedStyle": {"name": "modular_monolith"},
+            "health": {"score": 78, "grade": "B"},
+            "ruleViolations": [],
+        },
         "simple": {
             "nodes": ["src/server.py", "pkg:requests"],
             "edges": [["src/server.py", "pkg:requests"]],
@@ -63,8 +69,10 @@ def test_exporters_create_json_mermaid_and_cytoscape_files(tmp_path) -> None:
     cytoscape_payload = json.loads(cytoscape_path.read_text(encoding="utf-8"))
 
     assert '"nodes"' in json_content
+    assert '"architecture"' in json_content
     assert "graph TD" in mermaid_content
     assert "pkg_requests" in mermaid_content
     assert "file_src_server_py --> pkg_requests" in mermaid_content
     assert "nodes" in cytoscape_payload
     assert "edges" in cytoscape_payload
+    assert "architecture" in cytoscape_payload["metadata"]

@@ -3,53 +3,49 @@ from __future__ import annotations
 import re
 
 from archmap.core.parser.generic_parser import GenericParser
-from archmap.core.parser.registry import registry
+from archmap.core.parser.registry import LanguageRegistry, registry
 
-# PHP
-registry.register(
-    GenericParser(
-        language="php",
-        extensions=[".php"],
-        patterns=[
+_CPP_PATTERNS = [
+    re.compile(r'^\s*#include\s+["<]([^">]+)[">]', re.MULTILINE),
+]
+
+_GENERIC_PARSER_SPECS = (
+    {
+        "language": "php",
+        "extensions": [".php"],
+        "patterns": [
             re.compile(r"^\s*use\s+([^;]+);", re.MULTILINE),
             re.compile(r"^\s*require(?:_once)?\s*\(?\s*['\"]([^'\"]+)['\"]", re.MULTILINE),
             re.compile(r"^\s*include(?:_once)?\s*\(?\s*['\"]([^'\"]+)['\"]", re.MULTILINE),
         ],
-    )
+    },
+    {
+        "language": "java",
+        "extensions": [".java"],
+        "patterns": [re.compile(r"^\s*import\s+([^;]+);", re.MULTILINE)],
+    },
+    {
+        "language": "csharp",
+        "extensions": [".cs"],
+        "patterns": [re.compile(r"^\s*using\s+([^;]+);", re.MULTILINE)],
+    },
+    {
+        "language": "c",
+        "extensions": [".c", ".h"],
+        "patterns": _CPP_PATTERNS,
+    },
+    {
+        "language": "cpp",
+        "extensions": [".cpp", ".hpp", ".cc", ".cxx"],
+        "patterns": _CPP_PATTERNS,
+    },
 )
 
-# Java / C#
-registry.register(
-    GenericParser(
-        language="java",
-        extensions=[".java"],
-        patterns=[re.compile(r"^\s*import\s+([^;]+);", re.MULTILINE)],
-    )
-)
 
-registry.register(
-    GenericParser(
-        language="csharp",
-        extensions=[".cs"],
-        patterns=[re.compile(r"^\s*using\s+([^;]+);", re.MULTILINE)],
-    )
-)
+def register_generic_parsers(target_registry: LanguageRegistry | None = None) -> LanguageRegistry:
+    active_registry = target_registry or registry
 
-# C / C++
-cpp_patterns = [
-    re.compile(r'^\s*#include\s+["<]([^">]+)[">]', re.MULTILINE),
-]
-registry.register(
-    GenericParser(
-        language="c",
-        extensions=[".c", ".h"],
-        patterns=cpp_patterns,
-    )
-)
-registry.register(
-    GenericParser(
-        language="cpp",
-        extensions=[".cpp", ".hpp", ".cc", ".cxx"],
-        patterns=cpp_patterns,
-    )
-)
+    for spec in _GENERIC_PARSER_SPECS:
+        active_registry.register(GenericParser(**spec))
+
+    return active_registry

@@ -7,6 +7,7 @@ Usage:
 Generates synthetic Python projects (100 / 500 / 1000 / 5000 files),
 runs archmap.core.analyze_project on each, and prints a timing table.
 """
+
 from __future__ import annotations
 
 import sys

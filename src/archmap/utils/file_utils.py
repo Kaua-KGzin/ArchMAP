@@ -29,6 +29,7 @@ SUPPORTED_EXTENSIONS = {
 JS_TS_EXTENSIONS = {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
 DEFAULT_IGNORE_DIRS = {
     ".git",
+    ".codeatlas",
     "node_modules",
     "dist",
     "build",
@@ -40,6 +41,9 @@ DEFAULT_IGNORE_DIRS = {
     ".pytest_cache",
     ".ruff_cache",
     ".mypy_cache",
+    "site",
+    "tests",
+    "examples",
 }
 
 
@@ -54,11 +58,16 @@ def file_language_from_id(file_id: str) -> str | None:
     return SUPPORTED_EXTENSIONS.get(Path(file_id).suffix.lower())
 
 
-def should_ignore_parts(parts: Iterable[str]) -> bool:
-    return any(part in DEFAULT_IGNORE_DIRS for part in parts)
+def should_ignore_parts(
+    parts: Iterable[str], extra_ignored_dirs: Iterable[str] | None = None
+) -> bool:
+    ignored_dirs = _ignored_dir_names(extra_ignored_dirs)
+    return any(part.casefold() in ignored_dirs for part in parts)
 
 
-def discover_source_files(project_root: Path) -> list[Path]:
+def discover_source_files(
+    project_root: Path, extra_ignored_dirs: Iterable[str] | None = None
+) -> list[Path]:
     if project_root.is_file():
         if project_root.suffix.lower() in SUPPORTED_EXTENSIONS:
             return [project_root]
@@ -71,7 +80,7 @@ def discover_source_files(project_root: Path) -> list[Path]:
             continue
         if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             continue
-        if should_ignore_parts(file_path.relative_to(project_root).parts):
+        if should_ignore_parts(file_path.relative_to(project_root).parts, extra_ignored_dirs):
             continue
         files.append(file_path)
 
@@ -91,6 +100,20 @@ def first_segment(file_id: str) -> str:
 
 def ensure_parent_dir(file_path: Path) -> None:
     file_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _ignored_dir_names(extra_ignored_dirs: Iterable[str] | None) -> set[str]:
+    ignored = {part.casefold() for part in DEFAULT_IGNORE_DIRS}
+    if extra_ignored_dirs is None:
+        return ignored
+
+    for value in extra_ignored_dirs:
+        normalized = normalize_file_id(str(value)).strip("/")
+        if not normalized:
+            continue
+        ignored.add(PurePosixPath(normalized).name.casefold())
+
+    return ignored
 
 
 def percentile(values: list[int], q: float) -> int:

@@ -1,4 +1,4 @@
-﻿# ArchMAP Roadmap
+# ArchMAP Roadmap
 
 ## v0.4.0-beta.0 (current beta)
 
@@ -28,3 +28,9 @@
 - Stable plugin system for custom parsers/analyzers
 - Official VS Code extension integration
 - Full release hardening and compatibility guarantees
+
+## Backlog / Cleanup
+
+- Decide the long-term structure of the root `web-ui/` dev server versus the packaged `src/archmap/web-ui/` copy, keeping local frontend workflows explicit.
+- Retire the `archmap.core.parser.project_parser._resolve_dependencies` compatibility shim after plugins and internal callers finish migrating to parser-local resolution APIs.
+- Keep expanding shared pytest fixtures across analyzer, diff, and exporter tests to reduce duplicated test graph construction.

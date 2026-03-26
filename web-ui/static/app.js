@@ -1,3 +1,12 @@
+import {
+  LANGUAGE_ORDER,
+  ROLE_LABEL_KEYS,
+  STORAGE_KEYS,
+  THEME_ORDER,
+  normalizeLanguage,
+  translate,
+} from "./i18n.js";
+
 const ROLE_COLORS = {
   controller: "#4d8be8",
   model: "#7b61ff",
@@ -9,21 +18,13 @@ const ROLE_COLORS = {
   cluster: "#5a6f8d",
 };
 
-const ROLE_LABELS = {
-  controller: "Controller",
-  model: "Model",
-  service: "Service",
-  request: "Request",
-  database: "Database",
-  external: "External",
-  other: "Other",
-  cluster: "Folder",
-};
-
 const ROLE_KEYS = ["controller", "model", "service", "request", "database", "external", "other"];
+const RELATION_PREVIEW_LIMIT = 8;
 
 const state = {
   report: null,
+  history: null,
+  historyView: { kind: "idle", message: "" },
   folder: "all",
   cyclesOnly: false,
   search: "",
@@ -31,7 +32,13 @@ const state = {
   clusterMode: false,
   focusDepth: 0,
   selectedNodeId: null,
+  language: readStoredLanguage(),
+  theme: readStoredTheme(),
+  currentProjectPath: ".",
+  pinnedProjectPath: readStoredPinnedProject(),
   riskByFile: new Map(),
+  nodeById: new Map(),
+  edges: [],
   roleFilters: {
     controller: true,
     model: true,
@@ -61,8 +68,15 @@ const elements = {
   collapseBtn: document.getElementById("collapseBtn"),
   exportPngBtn: document.getElementById("exportPngBtn"),
   summary: document.getElementById("summary"),
+  storyInfo: document.getElementById("storyInfo"),
+  rulesList: document.getElementById("rulesList"),
   criticalList: document.getElementById("criticalList"),
   cyclesList: document.getElementById("cyclesList"),
+  historyStatus: document.getElementById("historyStatus"),
+  historyTrend: document.getElementById("historyTrend"),
+  historyTimeline: document.getElementById("historyTimeline"),
+  historyCycles: document.getElementById("historyCycles"),
+  historyHotspots: document.getElementById("historyHotspots"),
   selectionInfo: document.getElementById("selectionInfo"),
   themeToggle: document.getElementById("themeToggle"),
   refreshBtn: document.getElementById("refreshBtn"),
@@ -73,6 +87,20 @@ const elements = {
   healthLabel: document.getElementById("healthLabel"),
   healthBreakdown: document.getElementById("healthBreakdown"),
   openProjectBtn: document.getElementById("openProjectBtn"),
+  pinProjectQuickBtn: document.getElementById("pinProjectQuickBtn"),
+  pinProjectBtn: document.getElementById("pinProjectBtn"),
+  openPinnedBtn: document.getElementById("openPinnedBtn"),
+  currentProjectPath: document.getElementById("currentProjectPath"),
+  pinnedProjectPath: document.getElementById("pinnedProjectPath"),
+  projectStatus: document.getElementById("projectStatus"),
+  pinnedStatus: document.getElementById("pinnedStatus"),
+  languageSelect: document.getElementById("languageSelect"),
+  openFileBtn: document.getElementById("openFileBtn"),
+  drillModuleBtn: document.getElementById("drillModuleBtn"),
+  projectViewBtn: document.getElementById("projectViewBtn"),
+  themeSelect: document.getElementById("themeSelect"),
+  toolbarKicker: document.getElementById("toolbarKicker"),
+  selectionActionHint: document.getElementById("selectionActionHint"),
   hoverCard: document.getElementById("hoverCard"),
   miniMap: document.getElementById("miniMap"),
   miniMapGraph: document.getElementById("miniMapGraph"),
@@ -100,11 +128,11 @@ let cy = null;
 let miniCy = null;
 let controlsBound = false;
 
-const savedTheme = localStorage.getItem("archmap-theme") || "light";
-document.documentElement.setAttribute("data-theme", savedTheme);
+applyTheme(state.theme, { persist: false });
+applyLanguage(state.language, { persist: false, rerender: false });
 
 init().catch((error) => {
-  elements.selectionInfo.textContent = `Failed to load graph: ${error.message}`;
+  elements.selectionInfo.textContent = t("messages.failedLoadGraph", { message: error.message });
 });
 
 async function init() {
@@ -119,19 +147,311 @@ async function init() {
     state.report = report;
     fillSidebar(report);
     rebuildGraph();
+    if (state.selectedNodeId && state.nodeById.has(state.selectedNodeId)) {
+      selectNodeById(state.selectedNodeId, { center: false });
+    } else {
+      state.selectedNodeId = null;
+      resetSelectionView();
+    }
 
     if (!controlsBound) {
       bindControls();
       controlsBound = true;
     }
+
+    await refreshProjectState();
+    document.body.dataset.ready = "true";
+    void loadHistory();
   } finally {
     elements.refreshBtn?.classList.remove("loading");
   }
 }
 
+function t(key, vars = {}) {
+  return translate(state.language, key, vars);
+}
+
+function roleLabel(role) {
+  const key = ROLE_LABEL_KEYS[role];
+  return key ? t(key) : role;
+}
+
+function readStoredLanguage() {
+  try {
+    return normalizeLanguage(localStorage.getItem(STORAGE_KEYS.language) || navigator.language || "en");
+  } catch {
+    return normalizeLanguage(navigator.language || "en");
+  }
+}
+
+function persistLanguage(language) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.language, language);
+  } catch {
+    return;
+  }
+}
+
+function readStoredPinnedProject() {
+  try {
+    return String(localStorage.getItem(STORAGE_KEYS.pinnedProject) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function persistPinnedProject(path) {
+  try {
+    if (path) {
+      localStorage.setItem(STORAGE_KEYS.pinnedProject, path);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.pinnedProject);
+    }
+  } catch {
+    return;
+  }
+}
+
+function normalizeTheme(theme) {
+  const value = String(theme || "").trim().toLowerCase();
+  if (value === "paper") {
+    return "light";
+  }
+  if (value === "midnight") {
+    return "dark";
+  }
+  return THEME_ORDER.includes(value) ? value : "dark";
+}
+
+function readStoredTheme() {
+  try {
+    return normalizeTheme(localStorage.getItem(STORAGE_KEYS.theme) || "dark");
+  } catch {
+    return "dark";
+  }
+}
+
+function persistTheme(theme) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.theme, theme);
+  } catch {
+    return;
+  }
+}
+
+function applyTheme(theme, options = {}) {
+  state.theme = normalizeTheme(theme);
+  document.documentElement.setAttribute("data-theme", state.theme);
+  if (elements.themeSelect) {
+    populateThemeOptions();
+    elements.themeSelect.value = state.theme;
+  }
+  updateThemeButtonState();
+  if (options.persist !== false) {
+    persistTheme(state.theme);
+  }
+}
+
+function applyLanguage(language, options = {}) {
+  state.language = normalizeLanguage(language);
+  document.documentElement.lang = state.language;
+  populateLanguageOptions();
+  populateThemeOptions();
+  applyStaticTranslations();
+  updateThemeButtonState();
+  syncPinnedProjectUi();
+  if (options.persist !== false) {
+    persistLanguage(state.language);
+  }
+  if (options.rerender !== false && state.report) {
+    rerenderLocalizedPanels();
+  }
+}
+
+function populateLanguageOptions() {
+  if (!elements.languageSelect) {
+    return;
+  }
+
+  elements.languageSelect.innerHTML = "";
+  for (const language of LANGUAGE_ORDER) {
+    const option = document.createElement("option");
+    option.value = language;
+    option.textContent = t(`language.${language}`);
+    elements.languageSelect.appendChild(option);
+  }
+  elements.languageSelect.value = state.language;
+}
+
+function populateThemeOptions() {
+  if (!elements.themeSelect) {
+    return;
+  }
+
+  elements.themeSelect.innerHTML = "";
+  for (const theme of THEME_ORDER) {
+    const option = document.createElement("option");
+    option.value = theme;
+    option.textContent = t(`theme.${theme}`);
+    elements.themeSelect.appendChild(option);
+  }
+  elements.themeSelect.value = state.theme;
+}
+
+function applyStaticTranslations() {
+  for (const node of document.querySelectorAll("[data-i18n]")) {
+    node.textContent = t(node.dataset.i18n);
+  }
+  for (const node of document.querySelectorAll("[data-i18n-placeholder]")) {
+    node.setAttribute("placeholder", t(node.dataset.i18nPlaceholder));
+  }
+  for (const node of document.querySelectorAll("[data-i18n-title]")) {
+    node.setAttribute("title", t(node.dataset.i18nTitle));
+  }
+  for (const node of document.querySelectorAll("[data-i18n-aria-label]")) {
+    node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
+  }
+}
+
+async function refreshProjectState() {
+  state.currentProjectPath = await fetchCurrentProjectPath();
+  syncPinnedProjectUi();
+}
+
+function getCurrentProjectName() {
+  const normalized = String(state.currentProjectPath || "").replaceAll("\\", "/");
+  const segments = normalized.split("/").filter(Boolean);
+  return segments.at(-1) || t("project.kickerFallback");
+}
+
+function syncPinnedProjectUi() {
+  const pinnedPath = String(state.pinnedProjectPath || "").trim();
+  const currentPath = String(state.currentProjectPath || ".").trim() || ".";
+  const isPinned = pinnedPath && pinnedPath === currentPath;
+
+  if (elements.currentProjectPath) {
+    elements.currentProjectPath.textContent = currentPath;
+  }
+  if (elements.pinnedProjectPath) {
+    elements.pinnedProjectPath.textContent = pinnedPath || t("project.noPinned");
+  }
+  if (elements.toolbarKicker) {
+    elements.toolbarKicker.textContent = getCurrentProjectName();
+  }
+  if (elements.projectStatus) {
+    elements.projectStatus.textContent = isPinned
+      ? t("project.statusPinned")
+      : pinnedPath
+        ? t("project.statusSaved")
+        : t("project.statusUnpinned");
+  }
+  if (elements.pinnedStatus) {
+    elements.pinnedStatus.textContent = isPinned
+      ? t("project.badgePinned")
+      : pinnedPath
+        ? t("project.badgeSaved")
+        : t("project.badgeEmpty");
+    elements.pinnedStatus.className = `history-pill ${isPinned ? "history-pill-ok" : ""}`.trim();
+  }
+  if (elements.pinProjectBtn) {
+    elements.pinProjectBtn.textContent = isPinned ? t("actions.unpinProject") : t("actions.pinProject");
+  }
+  if (elements.openPinnedBtn) {
+    elements.openPinnedBtn.disabled = !pinnedPath || pinnedPath === currentPath;
+  }
+  if (elements.pinProjectQuickBtn) {
+    elements.pinProjectQuickBtn.classList.toggle("rail-btn-active", Boolean(isPinned));
+    elements.pinProjectQuickBtn.setAttribute(
+      "title",
+      isPinned ? t("nav.unpinProjectTitle") : t("nav.pinProjectTitle")
+    );
+    elements.pinProjectQuickBtn.setAttribute(
+      "aria-label",
+      isPinned ? t("nav.unpinProjectTitle") : t("nav.pinProjectTitle")
+    );
+  }
+}
+
+function togglePinnedProject() {
+  const currentPath = String(state.currentProjectPath || ".").trim() || ".";
+  if (state.pinnedProjectPath === currentPath) {
+    state.pinnedProjectPath = "";
+  } else {
+    state.pinnedProjectPath = currentPath;
+  }
+  persistPinnedProject(state.pinnedProjectPath);
+  syncPinnedProjectUi();
+}
+
+async function openPinnedProject() {
+  const pinnedPath = String(state.pinnedProjectPath || "").trim();
+  if (!pinnedPath || pinnedPath === state.currentProjectPath) {
+    return false;
+  }
+
+  const response = await fetch("/api/project", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: pinnedPath }),
+  });
+  if (!response.ok) {
+    const payload = await readJsonSafely(response);
+    throw new Error(payload?.message ?? `HTTP ${response.status}`);
+  }
+  return true;
+}
+
+function updateThemeButtonState() {
+  if (!elements.themeToggle) {
+    return;
+  }
+  elements.themeToggle.setAttribute("title", `${t("nav.themeTitle")} (${t(`theme.${state.theme}`)})`);
+  elements.themeToggle.setAttribute("aria-label", `${t("nav.themeTitle")} (${t(`theme.${state.theme}`)})`);
+}
+
+function cycleTheme() {
+  const currentIndex = THEME_ORDER.indexOf(state.theme);
+  const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % THEME_ORDER.length;
+  applyTheme(THEME_ORDER[nextIndex]);
+}
+
+function rerenderLocalizedPanels() {
+  if (!state.report) {
+    return;
+  }
+
+  renderSummary(state.report.metrics ?? {}, state.report.risks ?? {});
+  renderHealth(state.report);
+  renderStory(state.report, state.history);
+  renderCriticalFiles(state.report.metrics?.criticalFiles ?? []);
+  renderCycles(state.report.cycles ?? []);
+  renderRisks(state.report);
+  populateFolderFilter(state.report.nodes ?? []);
+
+  if (state.historyView.kind === "ready" && state.history) {
+    renderHistory(state.history);
+  } else if (state.historyView.kind === "unavailable") {
+    renderHistoryUnavailable(state.historyView.message);
+  } else {
+    renderHistoryLoading();
+  }
+
+  const selectedNode = getSelectedNode();
+  if (selectedNode) {
+    renderSelection(selectedNode);
+  } else {
+    resetSelectionView();
+  }
+}
+
 function fillSidebar(report) {
+  state.history = null;
+  state.nodeById = new Map((report.nodes ?? []).map((node) => [node.id, node]));
+  state.edges = report.edges ?? [];
   renderSummary(report.metrics, report.risks ?? {});
   renderHealth(report);
+  renderStory(report, null);
+  renderHistoryLoading();
   renderCriticalFiles(report.metrics.criticalFiles ?? []);
   renderCycles(report.cycles ?? []);
   renderRisks(report);
@@ -143,17 +463,109 @@ function fillSidebar(report) {
   }
 }
 
+function resetSelectionView(message = t("selection.defaultMessage")) {
+  elements.selectionInfo.textContent = message;
+  updateSelectionActions(null);
+}
+
+function getReportNode(nodeId) {
+  return state.nodeById.get(nodeId) ?? null;
+}
+
+function getGraphNode(nodeId) {
+  if (!cy || !nodeId) {
+    return null;
+  }
+
+  const node = cy.getElementById(nodeId);
+  return node && node.nonempty() ? node : null;
+}
+
+function getSelectedNode() {
+  return getGraphNode(state.selectedNodeId);
+}
+
+function getRelatedNodes(nodeId, direction) {
+  if (!nodeId) {
+    return [];
+  }
+
+  const relatedIds = new Set();
+  const results = [];
+
+  for (const edge of state.edges) {
+    const isMatch =
+      direction === "outgoing" ? edge.source === nodeId : edge.target === nodeId;
+    if (!isMatch) {
+      continue;
+    }
+
+    const relatedId = direction === "outgoing" ? edge.target : edge.source;
+    if (relatedIds.has(relatedId)) {
+      continue;
+    }
+
+    const relatedNode = getReportNode(relatedId);
+    if (!relatedNode) {
+      continue;
+    }
+
+    relatedIds.add(relatedId);
+    results.push(relatedNode);
+  }
+
+  return results;
+}
+
+function renderNodeChips(nodes, emptyMessage) {
+  if (!nodes.length) {
+    return `<span class="selection-empty">${escapeHtml(emptyMessage)}</span>`;
+  }
+
+  const visibleNodes = nodes.slice(0, RELATION_PREVIEW_LIMIT);
+  const chips = visibleNodes.map(
+    (node) => `
+      <button class="selection-chip" type="button" data-node-id="${escapeHtml(node.id)}">
+        ${escapeHtml(node.label ?? node.id)}
+      </button>
+    `
+  );
+
+  if (nodes.length > visibleNodes.length) {
+    chips.push(`<span class="selection-overflow">+${nodes.length - visibleNodes.length}</span>`);
+  }
+
+  return chips.join("");
+}
+
+function renderFolderChip(folder) {
+  if (!folder) {
+    return `<span class="selection-empty">${escapeHtml(t("selection.noModuleFolder"))}</span>`;
+  }
+
+  return `
+    <button class="selection-chip selection-chip-accent" type="button" data-folder="${escapeHtml(folder)}">
+      ${escapeHtml(folder)}
+    </button>
+  `;
+}
+
 function renderSummary(metrics, risks) {
   elements.summary.innerHTML = "";
+  const averageInstability = Math.round(
+    Number(metrics.coupling?.averageInstability ?? 0) * 100
+  );
 
   const rows = [
-    `Files analyzed: <strong>${metrics.filesAnalyzed}</strong>`,
-    `Dependencies: <strong>${metrics.totalDependencies}</strong>`,
-    `External packages: <strong>${metrics.externalDependencies}</strong>`,
-    `Circular dependencies: <strong>${metrics.circularDependencyCount}</strong>`,
-    `Layer violations: <strong>${(risks.layer_violations ?? []).length}</strong>`,
-    `God files: <strong>${(risks.god_modules ?? []).length}</strong>`,
-    `Dependency explosions: <strong>${(risks.dependency_explosions ?? []).length}</strong>`,
+    `${t("summary.files")}: <strong>${metrics.filesAnalyzed}</strong>`,
+    `${t("summary.dependencies")}: <strong>${metrics.totalDependencies}</strong>`,
+    `${t("summary.externalPackages")}: <strong>${metrics.externalDependencies}</strong>`,
+    `${t("summary.circularDependencies")}: <strong>${metrics.circularDependencyCount}</strong>`,
+    `${t("summary.averageInstability")}: <strong>${averageInstability}%</strong>`,
+    `${t("summary.detectedStyle")}: <strong>${escapeHtml(metrics.architectureStyle ?? t("common.unknown"))}</strong>`,
+    `${t("summary.layerViolations")}: <strong>${(risks.layer_violations ?? []).length}</strong>`,
+    `${t("summary.godFiles")}: <strong>${(risks.god_modules ?? []).length}</strong>`,
+    `${t("summary.dependencyExplosions")}: <strong>${(risks.dependency_explosions ?? []).length}</strong>`,
   ];
 
   for (const text of rows) {
@@ -163,13 +575,206 @@ function renderSummary(metrics, risks) {
   }
 }
 
+function renderStory(report, history) {
+  const architecture = report.architecture ?? {};
+  const health = architecture.health ?? {};
+  const style = architecture.detectedStyle ?? {};
+  const rules = architecture.activeRules ?? { forbid: [], allow: [] };
+  const ruleViolations = architecture.ruleViolations ?? [];
+  const historyTrend = history?.trend ?? null;
+
+  const storyLines = [
+    t("story.currentStyle", { style: escapeHtml(style.name ?? t("common.unknown")) }),
+    escapeHtml(health.summary ?? t("story.summaryUnavailable")),
+  ];
+
+  if (historyTrend) {
+    storyLines.push(
+      t("story.historyTrend", {
+        count: history.windowSize,
+        health: signed(Number(historyTrend.healthDelta ?? 0)),
+        cycles: signed(Number(historyTrend.cycleDelta ?? 0)),
+      })
+    );
+  } else {
+    storyLines.push(t("story.historyLoading"));
+  }
+
+  if (ruleViolations.length > 0) {
+    storyLines.push(t("story.ruleViolations", { count: ruleViolations.length }));
+  } else if ((rules.forbid?.length ?? 0) + (rules.allow?.length ?? 0) > 0) {
+    storyLines.push(t("story.rulesHolding"));
+  }
+
+  elements.storyInfo.innerHTML = storyLines
+    .map((line) => `<p class="story-line">${line}</p>`)
+    .join("");
+
+  elements.rulesList.innerHTML = "";
+  const configuredRules = [
+    ...(rules.forbid ?? []).map((rule) => ({ kind: "forbid", rule })),
+    ...(rules.allow ?? []).map((rule) => ({ kind: "allow", rule })),
+  ];
+  if (!configuredRules.length) {
+    const item = document.createElement("li");
+    item.textContent = t("story.noRules");
+    elements.rulesList.appendChild(item);
+    return;
+  }
+
+  for (const entry of configuredRules.slice(0, 6)) {
+    const item = document.createElement("li");
+    item.innerHTML = `
+      <span class="story-badge story-badge-${entry.kind}">
+        ${entry.kind === "forbid" ? t("story.forbid") : t("story.allow")}
+      </span>
+      <span class="selection-code">${escapeHtml(entry.rule)}</span>
+    `;
+    elements.rulesList.appendChild(item);
+  }
+}
+
+function renderHistoryLoading() {
+  state.historyView = { kind: "loading", message: "" };
+  elements.historyStatus.textContent = t("history.loading");
+  elements.historyStatus.className = "history-pill";
+  elements.historyTrend.innerHTML = `<p class="selection-muted">${escapeHtml(
+    t("history.collecting")
+  )}</p>`;
+  elements.historyTimeline.innerHTML = "";
+  elements.historyCycles.innerHTML = "";
+  elements.historyHotspots.innerHTML = "";
+}
+
+function renderHistoryUnavailable(message) {
+  state.historyView = { kind: "unavailable", message };
+  elements.historyStatus.textContent = t("history.unavailable");
+  elements.historyStatus.className = "history-pill history-pill-warn";
+  elements.historyTrend.innerHTML = `<p class="selection-muted">${escapeHtml(message)}</p>`;
+  elements.historyTimeline.innerHTML = "";
+  elements.historyCycles.innerHTML = "";
+  elements.historyHotspots.innerHTML = "";
+}
+
+function renderHistory(history) {
+  state.historyView = { kind: "ready", message: "" };
+  const trend = history?.trend ?? {};
+  const snapshots = history?.snapshots ?? [];
+  const cycles = history?.cycles ?? [];
+  const hotspots = history?.hotspots ?? [];
+
+  elements.historyStatus.textContent = t("history.commits", { count: history?.windowSize ?? 0 });
+  elements.historyStatus.className = "history-pill history-pill-ok";
+  elements.historyTrend.innerHTML = `
+    <div class="history-stat-grid">
+      <div class="history-stat-card">
+        <span class="history-stat-label">${escapeHtml(t("history.health"))}</span>
+        <strong class="${deltaClass(Number(trend.healthDelta ?? 0), true)}">${signed(
+          Number(trend.healthDelta ?? 0)
+        )}</strong>
+      </div>
+      <div class="history-stat-card">
+        <span class="history-stat-label">${escapeHtml(t("history.cycles"))}</span>
+        <strong class="${deltaClass(Number(trend.cycleDelta ?? 0), false)}">${signed(
+          Number(trend.cycleDelta ?? 0)
+        )}</strong>
+      </div>
+      <div class="history-stat-card">
+        <span class="history-stat-label">${escapeHtml(t("history.instability"))}</span>
+        <strong class="${deltaClass(Number(trend.instabilityDeltaPercent ?? 0), false)}">${signedFloat(
+          Number(trend.instabilityDeltaPercent ?? 0)
+        )}%</strong>
+      </div>
+    </div>
+    <p class="history-note">${escapeHtml(t("history.note"))}</p>
+  `;
+
+  elements.historyTimeline.innerHTML = "";
+  for (const snapshot of snapshots.slice().reverse()) {
+    const item = document.createElement("li");
+    item.className = "timeline-item";
+    item.innerHTML = `
+      <div class="timeline-marker"></div>
+      <div class="timeline-content">
+        <div class="timeline-topline">
+          <span class="selection-code">${escapeHtml(snapshot.shortCommit ?? "")}</span>
+          <span class="timeline-health">${snapshot.health}/100</span>
+        </div>
+        <p class="timeline-title">${escapeHtml(snapshot.subject ?? t("history.noCommitSubject"))}</p>
+        <p class="timeline-meta">
+          ${escapeHtml(
+            t("history.timelineMeta", {
+              dependencies: snapshot.dependencies,
+              cycles: snapshot.cycles,
+              rules: snapshot.ruleViolations,
+            })
+          )}
+        </p>
+      </div>
+    `;
+    elements.historyTimeline.appendChild(item);
+  }
+
+  renderHistoryList(
+    elements.historyCycles,
+    cycles.slice(0, 4).map((item) => ({
+      label: `${item.cycle.join(" -> ")} - ${t("history.since", {
+        commit: item.introducedIn?.shortCommit ?? "?",
+      })}`,
+      meta: item.suspectedOwner
+        ? t("history.lastTouched", {
+          author: item.suspectedOwner.author,
+          file: item.suspectedOwner.file,
+        })
+        : t("history.noAuthorData"),
+      nodeId: item.cycle[0],
+    })),
+    t("history.noCyclesWindow")
+  );
+
+  renderHistoryList(
+    elements.historyHotspots,
+    hotspots.slice(0, 4).map((item) => ({
+      label: `${item.file} - ${t("history.score", { score: item.riskScore })}`,
+      meta: item.lastTouched
+        ? `${item.lastTouched.author} [${item.lastTouched.shortCommit}]`
+        : t("history.noAuthorData"),
+      nodeId: item.file,
+    })),
+    t("history.noHotspotBlame")
+  );
+}
+
+function renderHistoryList(container, items, emptyMessage) {
+  container.innerHTML = "";
+  if (!items.length) {
+    const item = document.createElement("li");
+    item.textContent = emptyMessage;
+    container.appendChild(item);
+    return;
+  }
+
+  for (const entry of items) {
+    const item = document.createElement("li");
+    item.innerHTML = `
+      <button class="nav-list-btn nav-list-btn-compact" type="button" data-node-id="${escapeHtml(
+        entry.nodeId
+      )}">
+        <span>${escapeHtml(entry.label)}</span>
+        <span class="nav-list-meta">${escapeHtml(entry.meta)}</span>
+      </button>
+    `;
+    container.appendChild(item);
+  }
+}
+
 function renderHealth(report) {
   const health = computeArchitectureHealth(report);
 
   elements.healthScore.classList.remove("good", "mid", "low");
   elements.healthScore.classList.add(health.band);
   elements.healthScore.textContent = `${health.score.toFixed(1)} / 10`;
-  elements.healthLabel.textContent = `Architecture Health: ${health.label}`;
+  elements.healthLabel.textContent = t("health.label", { label: health.label });
 
   elements.healthBreakdown.innerHTML = "";
   for (const row of health.breakdown) {
@@ -180,6 +785,43 @@ function renderHealth(report) {
 }
 
 function computeArchitectureHealth(report) {
+  const architectureHealth = report.architecture?.health;
+  if (architectureHealth && Number.isFinite(Number(architectureHealth.score))) {
+    const score = Number(architectureHealth.score) / 10;
+    let band = "low";
+    if (score >= 8.5) {
+      band = "good";
+    } else if (score >= 6.5) {
+      band = "mid";
+    }
+
+    return {
+      score,
+      label: architectureHealth.grade ?? t("health.unknown"),
+      band,
+      breakdown: [
+        {
+          label: t("health.breakdown.style"),
+          value: report.architecture?.detectedStyle?.name ?? t("common.unknown"),
+        },
+        {
+          label: t("health.breakdown.layers"),
+          value: (report.architecture?.detectedLayers ?? []).join(", ") || t("health.none"),
+        },
+        {
+          label: t("health.breakdown.customRules"),
+          value: (report.architecture?.ruleViolations ?? []).length,
+        },
+        {
+          label: t("health.breakdown.drivers"),
+          value:
+            (architectureHealth.drivers ?? []).slice(0, 2).join(" | ") ||
+            t("health.noMajorPenalties"),
+        },
+      ],
+    };
+  }
+
   const metrics = report.metrics ?? {};
   const risks = report.risks ?? {};
 
@@ -202,13 +844,13 @@ function computeArchitectureHealth(report) {
 
   const score = Math.max(0, 10 - penalty / 10);
 
-  let label = "Critical";
+  let label = t("health.critical");
   let band = "low";
   if (score >= 8.5) {
-    label = "Healthy";
+    label = t("health.healthy");
     band = "good";
   } else if (score >= 6.5) {
-    label = "Attention";
+    label = t("health.attention");
     band = "mid";
   }
 
@@ -217,11 +859,11 @@ function computeArchitectureHealth(report) {
     label,
     band,
     breakdown: [
-      { label: "Cycles", value: cycles },
-      { label: "Layer violations", value: layerViolations },
-      { label: "God files", value: godModules },
-      { label: "Dependency explosions", value: explosions },
-      { label: "Average complexity", value: `${Math.round(avgComplexity * 100)}%` },
+      { label: t("health.breakdown.cycles"), value: cycles },
+      { label: t("health.breakdown.layerViolations"), value: layerViolations },
+      { label: t("health.breakdown.godFiles"), value: godModules },
+      { label: t("health.breakdown.dependencyExplosions"), value: explosions },
+      { label: t("health.breakdown.averageComplexity"), value: `${Math.round(avgComplexity * 100)}%` },
     ],
   };
 }
@@ -238,41 +880,50 @@ function renderRisks(report) {
   const layerCount = (risks.layer_violations ?? []).length;
   const godCount = (risks.god_modules ?? []).length;
   const explosionCount = (risks.dependency_explosions ?? []).length;
+  const customRuleCount = (report.architecture?.ruleViolations ?? []).length;
 
   if (cycleCount > 0) {
     cards.push({
       level: "high",
-      msg: `${cycleCount} circular dependencies detected.`,
-      tip: "Break cycles with interfaces/events and clearer boundaries.",
+      msg: `${cycleCount} ${t("summary.circularDependencies").toLowerCase()}.`,
+      tip: t("risks.cycleTip"),
     });
   }
 
   if (layerCount > 0) {
     cards.push({
       level: "high",
-      msg: `${layerCount} layer violations detected.`,
-      tip: "Avoid low-level modules depending on high-level layers.",
+      msg: `${layerCount} ${t("summary.layerViolations").toLowerCase()}.`,
+      tip: t("risks.layerTip"),
     });
   }
 
   if (godCount > 0) {
     cards.push({
       level: "medium",
-      msg: `${godCount} god files detected.`,
-      tip: "Split modules with excessive responsibilities.",
+      msg: `${godCount} ${t("summary.godFiles").toLowerCase()}.`,
+      tip: t("risks.godTip"),
     });
   }
 
   if (explosionCount > 0) {
     cards.push({
       level: "medium",
-      msg: `${explosionCount} dependency explosions detected.`,
-      tip: "Reduce fan-in/fan-out from hotspot hubs.",
+      msg: `${explosionCount} ${t("summary.dependencyExplosions").toLowerCase()}.`,
+      tip: t("risks.explosionTip"),
+    });
+  }
+
+  if (customRuleCount > 0) {
+    cards.push({
+      level: "high",
+      msg: `${customRuleCount} ${t("health.breakdown.customRules").toLowerCase()}.`,
+      tip: t("risks.customTip"),
     });
   }
 
   if (cards.length === 0) {
-    elements.risksSummary.textContent = "No architectural smells detected.";
+    elements.risksSummary.textContent = t("risks.noneDetected");
   } else {
     for (const card of cards) {
       const div = document.createElement("div");
@@ -288,22 +939,28 @@ function renderRisks(report) {
   const hotspots = (risks.top_risk_files ?? []).slice(0, 8);
   if (hotspots.length === 0) {
     const item = document.createElement("li");
-    item.textContent = "No hotspot modules.";
+    item.textContent = t("risks.hotspotsNone");
     elements.hotspotsList.appendChild(item);
   } else {
     for (const hotspot of hotspots) {
       const item = document.createElement("li");
-      const signals = (hotspot.signals ?? []).join(", ") || "none";
-      item.innerHTML = `<span class="selection-code">${escapeHtml(hotspot.file)}</span> (score ${hotspot.riskScore}, ${escapeHtml(signals)})`;
+      const signals = (hotspot.signals ?? []).join(", ") || t("common.none");
+      item.innerHTML = `
+        <button class="nav-list-btn" type="button" data-node-id="${escapeHtml(hotspot.file)}">
+          <span class="selection-code">${escapeHtml(hotspot.file)}</span>
+          <span class="nav-list-meta">${escapeHtml(t("history.score", { score: hotspot.riskScore }))}, ${escapeHtml(signals)}</span>
+        </button>
+      `;
       elements.hotspotsList.appendChild(item);
     }
   }
 
   for (const smell of [
-    `Circular dependencies: ${cycleCount}`,
-    `Layer violations: ${layerCount}`,
-    `God files: ${godCount}`,
-    `Dependency explosions: ${explosionCount}`,
+    `${t("summary.circularDependencies")}: ${cycleCount}`,
+    `${t("summary.layerViolations")}: ${layerCount}`,
+    `${t("summary.godFiles")}: ${godCount}`,
+    `${t("summary.dependencyExplosions")}: ${explosionCount}`,
+    `${t("health.breakdown.customRules")}: ${customRuleCount}`,
   ]) {
     const item = document.createElement("li");
     item.textContent = smell;
@@ -317,14 +974,21 @@ function renderCriticalFiles(criticalFiles) {
 
   if (top.length === 0) {
     const item = document.createElement("li");
-    item.textContent = "No critical files detected.";
+    item.textContent = t("critical.none");
     elements.criticalList.appendChild(item);
     return;
   }
 
   for (const criticalFile of top) {
     const item = document.createElement("li");
-    item.innerHTML = `<span class="selection-code">${escapeHtml(criticalFile.file)}</span> (${criticalFile.dependents})`;
+    item.innerHTML = `
+      <button class="nav-list-btn" type="button" data-node-id="${escapeHtml(criticalFile.file)}">
+        <span class="selection-code">${escapeHtml(criticalFile.file)}</span>
+        <span class="nav-list-meta">${escapeHtml(
+          t("critical.dependents", { count: criticalFile.dependents })
+        )}</span>
+      </button>
+    `;
     elements.criticalList.appendChild(item);
   }
 }
@@ -334,15 +998,19 @@ function renderCycles(cycles) {
 
   if (!cycles || cycles.length === 0) {
     const item = document.createElement("li");
-    item.textContent = "No circular dependencies found.";
+    item.textContent = t("cycles.none");
     elements.cyclesList.appendChild(item);
     return;
   }
 
-  for (const cycle of cycles.slice(0, 12)) {
+  for (const [index, cycle] of cycles.slice(0, 12).entries()) {
     const pathText = [...cycle, cycle[0]].join(" -> ");
     const item = document.createElement("li");
-    item.innerHTML = `<span class="selection-code">${escapeHtml(pathText)}</span>`;
+    item.innerHTML = `
+      <button class="nav-list-btn" type="button" data-cycle-index="${index}">
+        <span class="selection-code">${escapeHtml(pathText)}</span>
+      </button>
+    `;
     elements.cyclesList.appendChild(item);
   }
 }
@@ -358,7 +1026,7 @@ function populateFolderFilter(nodes) {
   for (const optionValue of ["all", ...sortedFolders]) {
     const option = document.createElement("option");
     option.value = optionValue;
-    option.textContent = optionValue === "all" ? "All folders" : optionValue;
+    option.textContent = optionValue === "all" ? t("common.allFolders") : optionValue;
     elements.folderFilter.appendChild(option);
   }
 
@@ -470,6 +1138,9 @@ function buildGraphElements(report) {
       incoming: node.incoming,
       complexityImports: node.complexityImports ?? 0,
       complexityScore: node.complexityScore ?? 0,
+      efferentCoupling: node.efferentCoupling ?? node.outgoing ?? 0,
+      afferentCoupling: node.afferentCoupling ?? node.incoming ?? 0,
+      instability: node.instability ?? 0,
       heatColor: colorForScore(node.complexityScore ?? 0),
       nodeWidth: size.width,
       nodeHeight: size.height,
@@ -512,9 +1183,7 @@ function bindGraphEvents() {
       return;
     }
 
-    state.selectedNodeId = node.id();
-    renderSelection(node);
-    applyFilters();
+    selectNodeById(node.id(), { center: false });
   });
 
   cy.on("tap", (event) => {
@@ -522,7 +1191,7 @@ function bindGraphEvents() {
       state.selectedNodeId = null;
       clearHighlight();
       hideHoverCard();
-      elements.selectionInfo.textContent = "Click a node to inspect dependencies.";
+      resetSelectionView();
       applyFilters();
     }
   });
@@ -652,15 +1321,45 @@ function bindControls() {
     elements.focusDepth.value = "0";
     clearHighlight();
     hideHoverCard();
-    elements.selectionInfo.textContent = "Click a node to inspect dependencies.";
+    resetSelectionView();
     applyFilters();
   });
 
   elements.themeToggle.addEventListener("click", () => {
-    const current = document.documentElement.getAttribute("data-theme") || "light";
-    const next = current === "light" ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("archmap-theme", next);
+    cycleTheme();
+  });
+
+  elements.themeSelect?.addEventListener("change", () => {
+    applyTheme(elements.themeSelect.value);
+  });
+
+  elements.languageSelect?.addEventListener("change", () => {
+    applyLanguage(elements.languageSelect.value);
+  });
+
+  elements.pinProjectQuickBtn?.addEventListener("click", () => {
+    togglePinnedProject();
+  });
+
+  elements.pinProjectBtn?.addEventListener("click", () => {
+    togglePinnedProject();
+  });
+
+  elements.openPinnedBtn?.addEventListener("click", async () => {
+    elements.openPinnedBtn.classList.add("loading");
+    try {
+      const changed = await openPinnedProject();
+      if (changed) {
+        await init();
+      }
+    } catch (error) {
+      console.error("Failed to open pinned project:", error);
+      elements.selectionInfo.textContent = t("messages.failedOpenProject", {
+        message: error.message,
+      });
+    } finally {
+      elements.openPinnedBtn.classList.remove("loading");
+    }
   });
 
   elements.refreshBtn.addEventListener("click", async () => {
@@ -675,16 +1374,64 @@ function bindControls() {
   elements.openProjectBtn.addEventListener("click", async () => {
     elements.openProjectBtn.classList.add("loading");
     try {
-      const response = await fetch("/api/open", { method: "POST" });
-      if (response.status === 200) {
+      const changed = await requestOpenProject();
+      if (changed) {
         await init();
       }
     } catch (error) {
       console.error("Failed to open project:", error);
+      elements.selectionInfo.textContent = t("messages.failedOpenProject", {
+        message: error.message,
+      });
     } finally {
       elements.openProjectBtn.classList.remove("loading");
     }
   });
+
+  elements.openFileBtn?.addEventListener("click", async () => {
+    const node = getSelectedNode();
+    if (!node || node.data("type") !== "file") {
+      return;
+    }
+
+    elements.openFileBtn.classList.add("loading");
+    try {
+      await requestOpenFile(node.id());
+    } catch (error) {
+      console.error("Failed to open file:", error);
+      elements.selectionInfo.innerHTML = `
+        <p class="selection-item selection-error">
+          ${escapeHtml(t("messages.failedOpenFile", { message: error.message }))}
+        </p>
+      `;
+      updateSelectionActions(node);
+    } finally {
+      elements.openFileBtn.classList.remove("loading");
+    }
+  });
+
+  elements.drillModuleBtn?.addEventListener("click", () => {
+    const node = getSelectedNode();
+    if (!node) {
+      return;
+    }
+    drillIntoFolder(node.data("folder"), { nodeId: node.id() });
+  });
+
+  elements.projectViewBtn?.addEventListener("click", () => {
+    resetProjectView();
+  });
+
+  for (const interactiveElement of [
+    elements.selectionInfo,
+    elements.criticalList,
+    elements.hotspotsList,
+    elements.cyclesList,
+    elements.historyCycles,
+    elements.historyHotspots,
+  ]) {
+    interactiveElement?.addEventListener("click", handleNavigationInteraction);
+  }
 
   elements.miniMapGraph?.addEventListener("click", onMiniMapClick);
 }
@@ -693,6 +1440,313 @@ async function requestReanalyze() {
   const response = await fetch("/api/reanalyze", { method: "POST" });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
+  }
+}
+
+async function requestOpenProject() {
+  const response = await fetch("/api/open", { method: "POST" });
+  const payload = await readJsonSafely(response);
+  if (response.ok) {
+    return true;
+  }
+  if (response.status === 204) {
+    return false;
+  }
+  if ([404, 405, 501].includes(response.status) || payload?.mode === "manual_path") {
+    return requestManualProjectPath(payload?.message);
+  }
+
+  throw new Error(payload?.message ?? `HTTP ${response.status}`);
+}
+
+async function requestManualProjectPath(reasonMessage = "") {
+  const currentPath = await fetchCurrentProjectPath();
+  const promptMessage = reasonMessage
+    ? t("messages.promptProjectPathWithReason", { reason: reasonMessage })
+    : t("messages.promptProjectPath");
+  const nextPath = window.prompt(promptMessage, currentPath);
+  const normalizedPath = String(nextPath ?? "").trim();
+
+  if (!normalizedPath || normalizedPath === currentPath) {
+    return false;
+  }
+
+  const response = await fetch("/api/project", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: normalizedPath }),
+  });
+  if (!response.ok) {
+    const payload = await readJsonSafely(response);
+    throw new Error(payload?.message ?? `HTTP ${response.status}`);
+  }
+
+  return true;
+}
+
+async function requestOpenFile(nodeId) {
+  const response = await fetch("/api/open-file", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId }),
+  });
+  const payload = await readJsonSafely(response);
+  if (!response.ok) {
+    throw new Error(payload?.message ?? `HTTP ${response.status}`);
+  }
+  return payload;
+}
+
+async function loadHistory(limit = 12) {
+  try {
+    const response = await fetch(`/api/history?limit=${encodeURIComponent(limit)}`);
+    const payload = await readJsonSafely(response);
+    if (!response.ok) {
+      if ([404, 405, 501].includes(response.status)) {
+        renderHistoryUnavailable(
+          payload?.message ?? t("history.noHistoryRuntime")
+        );
+        renderStory(state.report, null);
+        return;
+      }
+      throw new Error(payload?.message ?? `HTTP ${response.status}`);
+    }
+
+    state.history = payload;
+    renderStory(state.report, payload);
+    renderHistory(payload);
+  } catch (error) {
+    console.error("Failed to load history:", error);
+    renderHistoryUnavailable(error.message);
+    renderStory(state.report, null);
+  }
+}
+
+async function fetchCurrentProjectPath() {
+  const response = await fetch("/api/project");
+  if (!response.ok) {
+    return ".";
+  }
+
+  const payload = await readJsonSafely(response);
+  return String(payload?.path ?? ".").trim() || ".";
+}
+
+async function readJsonSafely(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function deltaClass(value, positiveIsGood = false) {
+  if (value === 0) {
+    return "delta-flat";
+  }
+  const positive = value > 0;
+  if ((positive && positiveIsGood) || (!positive && !positiveIsGood)) {
+    return "delta-good";
+  }
+  return "delta-bad";
+}
+
+function handleNavigationInteraction(event) {
+  const nodeTrigger = event.target.closest("[data-node-id]");
+  if (nodeTrigger?.dataset.nodeId) {
+    selectNodeById(nodeTrigger.dataset.nodeId);
+    return;
+  }
+
+  const folderTrigger = event.target.closest("[data-folder]");
+  if (folderTrigger?.dataset.folder) {
+    drillIntoFolder(folderTrigger.dataset.folder, { nodeId: state.selectedNodeId });
+    return;
+  }
+
+  const cycleTrigger = event.target.closest("[data-cycle-index]");
+  if (cycleTrigger?.dataset.cycleIndex) {
+    const cycleIndex = Number.parseInt(cycleTrigger.dataset.cycleIndex, 10);
+    if (Number.isFinite(cycleIndex)) {
+      focusCycle(cycleIndex);
+    }
+  }
+}
+
+function syncFilterControls() {
+  elements.folderFilter.value = state.folder;
+  elements.focusDepth.value = String(state.focusDepth);
+  elements.cyclesOnly.checked = state.cyclesOnly;
+  elements.searchInput.value = state.search;
+}
+
+function ensureNodeVisibleContext(node) {
+  const role = node.data("role");
+  const folder = node.data("folder");
+  const label = String(node.data("label") ?? "").toLowerCase();
+  const nodeId = String(node.id()).toLowerCase();
+
+  if (roleControlMap[role] && !roleControlMap[role].checked) {
+    roleControlMap[role].checked = true;
+    state.roleFilters[role] = true;
+  }
+
+  if (state.cyclesOnly && !node.data("isCircular")) {
+    state.cyclesOnly = false;
+  }
+
+  if (state.folder !== "all" && folder && state.folder !== folder) {
+    state.folder = folder;
+  }
+
+  if (state.search && !label.includes(state.search) && !nodeId.includes(state.search)) {
+    state.search = "";
+  }
+
+  syncFilterControls();
+}
+
+function selectNodeById(nodeId, options = {}) {
+  const node = getGraphNode(nodeId);
+  if (!node || node.data("type") === "cluster") {
+    return;
+  }
+
+  ensureNodeVisibleContext(node);
+  state.selectedNodeId = node.id();
+  applyFilters();
+
+  const selectedNode = getSelectedNode();
+  if (!selectedNode) {
+    return;
+  }
+
+  renderSelection(selectedNode);
+  if (options.center === false) {
+    return;
+  }
+
+  focusNodeSet(options.fitNodeIds ?? [selectedNode.id()]);
+}
+
+function focusNodeSet(nodeIds) {
+  if (!cy || !Array.isArray(nodeIds) || nodeIds.length === 0) {
+    return;
+  }
+
+  let collection = cy.collection();
+  for (const nodeId of nodeIds) {
+    const node = getGraphNode(nodeId);
+    if (!node || !node.visible()) {
+      continue;
+    }
+    collection = collection.add(node);
+  }
+
+  if (collection.length === 0) {
+    return;
+  }
+
+  cy.animate(
+    {
+      fit: {
+        eles: collection,
+        padding: 80,
+      },
+      duration: 240,
+    },
+    { queue: false }
+  );
+}
+
+function drillIntoFolder(folder, options = {}) {
+  if (!folder) {
+    return;
+  }
+
+  state.folder = folder;
+  state.search = "";
+  state.cyclesOnly = false;
+  syncFilterControls();
+  applyFilters();
+
+  if (options.nodeId) {
+    selectNodeById(options.nodeId, { center: options.center });
+  } else {
+    updateSelectionActions(getSelectedNode());
+    focusNodeSet(
+      (state.report?.nodes ?? [])
+        .filter((node) => node.type === "file" && node.folder === folder)
+        .map((node) => node.id)
+    );
+  }
+}
+
+function resetProjectView() {
+  state.folder = "all";
+  state.focusDepth = 0;
+  state.cyclesOnly = false;
+  state.search = "";
+  syncFilterControls();
+  applyFilters();
+
+  const selectedNode = getSelectedNode();
+  if (selectedNode) {
+    renderSelection(selectedNode);
+  } else {
+    resetSelectionView();
+  }
+
+  const visibleNodeIds = cy ? cy.nodes(":visible").map((node) => node.id()) : [];
+  focusNodeSet(visibleNodeIds);
+}
+
+function focusCycle(cycleIndex) {
+  const cycles = state.report?.cycles ?? [];
+  const cycle = cycles[cycleIndex];
+  if (!Array.isArray(cycle) || cycle.length === 0) {
+    return;
+  }
+
+  state.folder = "all";
+  state.search = "";
+  state.cyclesOnly = false;
+  state.focusDepth = Math.max(2, state.focusDepth);
+  syncFilterControls();
+  applyFilters();
+  selectNodeById(cycle[0], { fitNodeIds: cycle });
+}
+
+function updateSelectionActions(node) {
+  const folder = node?.data("folder") ?? "";
+  const canOpenFile = Boolean(node && node.data("type") === "file");
+  const hasProjectViewContext =
+    state.folder !== "all" || state.focusDepth > 0 || state.cyclesOnly || Boolean(state.search);
+
+  if (elements.openFileBtn) {
+    elements.openFileBtn.disabled = !canOpenFile;
+    elements.openFileBtn.title = canOpenFile
+      ? t("selection.openHintReady")
+      : t("selection.openHintDisabled");
+  }
+  if (elements.drillModuleBtn) {
+    elements.drillModuleBtn.disabled = !folder;
+    elements.drillModuleBtn.title = folder
+      ? t("selection.drillHintReady", { folder })
+      : t("selection.drillHintDisabled");
+  }
+  if (elements.projectViewBtn) {
+    elements.projectViewBtn.disabled = !hasProjectViewContext;
+    elements.projectViewBtn.title = hasProjectViewContext
+      ? t("selection.resetHintReady")
+      : t("selection.resetHintDisabled");
+  }
+  if (elements.selectionActionHint) {
+    elements.selectionActionHint.textContent = [
+      canOpenFile ? t("selection.openHintReady") : t("selection.openHintDisabled"),
+      folder ? t("selection.drillHintReady", { folder }) : t("selection.drillHintDisabled"),
+      hasProjectViewContext ? t("selection.resetHintReady") : t("selection.resetHintDisabled"),
+    ].join(" ");
   }
 }
 
@@ -766,9 +1820,15 @@ function applyFilters() {
   const selected = state.selectedNodeId ? cy.getElementById(state.selectedNodeId) : null;
   if (selected && selected.nonempty() && selected.visible()) {
     highlightNodePaths(selected);
+    updateSelectionActions(selected);
   } else {
+    const hadSelection = Boolean(state.selectedNodeId);
     state.selectedNodeId = null;
     clearHighlight();
+    updateSelectionActions(null);
+    if (hadSelection) {
+      resetSelectionView();
+    }
   }
 
   syncMiniMap();
@@ -881,40 +1941,64 @@ function clearHighlight() {
   cy.elements().removeClass("dimmed highlighted selected upstream-node downstream-node upstream-edge downstream-edge");
 }
 function renderSelection(node) {
-  const outgoingTargets = node
-    .outgoers("edge:visible")
-    .targets()
-    .map((target) => target.data("label"))
-    .slice(0, 8);
-  const incomingSources = node
-    .incomers("edge:visible")
-    .sources()
-    .map((source) => source.data("label"))
-    .slice(0, 8);
-
-  const outgoingText = outgoingTargets.length > 0 ? outgoingTargets.join(", ") : "-";
-  const incomingText = incomingSources.length > 0 ? incomingSources.join(", ") : "-";
+  const outgoingNodes = getRelatedNodes(node.id(), "outgoing");
+  const incomingNodes = getRelatedNodes(node.id(), "incoming");
   const complexityImports = node.data("complexityImports") ?? 0;
   const complexityScore = Math.round((node.data("complexityScore") ?? 0) * 100);
   const role = node.data("role") ?? "other";
   const risk = state.riskByFile.get(node.id());
-  const riskSignals = risk?.signals?.length ? risk.signals.join(", ") : "none";
+  const riskSignals = risk?.signals?.length ? risk.signals.join(", ") : t("common.none");
   const riskScore = risk?.riskScore ?? 0;
+  const language = node.data("language") ?? t("common.unknown");
+  const folder = node.data("folder") ?? "";
+  const efferentCoupling = node.data("efferentCoupling") ?? node.data("outgoing") ?? 0;
+  const afferentCoupling = node.data("afferentCoupling") ?? node.data("incoming") ?? 0;
+  const instability = Number(node.data("instability") ?? 0);
+  const instabilityPercent = Math.round(instability * 100);
 
   const content = [
-    `<p class="selection-item"><strong>File:</strong> <span class="selection-code">${escapeHtml(node.id())}</span></p>`,
-    `<p class="selection-item"><strong>Type:</strong> ${escapeHtml(ROLE_LABELS[role] ?? role)}</p>`,
-    `<p class="selection-item"><strong>Folder:</strong> ${escapeHtml(node.data("folder") ?? "-")}</p>`,
-    `<p class="selection-item"><strong>Outbound deps:</strong> ${node.data("outgoing") ?? 0}</p>`,
-    `<p class="selection-item"><strong>Inbound deps:</strong> ${node.data("incoming") ?? 0}</p>`,
-    `<p class="selection-item"><strong>Complexity:</strong> ${complexityImports} imports (${complexityScore}%)</p>`,
-    `<p class="selection-item"><strong>Risk score:</strong> ${riskScore}</p>`,
-    `<p class="selection-item"><strong>Risk signals:</strong> ${escapeHtml(riskSignals)}</p>`,
-    `<p class="selection-item"><strong>Depends on:</strong> <span class="selection-code">${escapeHtml(outgoingText)}</span></p>`,
-    `<p class="selection-item"><strong>Used by:</strong> <span class="selection-code">${escapeHtml(incomingText)}</span></p>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.file"))}:</strong> <span class="selection-code">${escapeHtml(node.id())}</span></p>`,
+    `<div class="selection-stats-grid">`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.type"))}:</strong> ${escapeHtml(
+      roleLabel(role)
+    )}</p>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.language"))}:</strong> ${escapeHtml(language)}</p>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.outbound"))}:</strong> ${node.data("outgoing") ?? 0}</p>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.inbound"))}:</strong> ${node.data("incoming") ?? 0}</p>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.complexity"))}:</strong> ${complexityImports} ${escapeHtml(
+      t("selection.importsWord")
+    )} (${complexityScore}%)</p>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.riskScore"))}:</strong> ${riskScore}</p>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.efferent"))}:</strong> ${efferentCoupling}</p>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.afferent"))}:</strong> ${afferentCoupling}</p>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.instability"))}:</strong> ${instabilityPercent}%</p>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.interpretation"))}:</strong> ${escapeHtml(
+      describeInstability(instability, afferentCoupling, efferentCoupling)
+    )}</p>`,
+    `</div>`,
+    `<p class="selection-item"><strong>${escapeHtml(t("selection.riskSignals"))}:</strong> ${escapeHtml(riskSignals)}</p>`,
+    `<div class="selection-section">`,
+    `<p class="selection-section-title">${escapeHtml(t("selection.module"))}</p>`,
+    `<div class="selection-chip-group">${renderFolderChip(folder)}</div>`,
+    `</div>`,
+    `<div class="selection-section">`,
+    `<p class="selection-section-title">${escapeHtml(t("selection.dependsOn"))}</p>`,
+    `<div class="selection-chip-group">${renderNodeChips(
+      outgoingNodes,
+      t("selection.noDependencies")
+    )}</div>`,
+    `</div>`,
+    `<div class="selection-section">`,
+    `<p class="selection-section-title">${escapeHtml(t("selection.usedBy"))}</p>`,
+    `<div class="selection-chip-group">${renderNodeChips(
+      incomingNodes,
+      t("selection.noDependents")
+    )}</div>`,
+    `</div>`,
   ];
 
   elements.selectionInfo.innerHTML = content.join("");
+  updateSelectionActions(node);
 }
 
 function showHoverCard(node, renderedPosition) {
@@ -923,11 +2007,13 @@ function showHoverCard(node, renderedPosition) {
 
   elements.hoverCard.innerHTML = `
     <p class="hover-title">${escapeHtml(node.data("label") ?? node.id())}</p>
-    <p class="hover-row">File: <span class="selection-code">${escapeHtml(node.id())}</span></p>
-    <p class="hover-row">Dependencies: ${node.data("outgoing") ?? 0}</p>
-    <p class="hover-row">Dependents: ${node.data("incoming") ?? 0}</p>
-    <p class="hover-row">Complexity: ${complexity}%</p>
-    <p class="hover-row">Risk score: ${risk?.riskScore ?? 0}</p>
+    <p class="hover-row">${escapeHtml(t("hover.file"))}: <span class="selection-code">${escapeHtml(
+      node.id()
+    )}</span></p>
+    <p class="hover-row">${escapeHtml(t("hover.dependencies"))}: ${node.data("outgoing") ?? 0}</p>
+    <p class="hover-row">${escapeHtml(t("hover.dependents"))}: ${node.data("incoming") ?? 0}</p>
+    <p class="hover-row">${escapeHtml(t("hover.complexity"))}: ${complexity}%</p>
+    <p class="hover-row">${escapeHtml(t("hover.riskScore"))}: ${risk?.riskScore ?? 0}</p>
   `;
 
   elements.hoverCard.classList.remove("hidden");
@@ -986,11 +2072,7 @@ function focusBestSearchResult() {
   }
 
   const best = candidates[0].node;
-  state.selectedNodeId = best.id();
-  renderSelection(best);
-  applyFilters();
-
-  cy.animate({ center: { eles: best }, duration: 220 }, { queue: false });
+  selectNodeById(best.id());
 }
 
 function initializeMiniMap(graphElements) {
@@ -1401,6 +2483,19 @@ function fuzzyScore(text, pattern) {
   return score / text.length;
 }
 
+function describeInstability(instability, afferentCoupling, efferentCoupling) {
+  if (afferentCoupling === 0 && efferentCoupling === 0) {
+    return t("instability.isolated");
+  }
+  if (instability >= 0.75) {
+    return t("instability.high");
+  }
+  if (instability <= 0.25) {
+    return t("instability.stable");
+  }
+  return t("instability.balanced");
+}
+
 function colorForScore(score) {
   const clamped = Math.min(1, Math.max(0, Number(score) || 0));
   if (clamped <= 0.5) {
@@ -1419,6 +2514,16 @@ function interpolateColor(startHex, endHex, ratio) {
   const blue = Math.round(start.b + (end.b - start.b) * t);
 
   return `rgb(${red}, ${green}, ${blue})`;
+}
+
+function signed(value) {
+  const parsed = Math.trunc(Number(value) || 0);
+  return `${parsed >= 0 ? "+" : ""}${parsed}`;
+}
+
+function signedFloat(value) {
+  const parsed = Number(value) || 0;
+  return `${parsed >= 0 ? "+" : ""}${parsed.toFixed(2)}`;
 }
 
 function hexToRgb(hex) {

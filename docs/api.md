@@ -53,6 +53,8 @@ Flat list of dependency pairs.
     {
       "file": "src/archmap/cli/main.py",
       "imports": 14,
+      "dependents": 9,
+      "totalConnections": 23,
       "score": 0.87
     }
   ],
@@ -71,7 +73,7 @@ Flat list of dependency pairs.
 | `totalDependencies` | `int` | Total edge count (internal + external) |
 | `externalDependencies` | `int` | Count of external package nodes |
 | `circularDependencyCount` | `int` | Number of detected cycles |
-| `complexity` | `ComplexityEntry[]` | Top files by normalized outgoing-import score (descending) |
+| `complexity` | `ComplexityEntry[]` | Top files by normalized import/dependent pressure score (descending) |
 | `criticalFiles` | `CriticalFileEntry[]` | Top files by incoming dependency count (descending) |
 
 #### `ComplexityEntry`
@@ -80,6 +82,8 @@ Flat list of dependency pairs.
 |---|---|---|
 | `file` | `string` | Relative file ID |
 | `imports` | `int` | Outgoing dependency count |
+| `dependents` | `int` | Incoming dependency count |
+| `totalConnections` | `int` | Sum of incoming and outgoing file connections |
 | `score` | `float` | Normalized score `[0, 1]` |
 
 #### `CriticalFileEntry`
@@ -211,7 +215,10 @@ Full node and edge objects for the Web UI and Cytoscape integration.
     "outgoing": 12,
     "incoming": 0,
     "isCircular": false,
-    "complexity": 0.87
+    "complexityImports": 12,
+    "complexityDependents": 0,
+    "complexityConnections": 12,
+    "complexityScore": 0.87
   },
   {
     "id": "pkg:requests",

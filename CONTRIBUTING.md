@@ -1,4 +1,4 @@
-﻿# Contributing to ArchMAP
+# Contributing to ArchMAP
 
 Thanks for contributing! Please read our [Code of Conduct](./CODE_OF_CONDUCT.md) first.
 

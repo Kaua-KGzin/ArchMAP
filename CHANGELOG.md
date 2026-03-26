@@ -1,11 +1,58 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+No entries yet.
+
+## [0.5.0-beta.0] - 2026-03-25
+
 ### Added
-- No entries yet.
+- Project configuration via `.archmap.toml` / `archmap.toml`, including `analysis.ignore_dirs`, `analysis.max_file_size_bytes`, `architecture.rules`, and customizable `risks.layer_order`.
+- Architecture intelligence:
+  - automatic style inference (`monolith`, `modular_monolith`, `microservice_like`)
+  - architecture health score and grade
+  - custom `forbid` / `allow` rule validation
+  - diff output with architecture-health deltas
+- Historical architecture analysis from Git:
+  - graph evolution timeline
+  - cycle origin tracking
+  - hotspot ownership / blame hints
+  - CLI `history` command and `/api/history` endpoint
+- UI workflow improvements:
+  - project pinning for quick reopening
+  - language switching (`pt-BR`, `en`, `ru`, `zh-CN`)
+  - explicit theme selection (`dark`, `light`, `ocean`)
+  - clearer selection actions for opening files, focusing modules, and returning to project view
+- File-level diff summaries (`added`, `removed`, `changed`) and Git content loading through `git cat-file --batch`.
+- Shared pytest fixtures for graph nodes, edges, parsed files, and temporary project layouts.
+- Release artifacts for this version:
+  - `dist/archmap.exe`
+  - `dist/archmap-0.5.0-beta.0.exe`
+  - `dist/archmap-build-info.json` (SHA256: `2AFC6941309AE3CBD87508FDDC2A8D20393D0DF4E40A774B7F0B38E7227D814B`)
+
+### Changed
+- CLI architecture split from a single large `main.py` into focused modules for arguments, commands, defaults, reporting, and server behavior.
+- Parser package reorganized into dedicated bootstrap, resolver, project parsing, and TypeScript modules.
+- Python dependency parsing now uses `ast` first, with a tolerant fallback for incomplete files.
+- JavaScript/TypeScript scanning now ignores comments, strings, and more dynamic-import edge cases more reliably.
+- Complexity scoring now considers outgoing imports, incoming dependents, total connections, and instability-oriented coupling metrics.
+- Default analysis scope now excludes common generated and non-production folders such as `site/`, `tests/`, `examples/`, and `.codeatlas/`.
+- Web UI layout refreshed with stronger visual hierarchy, richer project controls, and clearer action affordances.
+
+### Fixed
+- Python `src/` layout imports now resolve as internal files instead of external packages.
+- Cycle detection now uses an iterative SCC walk instead of recursive traversal, preventing recursion depth failures on large graphs.
+- Project switching in the UI now falls back cleanly when the native directory picker is unavailable.
+- `localStorage` access in the web UI is guarded to avoid runtime errors in restricted environments.
+- Mermaid node identifiers are sanitized consistently for generated diagrams.
+- Tracked text files were normalized to LF to avoid mixed line-ending drift across environments.
+- Release metadata now aligns across Python package version, Node package version, README badges, and documentation links.
+
+### Testing
+- Coverage increased to 89-90% across the expanded suite.
+- Added direct regression coverage for CLI internals, server endpoints, parser registry/bootstrap internals, file discovery rules, risk scoring, max-file-size behavior, architecture analysis, history analysis, and web UI asset parity.
 
 ## [0.4.0-beta.1] - 2026-03-11
 

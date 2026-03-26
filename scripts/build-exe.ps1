@@ -34,7 +34,21 @@ try {
         throw "EXE not found after build: $ExePath"
     }
 
+    $staleProcesses = Get-Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Path -and
+            $_.Path.StartsWith($DistDir, [System.StringComparison]::OrdinalIgnoreCase) -and
+            $_.ProcessName -like "archmap*"
+        }
+    if ($staleProcesses) {
+        $staleProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+    }
+
     $versionedExe = Join-Path $DistDir "archmap-$version.exe"
+    Get-ChildItem -Path $DistDir -Filter "archmap-*.exe" -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -ne $versionedExe } |
+        Remove-Item -Force
     Copy-Item $ExePath $versionedExe -Force
 
     $sha = (Get-FileHash $ExePath -Algorithm SHA256).Hash
@@ -56,9 +70,15 @@ try {
         }
     }
 
+    $distAnalysisCache = Join-Path $DistDir ".codeatlas"
+    if (Test-Path $distAnalysisCache) {
+        Remove-Item $distAnalysisCache -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
     Write-Host "[ok] EXE built successfully."
     Write-Host "[ok] Main EXE: $ExePath"
     Write-Host "[ok] Versioned EXE: $versionedExe"
+    Write-Host "[ok] Older versioned EXEs removed."
     Write-Host "[ok] Build info: $manifestPath"
 }
 finally {

@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from archmap.utils.file_utils import normalize_file_id, percentile
 
-LAYER_ORDER = {
+DEFAULT_LAYER_ORDER = {
     "cli": 5,
     "web-ui": 5,
     "api": 5,
@@ -22,8 +22,12 @@ LAYER_ORDER = {
 
 
 def detect_architectural_risks(
-    nodes: list[dict], edges: list[dict], cycles: list[list[str]]
+    nodes: list[dict],
+    edges: list[dict],
+    cycles: list[list[str]],
+    layer_order: dict[str, int] | None = None,
 ) -> dict:
+    active_layer_order = _build_layer_order(layer_order)
     file_nodes = [node for node in nodes if node.get("type") == "file"]
     file_ids = {node["id"] for node in file_nodes}
 
@@ -60,10 +64,10 @@ def detect_architectural_risks(
         if source not in file_ids or target not in file_ids:
             continue
 
-        source_layer = _detect_layer(source)
-        target_layer = _detect_layer(target)
-        source_rank = LAYER_ORDER.get(source_layer)
-        target_rank = LAYER_ORDER.get(target_layer)
+        source_layer = _detect_layer(source, active_layer_order)
+        target_layer = _detect_layer(target, active_layer_order)
+        source_rank = active_layer_order.get(source_layer)
+        target_rank = active_layer_order.get(target_layer)
         if source_rank is None or target_rank is None:
             continue
         if source_layer == target_layer:
@@ -137,9 +141,21 @@ def detect_architectural_risks(
     }
 
 
-def _detect_layer(file_id: str) -> str | None:
+def _detect_layer(file_id: str, layer_order: dict[str, int]) -> str | None:
     parts = [part for part in normalize_file_id(file_id).split("/") if part and part != "."]
     for part in parts:
-        if part in LAYER_ORDER:
-            return part
+        normalized = part.casefold()
+        if normalized in layer_order:
+            return normalized
     return None
+
+
+def _build_layer_order(custom_layer_order: dict[str, int] | None) -> dict[str, int]:
+    merged = dict(DEFAULT_LAYER_ORDER)
+    if not custom_layer_order:
+        return merged
+
+    for key, value in custom_layer_order.items():
+        merged[str(key).strip().casefold()] = int(value)
+
+    return merged

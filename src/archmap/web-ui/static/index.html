@@ -17,91 +17,141 @@
   <div class="workspace">
     <nav class="nav-rail" aria-label="Main">
       <div class="rail-logo">AM</div>
-      <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">G</button>
-      <button class="rail-btn" id="openProjectBtn" title="Open project folder">OP</button>
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">TM</button>
+      <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">
+        <span class="rail-btn-icon">G</span>
+        <span class="rail-btn-label" data-i18n="nav.graph">Graph</span>
+      </button>
+      <button class="rail-btn" id="openProjectBtn" type="button" data-i18n-title="nav.openProjectTitle"
+        data-i18n-aria-label="nav.openProjectTitle">
+        <span class="rail-btn-icon">OP</span>
+        <span class="rail-btn-label" data-i18n="nav.openProject">Open</span>
+      </button>
+      <button class="rail-btn" id="pinProjectQuickBtn" type="button" data-i18n-title="nav.pinProjectTitle"
+        data-i18n-aria-label="nav.pinProjectTitle">
+        <span class="rail-btn-icon">PIN</span>
+        <span class="rail-btn-label" data-i18n="nav.pinProject">Pin</span>
+      </button>
+      <button id="themeToggle" class="theme-toggle rail-btn" type="button" data-i18n-title="nav.themeTitle"
+        data-i18n-aria-label="nav.themeTitle">
+        <span class="rail-btn-icon">TH</span>
+        <span class="rail-btn-label" data-i18n="nav.theme">Theme</span>
+      </button>
     </nav>
 
     <aside class="left-panel">
       <header class="panel-header card">
         <p class="eyebrow">ArchMAP</p>
-        <h1>Service Map</h1>
-        <p class="subtitle">Dependency topology and architectural risk hotspots.</p>
+        <h1 data-i18n="header.title">Service Map</h1>
+        <p class="subtitle" data-i18n="header.subtitle">Dependency topology and architectural risk hotspots.</p>
       </header>
 
+      <section class="card project-card">
+        <div class="project-card-header">
+          <div>
+            <p class="eyebrow" data-i18n="project.eyebrow">Workspace</p>
+            <h2 data-i18n="project.title">Project Control</h2>
+          </div>
+          <span id="pinnedStatus" class="history-pill">Loading</span>
+        </div>
+        <p class="project-label" data-i18n="project.currentLabel">Current project</p>
+        <p id="currentProjectPath" class="selection-code project-path">...</p>
+        <p id="projectStatus" class="selection-muted" data-i18n="project.detecting">Detecting current project...</p>
+        <div class="project-actions">
+          <button id="pinProjectBtn" type="button" data-i18n="actions.pinProject">Pin current project</button>
+          <button id="openPinnedBtn" type="button" data-i18n="actions.openPinned">Open pinned project</button>
+        </div>
+        <p class="project-label" data-i18n="project.pinnedLabel">Pinned project</p>
+        <p id="pinnedProjectPath" class="selection-code project-path" data-i18n="project.noPinned">No pinned project saved.</p>
+        <div class="preferences-grid">
+          <label class="field">
+            <span data-i18n="preferences.language">Language</span>
+            <select id="languageSelect" aria-label="Language"></select>
+          </label>
+          <label class="field">
+            <span data-i18n="preferences.theme">Theme</span>
+            <select id="themeSelect" aria-label="Theme"></select>
+          </label>
+        </div>
+        <p class="selection-muted" data-i18n="project.helper">
+          Pin a repository to reopen it quickly and keep the same review context.
+        </p>
+      </section>
+
       <section class="card">
-        <h2>Architecture Health</h2>
+        <h2 data-i18n="sections.health">Architecture Health</h2>
         <div id="healthScore" class="health-score">0.0 / 10</div>
-        <p id="healthLabel" class="selection-muted">Waiting for analysis...</p>
+        <p id="healthLabel" class="selection-muted" data-i18n="health.waiting">Waiting for analysis...</p>
         <ul id="healthBreakdown" class="mini-list"></ul>
       </section>
 
       <section class="card">
-        <h2>Risks & Anomalies</h2>
-        <div id="risksSummary" class="selection-muted">No high-risk architectural smells detected.</div>
-        <h3 class="mini-title">Hotspots</h3>
+        <h2 data-i18n="sections.risks">Risks & Anomalies</h2>
+        <div id="risksSummary" class="selection-muted" data-i18n="risks.none">
+          No high-risk architectural smells detected.
+        </div>
+        <h3 class="mini-title" data-i18n="sections.hotspots">Hotspots</h3>
         <ol id="hotspotsList"></ol>
-        <h3 class="mini-title">Smells</h3>
+        <h3 class="mini-title" data-i18n="sections.smells">Smells</h3>
         <ul id="smellsList" class="mini-list"></ul>
       </section>
 
       <section class="card">
-        <h2>Graph Controls</h2>
+        <h2 data-i18n="sections.controls">Graph Controls</h2>
         <label class="field">
-          <span>Filter by folder</span>
+          <span data-i18n="controls.folder">Filter by folder</span>
           <select id="folderFilter"></select>
         </label>
 
         <fieldset class="field type-filters">
-          <legend>Filter by type</legend>
-          <label><input id="typeController" type="checkbox" checked /> Controllers</label>
-          <label><input id="typeModel" type="checkbox" checked /> Models</label>
-          <label><input id="typeService" type="checkbox" checked /> Services</label>
-          <label><input id="typeRequest" type="checkbox" checked /> Requests</label>
-          <label><input id="typeDatabase" type="checkbox" checked /> Database</label>
-          <label><input id="typeExternal" type="checkbox" checked /> External libs</label>
-          <label><input id="typeOther" type="checkbox" checked /> Other files</label>
+          <legend data-i18n="controls.type">Filter by type</legend>
+          <label><input id="typeController" type="checkbox" checked /> <span data-i18n="role.controllerPlural">Controllers</span></label>
+          <label><input id="typeModel" type="checkbox" checked /> <span data-i18n="role.modelPlural">Models</span></label>
+          <label><input id="typeService" type="checkbox" checked /> <span data-i18n="role.servicePlural">Services</span></label>
+          <label><input id="typeRequest" type="checkbox" checked /> <span data-i18n="role.requestPlural">Requests</span></label>
+          <label><input id="typeDatabase" type="checkbox" checked /> <span data-i18n="role.database">Database</span></label>
+          <label><input id="typeExternal" type="checkbox" checked /> <span data-i18n="role.externalPlural">External libs</span></label>
+          <label><input id="typeOther" type="checkbox" checked /> <span data-i18n="role.otherPlural">Other files</span></label>
         </fieldset>
 
         <label class="switch">
           <input id="cyclesOnly" type="checkbox" />
-          <span>Highlight only circular dependencies</span>
+          <span data-i18n="controls.cyclesOnly">Highlight only circular dependencies</span>
         </label>
 
         <label class="switch">
           <input id="heatmapMode" type="checkbox" />
-          <span>Heatmap mode (complexity)</span>
+          <span data-i18n="controls.heatmap">Heatmap mode (complexity)</span>
         </label>
 
         <label class="switch">
           <input id="clusterMode" type="checkbox" />
-          <span>Cluster by folder</span>
+          <span data-i18n="controls.cluster">Cluster by folder</span>
         </label>
 
         <label class="field">
-          <span>Dependency focus depth</span>
+          <span data-i18n="controls.focus">Dependency focus depth</span>
           <select id="focusDepth">
-            <option value="0">Off</option>
-            <option value="1">1 level</option>
-            <option value="2">2 levels</option>
-            <option value="3">3 levels</option>
+            <option value="0" data-i18n="controls.focusOff">Off</option>
+            <option value="1" data-i18n="controls.focusOne">1 level</option>
+            <option value="2" data-i18n="controls.focusTwo">2 levels</option>
+            <option value="3" data-i18n="controls.focusThree">3 levels</option>
           </select>
         </label>
 
         <div class="actions">
-          <button id="zoomInBtn" type="button">Zoom +</button>
-          <button id="zoomOutBtn" type="button">Zoom -</button>
-          <button id="fitBtn" type="button">Fit</button>
-          <button id="layoutBtn" type="button">Relayout</button>
-          <button id="expandBtn" type="button">Expand deps</button>
-          <button id="collapseBtn" type="button">Collapse deps</button>
-          <button id="exportPngBtn" type="button">Export PNG</button>
-          <button id="resetBtn" type="button">Clear highlight</button>
+          <button id="zoomInBtn" type="button" data-i18n="actions.zoomIn">Zoom +</button>
+          <button id="zoomOutBtn" type="button" data-i18n="actions.zoomOut">Zoom -</button>
+          <button id="fitBtn" type="button" data-i18n="actions.fit">Fit</button>
+          <button id="layoutBtn" type="button" data-i18n="actions.relayout">Relayout</button>
+          <button id="expandBtn" type="button" data-i18n="actions.expand">Expand deps</button>
+          <button id="collapseBtn" type="button" data-i18n="actions.collapse">Collapse deps</button>
+          <button id="exportPngBtn" type="button" data-i18n="actions.exportPng">Export PNG</button>
+          <button id="resetBtn" type="button" data-i18n="actions.clearHighlight">Clear highlight</button>
         </div>
       </section>
 
       <section class="card">
-        <h2>Critical files</h2>
+        <h2 data-i18n="sections.criticalFiles">Critical files</h2>
         <ol id="criticalList"></ol>
       </section>
     </aside>
@@ -109,19 +159,20 @@
     <main class="canvas-panel">
       <header class="canvas-toolbar">
         <div class="toolbar-title-group">
-          <p class="toolbar-kicker">Production</p>
+          <p id="toolbarKicker" class="toolbar-kicker" data-i18n="toolbar.kicker">Current project</p>
           <div class="toolbar-title-row">
-            <h2 class="toolbar-title">Dependency Graph</h2>
-            <button id="refreshBtn" class="refresh-btn">Refresh</button>
+            <h2 class="toolbar-title" data-i18n="toolbar.title">Dependency Graph</h2>
+            <button id="refreshBtn" class="refresh-btn" data-i18n="actions.refresh">Refresh</button>
           </div>
         </div>
-        <input id="searchInput" type="search" placeholder="Search files or packages"
+        <input id="searchInput" type="search" data-i18n-placeholder="toolbar.searchPlaceholder"
+          data-i18n-aria-label="toolbar.searchPlaceholder" placeholder="Search files or packages"
           aria-label="Search files or packages" />
       </header>
       <div class="graph-shell">
         <div id="graph"></div>
         <aside id="miniMap" class="mini-map">
-          <p class="mini-map-title">Mini map</p>
+          <p class="mini-map-title" data-i18n="toolbar.miniMap">Mini map</p>
           <div id="miniMapGraph"></div>
           <div id="miniMapViewport"></div>
         </aside>
@@ -131,30 +182,61 @@
 
     <aside class="right-panel">
       <section class="card">
-        <h2>Summary</h2>
+        <h2 data-i18n="sections.summary">Summary</h2>
         <div id="summary"></div>
       </section>
 
-      <section class="card">
-        <h2>Selection</h2>
-        <div id="selectionInfo" class="selection-muted">Click a node to inspect dependencies.</div>
+      <section class="card story-card">
+        <h2 data-i18n="sections.story">Architecture Story</h2>
+        <div id="storyInfo" class="story-copy" data-i18n="story.loading">Loading architecture narrative...</div>
+        <ul id="rulesList" class="mini-list"></ul>
       </section>
 
       <section class="card">
-        <h2>Circular deps</h2>
+        <div class="selection-header">
+          <h2 data-i18n="sections.selection">Selection</h2>
+          <div class="selection-actions">
+            <button id="openFileBtn" type="button" disabled data-i18n="actions.openInEditor">Open in editor</button>
+            <button id="drillModuleBtn" type="button" disabled data-i18n="actions.focusModule">Focus module</button>
+            <button id="projectViewBtn" type="button" disabled data-i18n="actions.backToProject">Back to project</button>
+          </div>
+        </div>
+        <p id="selectionActionHint" class="selection-muted selection-action-hint" data-i18n="selection.actionHint">
+          Open in editor launches the selected file. Focus module narrows the graph to the selected folder.
+        </p>
+        <div id="selectionInfo" class="selection-muted" data-i18n="selection.defaultMessage">
+          Click a node to inspect dependencies.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="sections.cycles">Circular deps</h2>
         <ol id="cyclesList"></ol>
       </section>
 
       <section class="card">
-        <h2>Heatmap legend</h2>
+        <h2 data-i18n="sections.heatmap">Heatmap legend</h2>
         <div id="heatmapLegend" class="legend legend-hidden">
           <div class="legend-bar"></div>
           <div class="legend-labels">
-            <span>Low</span>
-            <span>Medium</span>
-            <span>High</span>
+            <span data-i18n="heatmap.low">Low</span>
+            <span data-i18n="heatmap.medium">Medium</span>
+            <span data-i18n="heatmap.high">High</span>
           </div>
         </div>
+      </section>
+
+      <section class="card history-card">
+        <div class="history-header">
+          <h2 data-i18n="sections.history">Architecture History</h2>
+          <span id="historyStatus" class="history-pill">Loading</span>
+        </div>
+        <div id="historyTrend" class="history-trend"></div>
+        <ol id="historyTimeline" class="timeline-list"></ol>
+        <h3 class="mini-title" data-i18n="history.cycleOrigins">Cycle Origins</h3>
+        <ul id="historyCycles" class="mini-list"></ul>
+        <h3 class="mini-title" data-i18n="history.blame">Architectural Blame</h3>
+        <ul id="historyHotspots" class="mini-list"></ul>
       </section>
     </aside>
   </div>
