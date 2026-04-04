@@ -19,3 +19,9 @@ logs/runtime/*
 !logs/runtime/.gitkeep
 server_log.txt
 test_out.txt
+test_output*.txt
+cov_report*.txt
+parser_cov*.txt
+coverage.json
+release_notes_api.txt
+web-ui/static/

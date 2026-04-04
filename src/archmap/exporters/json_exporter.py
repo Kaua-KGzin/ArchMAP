@@ -19,6 +19,7 @@ def export_graph_as_json(report: dict, output_path: str | Path) -> Path:
         "metrics": report["metrics"],
         "cycles": report["cycles"],
         "risks": report.get("risks", {}),
+        "architecture": report.get("architecture", {}),
         "detailed": {
             "nodes": report["nodes"],
             "edges": report["edges"],

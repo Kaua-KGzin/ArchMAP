@@ -1,30 +1,26 @@
-﻿# ArchMAP Roadmap
+# ArchMAP Roadmap
 
-## v0.4.0-beta.0 (current beta)
+## v0.6.0b0
 
-- Python migration completed (`src/archmap` as canonical source)
-- New command: `archmap diff <base> <head>`
-- Architecture risk detection:
-  - god modules
-  - layer violations
-  - dependency explosion
-- CI pipeline with lint + tests + coverage + smoke
+- Zero-config CLI flow strengthened around:
+  - `archmap analyze`
+  - `archmap explain`
+  - `archmap risk`
+  - `archmap improve`
+- Automatic architecture suggestion engine with simple folder proposals.
+- Live watch mode for terminal and web UI.
+- Windows-safe CLI output and broader parser stability.
+- Documentation and metadata sync for the current repository and release line.
 
-## v0.3.0
+## Next up
 
-- Layer configuration file support (`archmap.toml`)
-- More precise language resolvers (workspace aliases, monorepos)
-- Risk trend report over commit history
-- SARIF export for CI integration
+- Stronger domain clustering for the automatic architect mode.
+- Optional CSV and SARIF exports for CI and reporting workflows.
+- Incremental analysis cache for larger repositories.
+- Richer API documentation for insights, explanation, impact, and improve payloads.
 
-## v0.4.0
+## Longer-term
 
-- Drift detection between architecture snapshots
-- Architecture policy checks (allowed/blocked dependencies)
-- Incremental analysis cache for large repositories
-
-## v1.0.0
-
-- Stable plugin system for custom parsers/analyzers
-- Official VS Code extension integration
-- Full release hardening and compatibility guarantees
+- Stable plugin API for custom parsers and analyzers.
+- Editor integration and code-action helpers for refactor suggestions.
+- More precise monorepo and workspace alias resolution across ecosystems.

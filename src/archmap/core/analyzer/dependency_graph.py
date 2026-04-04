@@ -1,15 +1,25 @@
 from __future__ import annotations
 
+from archmap.core.analyzer.architecture_analyzer import analyze_architecture
 from archmap.core.analyzer.complexity_analyzer import (
     annotate_nodes_with_complexity,
     summarize_complexity,
+    summarize_coupling,
     summarize_critical_files,
 )
 from archmap.core.analyzer.cycle_detector import find_circular_dependencies
+from archmap.core.analyzer.human_analyzer import analyze_human
+from archmap.core.analyzer.impact_analyzer import calculate_impact
+from archmap.core.analyzer.project_explainer import explain_project
 from archmap.core.analyzer.risk_analyzer import detect_architectural_risks
 
 
-def analyze_graph(graph: dict) -> dict:
+def analyze_graph(
+    graph: dict,
+    layer_order: dict[str, int] | None = None,
+    forbidden_rules: list[str] | None = None,
+    allowed_rules: list[str] | None = None,
+) -> dict:
     file_nodes = [node for node in graph["nodes"] if node.get("type") == "file"]
     file_node_ids = [node["id"] for node in file_nodes]
     file_node_set = set(file_node_ids)
@@ -20,18 +30,32 @@ def analyze_graph(graph: dict) -> dict:
     nodes = annotate_nodes_with_complexity(graph["nodes"], cycle_membership)
     edges = _annotate_edges(graph["edges"], cycle_membership)
 
+    for node in nodes:
+        node["impact"] = calculate_impact(node["id"], edges)
+
     metrics = {
         "filesAnalyzed": len(file_nodes),
         "totalDependencies": len(graph["edges"]),
-        "externalDependencies": len(
-            [node for node in nodes if node.get("type") == "package"]
-        ),
+        "externalDependencies": len([node for node in nodes if node.get("type") == "package"]),
         "circularDependencyCount": len(cycles),
         "complexity": summarize_complexity(nodes),
+        "coupling": summarize_coupling(nodes),
         "criticalFiles": summarize_critical_files(nodes),
     }
 
-    risks = detect_architectural_risks(nodes, edges, cycles)
+    risks = detect_architectural_risks(nodes, edges, cycles, layer_order=layer_order)
+    architecture = analyze_architecture(
+        nodes,
+        edges,
+        cycles,
+        risks,
+        layer_order=layer_order,
+        forbidden_rules=forbidden_rules,
+        allowed_rules=allowed_rules,
+    )
+    metrics["architectureHealthScore"] = architecture["health"]["score"]
+    metrics["architectureStyle"] = architecture["detectedStyle"]["name"]
+    metrics["architectureRuleViolations"] = len(architecture["ruleViolations"])
 
     return {
         "projectRoot": graph["projectRoot"],
@@ -40,6 +64,14 @@ def analyze_graph(graph: dict) -> dict:
         "metrics": metrics,
         "cycles": cycles,
         "risks": risks,
+        "architecture": architecture,
+        "insights": analyze_human({
+            "metrics": metrics,
+            "architecture": architecture,
+            "cycles": cycles,
+            "risks": risks,
+        }),
+        "explanation": explain_project(nodes, edges),
     }
 
 
