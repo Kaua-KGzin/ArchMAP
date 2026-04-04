@@ -25,7 +25,7 @@ Send a private report via one of the following channels:
 
 - **GitHub Private Security Advisory** *(preferred)*:
   Go to [Security → Advisories](../../security/advisories/new) and click **"Report a vulnerability"**.
-- **E-mail**: `security@<your-email>.com` *(replace with your actual contact)*
+- **E-mail**: `kauagabrielxp@gmail.com`
 
 Please include as much detail as possible:
 
