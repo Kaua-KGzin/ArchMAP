@@ -1,4 +1,4 @@
-﻿# Contributing to ArchMAP
+# Contributing to ArchMAP
 
 Thanks for contributing! Please read our [Code of Conduct](./CODE_OF_CONDUCT.md) first.
 
@@ -11,8 +11,8 @@ Thanks for contributing! Please read our [Code of Conduct](./CODE_OF_CONDUCT.md)
 ## Setup
 
 ```bash
-git clone https://github.com/Kaua-KGzin/code-arch-visualizer
-cd code-arch-visualizer
+git clone https://github.com/Kaua-KGzin/ArchMAP
+cd ArchMAP
 python -m pip install -e ".[dev]"
 ```
 
@@ -93,4 +93,3 @@ ArchMAP is originally distributed by **Kaua Gabriel** (Kaua-KGzin).
 When redistributing source code or binaries, preserve:
 - `LICENSE`
 - `NOTICE.md`
-

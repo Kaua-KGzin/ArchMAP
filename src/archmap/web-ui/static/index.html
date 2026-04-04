@@ -1,116 +1,508 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html class="dark" lang="en">
 
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ArchMAP</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>ArchMAP | Software Architecture Analysis</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
     rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#81ecff",
+            "primary-container": "#00e3fd",
+            "secondary": "#feaa00",
+            "secondary-container": "#825500",
+            "tertiary": "#b8ffbb",
+            "tertiary-container": "#005d22",
+            "surface": "#0a0e14",
+            "surface-container": "#151a21",
+            "surface-container-low": "#0f141a",
+            "surface-container-high": "#1b2028",
+            "surface-container-highest": "#20262f",
+            "background": "#0a0e14",
+            "outline": "#72757d",
+            "outline-variant": "#44484f",
+            "on-surface": "#f1f3fc",
+            "on-surface-variant": "#a8abb3",
+            "on-background": "#f1f3fc",
+          },
+          fontFamily: {
+            "headline": ["Space Grotesk", "sans-serif"],
+            "body": ["Inter", "sans-serif"],
+            "mono": ["IBM Plex Mono", "monospace"]
+          },
+        },
+      },
+    }
+  </script>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 
-<body>
-  <div class="workspace">
-    <nav class="nav-rail" aria-label="Main">
-      <div class="rail-logo">AM</div>
-      <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">G</button>
-      <button class="rail-btn" id="openProjectBtn" title="Open Project (Folder)">
-        📁
-      </button>
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌓</button>
-    </nav>
+<body class="overflow-hidden h-screen bg-background text-on-surface selection:bg-primary/30 font-body">
+  <div class="flex h-full w-full">
+    <!-- Nav Rail (Sidebar) -->
+    <aside
+      class="w-20 bg-surface-container-low border-r border-outline-variant/10 flex flex-col items-center py-6 z-50">
+      <div
+        class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary-container flex items-center justify-center text-surface font-headline font-bold text-lg mb-8 shadow-[0_0_20px_rgba(129,236,255,0.3)]">
+        AM
+      </div>
 
-    <aside class="left-panel">
-      <header class="panel-header card">
-        <p class="eyebrow">ArchMAP</p>
-        <h1>Service Map</h1>
-        <p class="subtitle">Dependency topology and architectural risk hotspots.</p>
-      </header>
+      <nav class="flex flex-col items-center gap-4 w-full px-2 overflow-y-auto custom-scrollbar">
+        <button id="graphViewBtn"
+          class="rail-btn-active group flex flex-col items-center gap-1 w-full py-3 rounded-xl transition-all"
+          aria-label="Graph view">
+          <span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform"
+            style="font-variation-settings: 'FILL' 1;">hub</span>
+          <span class="text-[10px] font-headline uppercase tracking-widest font-bold" data-i18n="nav.graph">Graph</span>
+        </button>
 
-      <section class="card">
-        <h2>Risks & Anomalies</h2>
-        <div id="risksSummary" class="selection-muted">No high-risk architectural smells detected.</div>
-      </section>
+        <button id="openProjectBtn"
+          class="flex flex-col items-center gap-1 w-full py-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest/50 rounded-xl transition-all group"
+          type="button" data-i18n-title="nav.openProjectTitle" data-i18n-aria-label="nav.openProjectTitle">
+          <span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">folder_open</span>
+          <span class="text-[10px] font-headline uppercase tracking-widest font-bold" data-i18n="nav.openProject">Open</span>
+        </button>
 
-      <section class="card">
-        <h2>Flows</h2>
-        <label class="field">
-          <span>Filter by folder</span>
-          <select id="folderFilter"></select>
-        </label>
+        <button id="pinProjectQuickBtn"
+          class="flex flex-col items-center gap-1 w-full py-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest/50 rounded-xl transition-all group"
+          type="button" data-i18n-title="nav.pinProjectTitle" data-i18n-aria-label="nav.pinProjectTitle">
+          <span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">push_pin</span>
+          <span class="text-[10px] font-headline uppercase tracking-widest font-bold" data-i18n="nav.pinProject">Pin</span>
+        </button>
 
-        <label class="switch">
-          <input id="cyclesOnly" type="checkbox" />
-          <span>Highlight only circular dependencies</span>
-        </label>
-
-        <label class="switch">
-          <input id="heatmapMode" type="checkbox" />
-          <span>Heatmap mode (complexity)</span>
-        </label>
-
-        <div class="actions">
-          <button id="zoomInBtn" type="button">Zoom +</button>
-          <button id="zoomOutBtn" type="button">Zoom -</button>
-          <button id="fitBtn" type="button">Fit</button>
-          <button id="layoutBtn" type="button">Relayout</button>
-          <button id="resetBtn" type="button">Clear highlight</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Critical files</h2>
-        <ol id="criticalList"></ol>
-      </section>
+        <button id="themeToggle"
+          class="flex flex-col items-center gap-1 w-full py-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest/50 rounded-xl transition-all group mt-auto"
+          type="button" data-i18n-title="nav.themeTitle" data-i18n-aria-label="nav.themeTitle">
+          <span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">contrast</span>
+          <span class="text-[10px] font-headline uppercase tracking-widest font-bold" data-i18n="nav.theme">Theme</span>
+        </button>
+      </nav>
     </aside>
 
-    <main class="canvas-panel">
-      <header class="canvas-toolbar">
-        <div class="toolbar-title-group">
-          <p class="toolbar-kicker">Production</p>
-          <div style="display: flex; align-items: center;">
-            <h2 class="toolbar-title">Dependency Graph</h2>
-            <button id="refreshBtn" class="refresh-btn">Refresh</button>
-          </div>
+    <!-- Main Content Area -->
+    <div class="flex-1 flex overflow-hidden">
+      <!-- Left Panel -->
+      <aside
+        class="w-80 bg-surface-container-low border-r border-outline-variant/10 flex flex-col overflow-hidden z-40">
+        <!-- Panel Header -->
+        <header class="p-6 border-b border-outline-variant/10 space-y-1 bg-surface/50 backdrop-blur-md">
+          <p class="text-[10px] font-headline font-bold uppercase tracking-[0.2em] text-primary" data-i18n="header.kicker">
+            ArchMAP</p>
+          <h1 class="text-xl font-headline font-bold text-on-background" data-i18n="header.title">Service Map</h1>
+          <p class="text-xs text-on-surface-variant leading-relaxed" data-i18n="header.subtitle">Dependency topology and
+            architectural risks.</p>
+        </header>
+
+        <!-- Dynamic Content (Scrollable) -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+          <!-- Workspace Card -->
+          <section class="cyber-card p-4 space-y-4">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-[10px] font-headline font-bold uppercase tracking-widest text-primary/70"
+                  data-i18n="project.eyebrow">Workspace</p>
+                <h2 class="text-sm font-bold" data-i18n="project.title">Project Control</h2>
+              </div>
+              <span id="pinnedStatus" class="history-pill text-[10px]">Loading</span>
+            </div>
+
+            <div class="space-y-3">
+              <div class="space-y-1">
+                <p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight"
+                  data-i18n="project.currentLabel">Current</p>
+                <p id="currentProjectPath"
+                  class="text-[11px] font-mono bg-surface-container-highest/50 p-2 rounded-lg break-all border border-outline-variant/20">
+                  ...</p>
+                <p id="projectStatus" class="text-[10px] text-on-surface-variant/70 italic"
+                  data-i18n="project.detecting">Detecting...</p>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <button id="pinProjectBtn"
+                  class="text-[10px] font-bold py-2 px-3 bg-surface-container-highest hover:bg-primary hover:text-surface rounded-lg transition-all"
+                  data-i18n="actions.pinProject">Pin current</button>
+                <button id="openPinnedBtn"
+                  class="text-[10px] font-bold py-2 px-3 bg-surface-container-highest hover:bg-primary hover:text-surface rounded-lg transition-all disabled:opacity-30 disabled:hover:bg-surface-container-highest disabled:hover:text-on-surface"
+                  data-i18n="actions.openPinned">Open pinned</button>
+              </div>
+
+              <div class="space-y-2 pt-2 border-t border-outline-variant/10">
+                <p class="text-[10px] text-on-surface-variant font-bold uppercase" data-i18n="project.pinnedLabel">Pinned
+                </p>
+                <p id="pinnedProjectPath" class="text-[11px] font-mono text-on-surface-variant/60"
+                  data-i18n="project.noPinned">None</p>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3 pt-2">
+                <div class="space-y-1">
+                  <label class="text-[10px] text-on-surface-variant font-bold uppercase"
+                    data-i18n="preferences.language">Lang</label>
+                  <select id="languageSelect"
+                    class="w-full bg-surface-container-highest border-none rounded-lg text-[11px] p-2 focus:ring-1 focus:ring-primary/50"></select>
+                </div>
+                <div class="space-y-1">
+                  <label class="text-[10px] text-on-surface-variant font-bold uppercase"
+                    data-i18n="preferences.theme">Theme</label>
+                  <select id="themeSelect"
+                    class="w-full bg-surface-container-highest border-none rounded-lg text-[11px] p-2 focus:ring-1 focus:ring-primary/50"></select>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Health Card -->
+          <section class="cyber-card p-4 space-y-3">
+            <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-primary"
+              data-i18n="sections.health">Health</h2>
+            <div id="healthScore" class="text-3xl font-headline font-bold">0.0</div>
+            <p id="healthLabel" class="text-[10px] text-on-surface-variant font-medium" data-i18n="health.waiting">
+              Waiting...</p>
+            <ul id="healthBreakdown" class="text-[10px] space-y-1 text-on-surface-variant/80 list-none pl-0"></ul>
+          </section>
+
+          <!-- Risks Card -->
+          <section class="cyber-card p-4 space-y-3">
+            <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-secondary"
+              data-i18n="sections.risks">Risks</h2>
+            <div id="risksSummary" class="text-[10px] text-on-surface-variant leading-relaxed" data-i18n="risks.none">
+              Searching for hotspots...</div>
+            <div class="space-y-2">
+              <h3 class="text-[10px] font-bold text-on-surface-variant/50 uppercase" data-i18n="sections.hotspots">
+                Hotspots</h3>
+              <ol id="hotspotsList" class="text-[11px] font-medium space-y-1 list-none pl-0"></ol>
+            </div>
+            <div class="space-y-2">
+              <h3 class="text-[10px] font-bold text-on-surface-variant/50 uppercase" data-i18n="sections.smells">Smells
+              </h3>
+              <ul id="smellsList" class="text-[11px] space-y-1 text-on-surface-variant/80 list-none pl-0"></ul>
+            </div>
+          </section>
+
+          <!-- Controls Card -->
+          <section class="cyber-card p-4 space-y-4">
+            <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-primary"
+              data-i18n="sections.controls">Graph Controls</h2>
+
+            <div class="space-y-3">
+              <div class="space-y-1">
+                <label class="text-[10px] text-on-surface-variant font-bold uppercase"
+                  data-i18n="controls.folder">Folder</label>
+                <select id="folderFilter"
+                  class="w-full bg-surface-container-highest border-none rounded-lg text-[11px] p-2 focus:ring-1 focus:ring-primary/50"></select>
+              </div>
+
+              <fieldset class="space-y-2 border border-outline-variant/10 p-3 rounded-xl bg-surface/30">
+                <legend class="text-[10px] font-bold text-on-surface-variant uppercase px-2" data-i18n="controls.type">
+                  File Types</legend>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                  <label class="flex items-center gap-2 text-[10px] font-medium cursor-pointer">
+                    <input id="typeController" type="checkbox" checked
+                      class="rounded bg-surface-container-highest border-none text-primary focus:ring-0 focus:ring-offset-0" />
+                    <span data-i18n="role.controllerPlural">Controllers</span>
+                  </label>
+                  <label class="flex items-center gap-2 text-[10px] font-medium cursor-pointer">
+                    <input id="typeModel" type="checkbox" checked
+                      class="rounded bg-surface-container-highest border-none text-primary focus:ring-0 focus:ring-offset-0" />
+                    <span data-i18n="role.modelPlural">Models</span>
+                  </label>
+                  <label class="flex items-center gap-2 text-[10px] font-medium cursor-pointer">
+                    <input id="typeService" type="checkbox" checked
+                      class="rounded bg-surface-container-highest border-none text-primary focus:ring-0 focus:ring-offset-0" />
+                    <span data-i18n="role.servicePlural">Services</span>
+                  </label>
+                  <label class="flex items-center gap-2 text-[10px] font-medium cursor-pointer">
+                    <input id="typeRequest" type="checkbox" checked
+                      class="rounded bg-surface-container-highest border-none text-primary focus:ring-0 focus:ring-offset-0" />
+                    <span data-i18n="role.requestPlural">Requests</span>
+                  </label>
+                  <label class="flex items-center gap-2 text-[10px] font-medium cursor-pointer">
+                    <input id="typeDatabase" type="checkbox" checked
+                      class="rounded bg-surface-container-highest border-none text-primary focus:ring-0 focus:ring-offset-0" />
+                    <span data-i18n="role.database">Database</span>
+                  </label>
+                  <label class="flex items-center gap-2 text-[10px] font-medium cursor-pointer">
+                    <input id="typeExternal" type="checkbox" checked
+                      class="rounded bg-surface-container-highest border-none text-primary focus:ring-0 focus:ring-offset-0" />
+                    <span data-i18n="role.externalPlural">Libs</span>
+                  </label>
+                </div>
+                <label class="flex items-center gap-2 text-[10px] font-medium cursor-pointer pt-1">
+                  <input id="typeOther" type="checkbox" checked
+                    class="rounded bg-surface-container-highest border-none text-primary focus:ring-0 focus:ring-offset-0" />
+                  <span data-i18n="role.otherPlural">Other</span>
+                </label>
+              </fieldset>
+
+              <div class="space-y-2">
+                <label class="flex items-center justify-between group cursor-pointer">
+                  <span class="text-[11px] font-medium group-hover:text-primary transition-colors"
+                    data-i18n="controls.cyclesOnly">Only Cycles</span>
+                  <input id="cyclesOnly" type="checkbox"
+                    class="w-8 h-4 bg-surface-container-highest rounded-full border-none text-primary focus:ring-0 appearance-none relative checked:bg-primary before:content-[''] before:absolute before:w-3 before:h-3 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:left-4.5 transition-all" />
+                </label>
+                <label class="flex items-center justify-between group cursor-pointer">
+                  <span class="text-[11px] font-medium group-hover:text-primary transition-colors"
+                    data-i18n="controls.heatmap">Heatmap</span>
+                  <input id="heatmapMode" type="checkbox"
+                    class="w-8 h-4 bg-surface-container-highest rounded-full border-none text-primary focus:ring-0 appearance-none relative checked:bg-primary before:content-[''] before:absolute before:w-3 before:h-3 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:left-4.5 transition-all" />
+                </label>
+                <label class="flex items-center justify-between group cursor-pointer">
+                  <span class="text-[11px] font-medium group-hover:text-primary transition-colors"
+                    data-i18n="controls.cluster">Cluster Mode</span>
+                  <input id="clusterMode" type="checkbox"
+                    class="w-8 h-4 bg-surface-container-highest rounded-full border-none text-primary focus:ring-0 appearance-none relative checked:bg-primary before:content-[''] before:absolute before:w-3 before:h-3 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:left-4.5 transition-all" />
+                </label>
+              </div>
+
+              <div class="space-y-1">
+                <label class="text-[10px] text-on-surface-variant font-bold uppercase" data-i18n="controls.focus">Focus
+                  Depth</label>
+                <select id="focusDepth"
+                  class="w-full bg-surface-container-highest border-none rounded-lg text-[11px] p-2 focus:ring-1 focus:ring-primary/50">
+                  <option value="0" data-i18n="controls.focusOff">Off</option>
+                  <option value="1" data-i18n="controls.focusOne">1 level</option>
+                  <option value="2" data-i18n="controls.focusTwo">2 levels</option>
+                  <option value="3" data-i18n="controls.focusThree">3 levels</option>
+                </select>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 pt-2">
+                <button id="fitBtn"
+                  class="text-[10px] font-bold py-2 px-3 bg-surface-container-highest hover:bg-surface-container-high rounded-lg transition-all"
+                  data-i18n="actions.fit">Fit Graph</button>
+                <button id="layoutBtn"
+                  class="text-[10px] font-bold py-2 px-3 bg-surface-container-highest hover:bg-surface-container-high rounded-lg transition-all"
+                  data-i18n="actions.relayout">Relayout</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Critical Files List -->
+          <section class="cyber-card p-4 space-y-3">
+            <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-primary"
+              data-i18n="sections.criticalFiles">Critical Files</h2>
+            <ol id="criticalList" class="text-[11px] space-y-1 list-none pl-0"></ol>
+          </section>
         </div>
-        <input id="searchInput" type="search" placeholder="Search files or packages"
-          aria-label="Search files or packages" />
-      </header>
-      <div id="graph"></div>
-    </main>
+      </aside>
 
-    <aside class="right-panel">
-      <section class="card">
-        <h2>Summary</h2>
-        <div id="summary"></div>
-      </section>
-
-      <section class="card">
-        <h2>Selection</h2>
-        <div id="selectionInfo" class="selection-muted">Click a node to inspect dependencies.</div>
-      </section>
-
-      <section class="card">
-        <h2>Circular deps</h2>
-        <ol id="cyclesList"></ol>
-      </section>
-
-      <section class="card">
-        <h2>Heatmap legend</h2>
-        <div id="heatmapLegend" class="legend legend-hidden">
-          <div class="legend-bar"></div>
-          <div class="legend-labels">
-            <span>Low</span>
-            <span>Medium</span>
-            <span>High</span>
-          </div>
+      <!-- Center Panel (Canvas) -->
+      <main class="flex-1 relative bg-surface overflow-hidden">
+        <!-- Overlay Grid -->
+        <div class="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style="background-image: radial-gradient(var(--primary) 1px, transparent 1px); background-size: 32px 32px;">
         </div>
-      </section>
-    </aside>
+
+        <!-- Floating Toolbar (Top) -->
+        <header
+          class="absolute top-6 left-1/2 -translate-x-1/2 bg-surface-container/60 backdrop-blur-xl border border-outline-variant/20 rounded-2xl shadow-2xl flex items-center p-1.5 z-30 gap-1 ring-1 ring-white/5">
+          <div class="px-4 py-2 border-r border-outline-variant/10">
+            <p id="toolbarKicker" class="text-[9px] font-headline font-bold uppercase tracking-widest text-primary/70">
+              ...</p>
+            <h2 class="text-[11px] font-bold text-on-surface" data-i18n="toolbar.title">Dependency Graph</h2>
+          </div>
+          <div class="flex items-center gap-1 p-1">
+            <input id="searchInput" type="search"
+              class="w-48 bg-surface-container-lowest border-none rounded-xl text-[11px] py-2 px-4 focus:ring-1 focus:ring-primary/50 placeholder:text-on-surface-variant/40"
+              placeholder="Search components..." data-i18n-placeholder="toolbar.searchPlaceholder" />
+            <div class="w-px h-6 bg-outline-variant/10 mx-1"></div>
+            <button id="refreshBtn"
+              class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all active:scale-95"
+              data-i18n-title="actions.refresh">
+              <span class="material-symbols-outlined text-lg">refresh</span>
+            </button>
+            <button id="exportPngBtn"
+              class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all active:scale-95"
+              data-i18n-title="actions.exportPng">
+              <span class="material-symbols-outlined text-lg">file_download</span>
+            </button>
+            <button id="resetBtn"
+              class="p-2 text-on-surface-variant hover:text-secondary hover:bg-secondary/10 rounded-xl transition-all active:scale-95"
+              data-i18n-title="actions.clearHighlight">
+              <span class="material-symbols-outlined text-lg">ink_eraser</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- Node Hover Card -->
+        <div id="hoverCard"
+          class="absolute hidden z-50 pointer-events-none min-w-[200px] cyber-card glass bg-surface-container p-4 space-y-2 translate-y-4">
+        </div>
+
+        <!-- The Graph Container -->
+        <div id="graph" class="w-full h-full cursor-crosshair"></div>
+
+        <!-- Zoom Controls (Bottom Left) -->
+        <div class="absolute bottom-6 left-6 flex flex-col gap-2 z-30">
+          <button id="zoomInBtn"
+            class="w-10 h-10 bg-surface-container/80 backdrop-blur-md rounded-xl border border-outline-variant/10 flex items-center justify-center hover:bg-primary hover:text-surface transition-all active:scale-90">
+            <span class="material-symbols-outlined">add</span>
+          </button>
+          <button id="zoomOutBtn"
+            class="w-10 h-10 bg-surface-container/80 backdrop-blur-md rounded-xl border border-outline-variant/10 flex items-center justify-center hover:bg-primary hover:text-surface transition-all active:scale-90">
+            <span class="material-symbols-outlined">remove</span>
+          </button>
+        </div>
+
+        <!-- Expand/Collapse Controls (Bottom Center) -->
+        <div
+          class="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-surface-container-high/60 backdrop-blur-xl border border-outline-variant/20 py-1.5 px-3 rounded-2xl z-30 shadow-2xl">
+          <button id="collapseBtn"
+            class="flex items-center gap-2 px-4 py-2 hover:bg-surface-container-highest rounded-xl text-[10px] font-bold text-on-surface-variant transition-all active:scale-95"
+            data-i18n="actions.collapse">
+            <span class="material-symbols-outlined text-sm">contract</span>
+            Collapse
+          </button>
+          <div class="w-px h-4 bg-outline-variant/20 mx-1"></div>
+          <button id="expandBtn"
+            class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-surface rounded-xl text-[10px] font-bold transition-all active:scale-95"
+            data-i18n="actions.expand">
+            <span class="material-symbols-outlined text-sm">expand</span>
+            Expand
+          </button>
+        </div>
+
+        <!-- Mini Map (Bottom Right) -->
+        <aside id="miniMap"
+          class="absolute bottom-6 right-6 w-48 h-32 bg-surface-container/60 backdrop-blur-xl border border-outline-variant/20 rounded-2xl overflow-hidden z-30 shadow-2xl group transition-all">
+          <p class="absolute top-2 left-3 text-[9px] font-headline font-bold uppercase tracking-widest text-primary/50 group-hover:text-primary z-40 transition-colors"
+            data-i18n="toolbar.miniMap">Nav-Map</p>
+          <div id="miniMapGraph" class="w-full h-full opacity-60"></div>
+          <div id="miniMapViewport"
+            class="absolute border border-primary/50 bg-primary/5 ring-1 ring-primary-container shadow-[0_0_15px_rgba(129,236,255,0.2)] pointer-events-none">
+          </div>
+        </aside>
+      </main>
+
+      <!-- Right Panel -->
+      <aside
+        class="w-80 bg-surface-container-low border-l border-outline-variant/10 flex flex-col overflow-hidden z-40">
+        <div class="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+          <!-- Architectural Insights (Layman Mode) -->
+          <section id="insightsPanel" class="cyber-card p-4 space-y-4 border-primary/30 bg-primary/5 hidden">
+            <div class="flex justify-between items-center border-b border-outline-variant/10 pb-3">
+              <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-primary"
+                data-i18n="sections.insights">Architectural Insights</h2>
+              <span id="insightsStatus" class="history-pill text-[9px]">Status</span>
+            </div>
+            <div id="insightsContent" class="space-y-4">
+               <!-- Dynamic Content -->
+            </div>
+          </section>
+
+          <!-- Selection Details -->
+          <section id="selectionPanel" class="cyber-card p-4 space-y-4">
+            <div class="flex justify-between items-start border-b border-outline-variant/10 pb-3">
+              <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-primary"
+                data-i18n="sections.selection">Focus Entity</h2>
+              <div class="flex gap-1">
+                <button id="openFileBtn" disabled
+                  class="p-2 bg-surface-container-highest hover:bg-primary hover:text-surface rounded-xl disabled:opacity-20 transition-all active:scale-90"
+                  data-i18n-title="actions.openInEditor">
+                  <span class="material-symbols-outlined text-base">edit_note</span>
+                </button>
+                <button id="drillModuleBtn" disabled
+                  class="p-2 bg-surface-container-highest hover:bg-primary hover:text-surface rounded-xl disabled:opacity-20 transition-all active:scale-90"
+                  data-i18n-title="actions.focusModule">
+                  <span class="material-symbols-outlined text-base">filter_center_focus</span>
+                </button>
+                <button id="projectViewBtn" disabled
+                  class="p-2 bg-surface-container-highest hover:bg-secondary hover:text-surface rounded-xl disabled:opacity-20 transition-all active:scale-90"
+                  data-i18n-title="actions.backToProject">
+                  <span class="material-symbols-outlined text-base">close</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="selectionInfo" class="space-y-4 text-xs">
+              <div class="flex items-center gap-3 p-2 bg-surface-container-highest/20 rounded-xl">
+                <span class="material-symbols-outlined text-on-surface-variant/40 animate-pulse">info</span>
+                <p class="text-on-surface-variant italic" data-i18n="selection.defaultMessage">Select a node to inspect
+                  its blueprint.</p>
+              </div>
+            </div>
+            <p id="selectionActionHint" class="text-[9px] text-on-surface-variant/50 italic leading-relaxed"
+              data-i18n="selection.actionHint"></p>
+          </section>
+
+          <!-- History & Evolution Card -->
+          <section class="cyber-card p-4 space-y-4">
+            <div class="flex justify-between items-center">
+              <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-primary"
+                data-i18n="sections.history">Evolution</h2>
+              <span id="historyStatus" class="history-pill text-[9px]">Idle</span>
+            </div>
+
+            <div id="historyTrend" class="space-y-3"></div>
+
+            <div class="space-y-4 pt-2 border-t border-outline-variant/10">
+              <div class="space-y-2">
+                <h3 class="text-[10px] font-bold text-on-surface-variant/50 uppercase" data-i18n="history.cycleOrigins">
+                  Origins</h3>
+                <ul id="historyCycles" class="text-[11px] space-y-1 list-none pl-0"></ul>
+              </div>
+              <div class="space-y-2">
+                <h3 class="text-[10px] font-bold text-on-surface-variant/50 uppercase" data-i18n="history.blame">Blame
+                </h3>
+                <ul id="historyHotspots" class="text-[11px] space-y-1 list-none pl-0"></ul>
+              </div>
+            </div>
+
+            <div class="space-y-3 pt-4 border-t border-outline-variant/10">
+              <h3 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">Timeline</h3>
+              <ol id="historyTimeline" class="relative border-l border-outline-variant/20 ml-2 pl-4 space-y-6 list-none">
+              </ol>
+            </div>
+          </section>
+
+          <!-- Architecture Story Card -->
+          <section class="cyber-card p-4 space-y-3">
+            <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-primary"
+              data-i18n="sections.story">System Analytics</h2>
+            <div id="storyInfo" class="text-[11px] leading-relaxed text-on-surface-variant/90 space-y-2"
+              data-i18n="story.loading">Loading intelligence...</div>
+            <ul id="rulesList" class="text-[11px] space-y-2 list-none pl-0"></ul>
+          </section>
+
+          <!-- Legend Card -->
+          <section class="cyber-card p-4 space-y-3">
+            <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-primary"
+              data-i18n="sections.heatmap">Heatmap Scale</h2>
+            <div id="heatmapLegend" class="space-y-2">
+              <div class="w-full h-1.5 rounded-full bg-gradient-to-r from-tertiary via-primary to-secondary/80"></div>
+              <div class="flex justify-between text-[9px] font-bold uppercase tracking-tighter text-on-surface-variant">
+                <span data-i18n="heatmap.low">Low Complexity</span>
+                <span data-i18n="heatmap.high">Critical Hotspots</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Circular Deps Card -->
+          <section class="cyber-card p-4 space-y-3">
+            <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-secondary"
+              data-i18n="sections.cycles">Circular Deps</h2>
+            <ol id="cyclesList" class="text-[11px] space-y-2 list-none pl-0"></ol>
+          </section>
+
+          <!-- Summary Stats -->
+          <section class="cyber-card p-4 space-y-4">
+            <h2 class="text-[11px] font-headline font-bold uppercase tracking-widest text-on-surface-variant"
+              data-i18n="sections.summary">Quantitative Summary</h2>
+            <div id="summary" class="grid grid-cols-2 gap-y-3 gap-x-2 text-[10px] items-center"></div>
+          </section>
+        </div>
+      </aside>
+    </div>
   </div>
 
   <script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>

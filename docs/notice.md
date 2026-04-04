@@ -2,7 +2,7 @@
 
 Original distributor and primary author:
 
-- **Kaua Gabriel / Kauã Gabriel** (Kaua-KGzin)
+- **Kaua Gabriel** (Kaua-KGzin)
 
 Redistributions must preserve:
 
@@ -11,4 +11,4 @@ Redistributions must preserve:
 
 Reference:
 
-- https://github.com/Kaua-KGzin/code-arch-visualizer/blob/main/NOTICE.md
+- https://github.com/Kaua-KGzin/ArchMAP/blob/main/NOTICE.md

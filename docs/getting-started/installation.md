@@ -12,11 +12,26 @@ pip install archmap
 archmap version
 ```
 
+## Validate before publishing
+
+```bash
+python -m pip install -e ".[release]"
+python -m build
+python -m twine check dist/*.whl dist/*.tar.gz
+```
+
+You can smoke test the built wheel locally with:
+
+```bash
+pip install --force-reinstall dist/archmap-<version>-py3-none-any.whl
+python -m archmap --help
+```
+
 ## Install for development
 
 ```bash
-git clone https://github.com/Kaua-KGzin/code-arch-visualizer
-cd code-arch-visualizer
+git clone https://github.com/Kaua-KGzin/ArchMAP
+cd ArchMAP
 python -m pip install -e ".[dev]"
 ```
 
@@ -40,3 +55,5 @@ Generated artifacts:
 - `dist/archmap.exe`
 - `dist/archmap-<version>.exe`
 - `dist/archmap-build-info.json`
+
+On a successful new build, older `dist/archmap-*.exe` files are removed automatically.
