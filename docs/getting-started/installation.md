@@ -8,9 +8,11 @@
 ## Install from PyPI
 
 ```bash
-pip install archmap
+pip install KG-ARCHMAP
 archmap version
 ```
+
+The PyPI distribution name is `KG-ARCHMAP`, but the installed CLI command is still `archmap`.
 
 ## Validate before publishing
 
@@ -23,7 +25,7 @@ python -m twine check dist/*.whl dist/*.tar.gz
 You can smoke test the built wheel locally with:
 
 ```bash
-pip install --force-reinstall dist/archmap-<version>-py3-none-any.whl
+pip install --force-reinstall dist/*.whl
 python -m archmap --help
 ```
 

@@ -34,8 +34,10 @@ Supported languages:
 ### From PyPI
 
 ```bash
-pip install archmap
+pip install KG-ARCHMAP
 ```
+
+The installed CLI command remains `archmap`.
 
 ### For local development
 
