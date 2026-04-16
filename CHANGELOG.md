@@ -12,7 +12,6 @@ No entries yet.
 - `SECURITY.md` with vulnerability reporting policy and supported versions.
 - `.github/CODEOWNERS` for automatic review assignment.
 - PEP 561 `py.typed` marker for typed package compliance.
-- Content-Security-Policy meta tag on the web UI for defense-in-depth.
 - `crossorigin="anonymous"` on all external CDN resources.
 
 ### Changed
@@ -47,7 +46,7 @@ No entries yet.
 - Subprocess timeout (120s) prevents denial-of-service through stalled Git
   processes.
 - Strengthened path resolution guards against symlink-based traversal.
-- Added Content-Security-Policy header to the web UI.
+- Added `crossorigin="anonymous"` to external CDN resources in the web UI.
 
 ## [0.6.0b0] - 2026-03-30
 
