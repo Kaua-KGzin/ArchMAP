@@ -12,7 +12,7 @@ No entries yet.
 - `SECURITY.md` with vulnerability reporting policy and supported versions.
 - `.github/CODEOWNERS` for automatic review assignment.
 - PEP 561 `py.typed` marker for typed package compliance.
-- `crossorigin="anonymous"` on all external CDN resources.
+- Reverted CDN attributes that broke Tailwind CSS loading in the web UI.
 
 ### Changed
 - CLI banner now only prints on interactive terminals, preventing corruption
@@ -46,7 +46,7 @@ No entries yet.
 - Subprocess timeout (120s) prevents denial-of-service through stalled Git
   processes.
 - Strengthened path resolution guards against symlink-based traversal.
-- Added `crossorigin="anonymous"` to external CDN resources in the web UI.
+- Ensured web UI CDN resources load correctly without CORS interference.
 
 ## [0.6.0b0] - 2026-03-30
 
