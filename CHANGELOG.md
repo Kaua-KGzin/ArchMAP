@@ -6,6 +6,49 @@ All notable changes to this project are documented in this file.
 
 No entries yet.
 
+## [0.6.0] - 2026-04-15
+
+### Added
+- `SECURITY.md` with vulnerability reporting policy and supported versions.
+- `.github/CODEOWNERS` for automatic review assignment.
+- PEP 561 `py.typed` marker for typed package compliance.
+- Content-Security-Policy meta tag on the web UI for defense-in-depth.
+- `crossorigin="anonymous"` on all external CDN resources.
+
+### Changed
+- CLI banner now only prints on interactive terminals, preventing corruption
+  of piped JSON output.
+- Bare `except Exception` handlers replaced with specific exception types
+  (`OSError`, `RuntimeError`, `ValueError`) across `server.py` and `main.py`.
+- Portuguese log messages in `project_parser.py` translated to English for
+  international consistency.
+- `.gitignore` expanded with environment/secret patterns (`.env`, `*.pem`,
+  `*.key`), egg artifacts, IDE folders, and OS files.
+- `max_file_size_bytes` configuration now enforces a 100 MB hard ceiling to
+  prevent resource exhaustion from misconfigured values.
+
+### Fixed
+- All `subprocess` calls in `diff_analyzer.py` now include a 120-second
+  timeout, preventing indefinite hangs on slow or corrupted Git operations.
+- HTTP request body reader validates `Content-Length` with a 1 MB cap and
+  guards against malformed header values.
+- `tkinter` root window is now destroyed in a `finally` block, preventing
+  orphaned windows when the directory picker raises.
+- SSE listener list is now protected by a `threading.Lock` for safe
+  concurrent access across handler threads.
+- Path traversal protection strengthened: both candidate and project root are
+  fully resolved before the containment check.
+- Node.js `runProcess` uses `Buffer.concat` instead of string concatenation
+  for stderr collection.
+
+### Security
+- Added `Content-Length` limit (1 MB) to prevent memory exhaustion via
+  oversized request bodies.
+- Subprocess timeout (120s) prevents denial-of-service through stalled Git
+  processes.
+- Strengthened path resolution guards against symlink-based traversal.
+- Added Content-Security-Policy header to the web UI.
+
 ## [0.6.0b0] - 2026-03-30
 
 ### Added

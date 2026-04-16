@@ -432,10 +432,10 @@ function runProcess(command, args) {
       stdio: "pipe",
       windowsHide: true,
     });
-    let stderr = "";
+    const stderrChunks = [];
 
     child.stderr?.on("data", (chunk) => {
-      stderr += chunk.toString();
+      stderrChunks.push(chunk);
     });
     child.on("error", reject);
     child.on("exit", (code) => {
@@ -443,7 +443,8 @@ function runProcess(command, args) {
         resolve();
         return;
       }
-      reject(new Error(stderr.trim() || `${command} exited with code ${code}`));
+      const stderr = Buffer.concat(stderrChunks).toString().trim();
+      reject(new Error(stderr || `${command} exited with code ${code}`));
     });
   });
 }

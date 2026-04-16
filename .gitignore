@@ -1,27 +1,69 @@
+# Dependencies
 node_modules/
-coverage/
+
+# Build outputs
 dist/
 build/
 site/
-*.log
-.codeatlas/
+*.egg-info/
+*.egg
+
+# Virtual environments
 .venv/
 venv/
+
+# Python bytecode
 __pycache__/
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
 *.pyc
+*.pyo
+
+# Testing and coverage
+coverage/
 htmlcov/
 .coverage
 .coverage.*
+coverage.json
+.pytest_cache/
+
+# Linter caches
+.ruff_cache/
+.mypy_cache/
+
+# Analysis artifacts
+.codeatlas/
+
+# Logs
+*.log
 logs/runtime/*
 !logs/runtime/.gitkeep
 server_log.txt
+
+# Test output files
 test_out.txt
 test_output*.txt
 cov_report*.txt
 parser_cov*.txt
-coverage.json
 release_notes_api.txt
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dev server static (generated)
 web-ui/static/

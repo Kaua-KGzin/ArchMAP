@@ -124,15 +124,24 @@ def _load_git_files(project_root: Path, ref: str) -> dict[str, str]:
     return _read_git_files_batch(project_root, ref, target_file_ids)
 
 
+_GIT_TIMEOUT_SECONDS = 120
+
+
 def _run_git(project_root: Path, args: list[str], allow_failure: bool = False) -> str | None:
-    process = subprocess.run(
-        ["git", "-C", str(project_root), *args],
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    try:
+        process = subprocess.run(
+            ["git", "-C", str(project_root), *args],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=_GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        if allow_failure:
+            return None
+        raise RuntimeError(f"git command timed out after {_GIT_TIMEOUT_SECONDS}s") from exc
     if process.returncode == 0:
         return process.stdout
     if allow_failure:
@@ -141,11 +150,15 @@ def _run_git(project_root: Path, args: list[str], allow_failure: bool = False) -
 
 
 def _run_git_bytes(project_root: Path, args: list[str]) -> bytes:
-    process = subprocess.run(
-        ["git", "-C", str(project_root), *args],
-        check=False,
-        capture_output=True,
-    )
+    try:
+        process = subprocess.run(
+            ["git", "-C", str(project_root), *args],
+            check=False,
+            capture_output=True,
+            timeout=_GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"git command timed out after {_GIT_TIMEOUT_SECONDS}s") from exc
     if process.returncode == 0:
         return process.stdout
     raise RuntimeError(
@@ -166,7 +179,12 @@ def _read_git_files_batch(project_root: Path, ref: str, file_ids: list[str]) -> 
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    stdout, stderr = process.communicate(requests)
+    try:
+        stdout, stderr = process.communicate(requests, timeout=_GIT_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as exc:
+        process.kill()
+        process.communicate()
+        raise RuntimeError(f"git cat-file timed out after {_GIT_TIMEOUT_SECONDS}s") from exc
     if process.returncode != 0:
         raise RuntimeError(
             stderr.decode("utf-8", errors="replace").strip()

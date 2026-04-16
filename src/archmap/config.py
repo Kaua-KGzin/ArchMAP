@@ -35,6 +35,7 @@ class ProjectConfig(TypedDict):
 
 
 DEFAULT_MAX_FILE_SIZE_BYTES = 1_048_576
+_ABSOLUTE_MAX_FILE_SIZE_BYTES = 104_857_600  # 100 MB hard ceiling
 
 
 def default_project_config() -> ProjectConfig:
@@ -139,7 +140,7 @@ def _normalize_max_file_size(section: object) -> int:
     if isinstance(raw_value, bool) or not isinstance(raw_value, int):
         return DEFAULT_MAX_FILE_SIZE_BYTES
 
-    return max(0, raw_value)
+    return max(0, min(raw_value, _ABSOLUTE_MAX_FILE_SIZE_BYTES))
 
 
 def _normalize_parallel(section: object) -> bool:

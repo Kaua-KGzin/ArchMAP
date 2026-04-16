@@ -1,0 +1,22 @@
+# Default owner for the entire repository
+* @Kaua-KGzin
+
+# Core analysis engine
+/src/archmap/core/ @Kaua-KGzin
+
+# CLI interface
+/src/archmap/cli/ @Kaua-KGzin
+
+# Web UI
+/src/archmap/web-ui/ @Kaua-KGzin
+/web-ui/ @Kaua-KGzin
+
+# CI/CD and release pipelines
+/.github/workflows/ @Kaua-KGzin
+
+# Documentation
+/docs/ @Kaua-KGzin
+
+# Configuration and packaging
+/pyproject.toml @Kaua-KGzin
+/package.json @Kaua-KGzin

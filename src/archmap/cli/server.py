@@ -24,6 +24,7 @@ class ReportState:
     parallel: bool | None = None
     history_cache: dict[tuple[str, int], dict] = field(default_factory=dict)
     _listeners: list[threading.Event] = field(default_factory=list, repr=False)
+    _listeners_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     @classmethod
     def from_path(cls, path: str | Path, parallel: bool | None = None) -> ReportState:
@@ -44,8 +45,9 @@ class ReportState:
         self.notify_listeners()
 
     def notify_listeners(self) -> None:
-        for event in self._listeners:
-            event.set()
+        with self._listeners_lock:
+            for event in self._listeners:
+                event.set()
 
     def history(self, *, ref: str = "HEAD", limit: int = 12) -> dict:
         cache_key = (ref, limit)
@@ -145,7 +147,7 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
 
             try:
                 state.set_path(new_path)
-            except Exception as exc:  # noqa: BLE001
+            except (OSError, RuntimeError, ValueError) as exc:
                 self._write_json(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                     {"status": "error", "message": str(exc)},
@@ -169,7 +171,7 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
 
             try:
                 state.set_path(Path(next_path))
-            except Exception as exc:  # noqa: BLE001
+            except (OSError, RuntimeError, ValueError) as exc:
                 self._write_json(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                     {"status": "error", "message": str(exc)},
@@ -204,7 +206,7 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
 
             try:
                 _open_local_path(target_path)
-            except Exception as exc:  # noqa: BLE001
+            except (OSError, RuntimeError) as exc:
                 self._write_json(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                     {"status": "error", "message": str(exc)},
@@ -219,7 +221,7 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
         def _handle_reanalyze(self) -> None:
             try:
                 state.reanalyze()
-            except Exception as exc:  # noqa: BLE001
+            except (OSError, RuntimeError, ValueError) as exc:
                 self._write_json(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                     {"status": "error", "message": str(exc)},
@@ -235,7 +237,7 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
 
             try:
                 history = state.history(ref=ref, limit=limit)
-            except Exception as exc:  # noqa: BLE001
+            except (OSError, RuntimeError, ValueError) as exc:
                 self._write_json(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                     {"status": "error", "message": str(exc)},
@@ -246,7 +248,8 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
 
         def _handle_events(self) -> None:
             event = threading.Event()
-            state._listeners.append(event)
+            with state._listeners_lock:
+                state._listeners.append(event)
 
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/event-stream")
@@ -273,8 +276,9 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
                 # Client disconnected
                 pass
             finally:
-                if event in state._listeners:
-                    state._listeners.remove(event)
+                with state._listeners_lock:
+                    if event in state._listeners:
+                        state._listeners.remove(event)
 
         def _write_json(self, status: HTTPStatus, payload: dict) -> None:
             body = json.dumps(payload).encode("utf-8")
@@ -285,8 +289,14 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             self.wfile.write(body)
 
         def _read_json_body(self) -> dict:
-            content_length = int(self.headers.get("Content-Length", "0") or "0")
-            if content_length <= 0:
+            _MAX_BODY_BYTES = 1_048_576  # 1 MB
+
+            try:
+                content_length = int(self.headers.get("Content-Length", "0") or "0")
+            except (ValueError, TypeError):
+                return {}
+
+            if content_length <= 0 or content_length > _MAX_BODY_BYTES:
                 return {}
 
             body = self.rfile.read(content_length)
@@ -306,12 +316,14 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
                 from tkinter import filedialog
 
                 root = tk.Tk()
-                root.withdraw()
-                root.attributes("-topmost", True)
-                directory = filedialog.askdirectory(title="ArchMAP - Select Project Folder")
-                root.destroy()
-                return (Path(directory), None) if directory else (None, None)
-            except Exception as exc:
+                try:
+                    root.withdraw()
+                    root.attributes("-topmost", True)
+                    directory = filedialog.askdirectory(title="ArchMAP - Select Project Folder")
+                    return (Path(directory), None) if directory else (None, None)
+                finally:
+                    root.destroy()
+            except (ImportError, OSError, RuntimeError) as exc:
                 return None, _describe_directory_picker_error(exc)
 
         def log_message(self, _format: str, *args) -> None:
@@ -351,15 +363,21 @@ def _resolve_node_file_path(project_path: Path, report: dict, node_id: str) -> P
 
 def _candidate_file_path(project_root: Path, normalized_node_id: str) -> Path | None:
     relative_path = Path(normalized_node_id.replace("/", os.sep))
-    if project_root.is_file():
-        if normalize_file_id(project_root.name) == normalized_node_id:
-            return project_root
-        candidate = (project_root.parent / relative_path).resolve()
+    resolved_root = project_root.resolve()
+
+    if resolved_root.is_file():
+        if normalize_file_id(resolved_root.name) == normalized_node_id:
+            return resolved_root
+        candidate = (resolved_root.parent / relative_path).resolve()
+        try:
+            candidate.relative_to(resolved_root.parent)
+        except ValueError:
+            return None
         return candidate if candidate.is_file() else None
 
-    candidate = (project_root / relative_path).resolve()
+    candidate = (resolved_root / relative_path).resolve()
     try:
-        candidate.relative_to(project_root)
+        candidate.relative_to(resolved_root)
     except ValueError:
         return None
     return candidate

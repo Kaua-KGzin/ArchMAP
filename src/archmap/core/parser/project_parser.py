@@ -57,7 +57,7 @@ def _parse_single_file(
             "dependencies": dependencies,
         }
     except Exception as e:
-        logger.error(f"Erro ao parsear arquivo {file_id}: {e}")
+        logger.error("Failed to parse file %s: %s", file_id, e)
         return None
 
 
@@ -107,7 +107,7 @@ def parse_project(
                     if result:
                         parsed_files.append(result)
                 except Exception as e:
-                    logger.error(f"Worker reportou falha crítica para {fid}: {e}")
+                    logger.error("Worker reported critical failure for %s: %s", fid, e)
     else:
         for file_id in file_ids:
             result = _parse_single_file(

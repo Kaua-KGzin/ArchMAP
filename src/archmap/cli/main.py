@@ -66,7 +66,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     _apply_default_command(args)
 
-    _print_banner()
+    if sys.stdout.isatty():
+        _print_banner()
     try:
         if args.command == "version":
             return _run_version()
@@ -77,7 +78,9 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         return handler(args)
-    except Exception as exc:  # noqa: BLE001
+    except KeyboardInterrupt:
+        return 130
+    except (OSError, RuntimeError, ValueError) as exc:
         print(f"[error] {exc}", file=sys.stderr)
         if getattr(sys, "frozen", False):
             input("\n[info] Press Enter to exit...")
