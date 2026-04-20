@@ -8,6 +8,7 @@ from archmap.cli.defaults import (
     DEFAULT_JSON_OUTPUT_PATH,
     DEFAULT_MERMAID_OUTPUT_PATH,
     DEFAULT_PORT,
+    DEFAULT_SARIF_OUTPUT_PATH,
     DEFAULT_TOP_ITEMS,
 )
 
@@ -28,6 +29,9 @@ def apply_default_command(args: argparse.Namespace) -> None:
     args.out_cytoscape = DEFAULT_CYTOSCAPE_OUTPUT_PATH
     args.include_cytoscape = False
     args.no_subgraphs = False
+    args.sarif = False
+    args.out_sarif = None
+    args.no_cache = False
     args.parallel = True
 
 
@@ -69,6 +73,17 @@ def build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="enable parallel file parsing for speedup",
+    )
+    analyze_parser.add_argument(
+        "--quiet",
+        "-q",
+        action="store_true",
+        help="suppress all informational output (errors and gate failures still printed)",
+    )
+    analyze_parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="bypass incremental analysis cache and force a full re-analysis",
     )
     analyze_parser.add_argument(
         "--fail-on-cycles",
@@ -123,6 +138,11 @@ def build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="enable parallel file parsing for speedup",
+    )
+    serve_parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="bypass incremental analysis cache and force a full re-analysis",
     )
 
     watch_parser = subparsers.add_parser(
@@ -251,6 +271,20 @@ def _add_export_arguments(parser: argparse.ArgumentParser, *, default_format: st
     parser.add_argument("--out-mermaid", default=DEFAULT_MERMAID_OUTPUT_PATH)
     parser.add_argument("--out-cytoscape", default=DEFAULT_CYTOSCAPE_OUTPUT_PATH)
     parser.add_argument("--include-cytoscape", action="store_true")
+    parser.add_argument(
+        "--out-sarif",
+        default=None,
+        metavar="PATH",
+        help=(
+            "write a SARIF 2.1.0 report to this path "
+            f"(default when omitted: {DEFAULT_SARIF_OUTPUT_PATH})"
+        ),
+    )
+    parser.add_argument(
+        "--sarif",
+        action="store_true",
+        help="export a SARIF 2.1.0 report alongside the other outputs",
+    )
     parser.add_argument(
         "--no-subgraphs",
         action="store_true",

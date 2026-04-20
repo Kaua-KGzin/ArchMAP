@@ -4,6 +4,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+from archmap import __version__
 from archmap.utils.file_utils import ensure_parent_dir
 
 
@@ -12,12 +13,14 @@ def export_graph_as_json(report: dict, output_path: str | Path) -> Path:
     ensure_parent_dir(target)
 
     payload = {
+        "tool": {"name": "ArchMAP", "version": __version__},
         "projectRoot": report["projectRoot"],
         "generatedAt": datetime.now(UTC).isoformat(),
         "nodes": report["simple"]["nodes"],
         "edges": report["simple"]["edges"],
         "metrics": report["metrics"],
         "cycles": report["cycles"],
+        "cycleDetails": report.get("cycleDetails", []),
         "risks": report.get("risks", {}),
         "architecture": report.get("architecture", {}),
         "detailed": {

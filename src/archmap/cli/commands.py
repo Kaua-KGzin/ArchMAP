@@ -69,32 +69,38 @@ KNOWN_INIT_IGNORE_DIRS = {
 
 
 def run_analyze(args: argparse.Namespace) -> int:
-    report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
+    quiet = getattr(args, "quiet", False)
+    no_cache = getattr(args, "no_cache", False)
+    sarif_path = _resolve_sarif_output(args)
+
+    report = analyze_project(
+        args.path, parallel=getattr(args, "parallel", None), use_cache=not no_cache
+    )
     export_kwargs = {
         "report": report,
         "output_format": args.format,
         "json_output": args.out,
         "mermaid_output": args.out_mermaid,
         "cytoscape_output": args.out_cytoscape,
+        "sarif_output": sarif_path,
         "include_cytoscape": args.include_cytoscape,
         "no_subgraphs": getattr(args, "no_subgraphs", False),
     }
 
-    export_result = export_outputs(
-        **export_kwargs,
-    )
+    export_result = export_outputs(**export_kwargs)
 
-    top_count = max(0, int(args.top))
-    print_summary(report)
-    if args.include_insights:
-        print_human_insights(report)
-    if args.include_explanation:
-        print_project_explanation(report)
-    if getattr(args, "impact", None):
-        print_impact_analysis(report, args.impact)
-    print_top_complexity(report, top_count)
-    print_top_risks(report, top_count)
-    print_export_summary(export_result)
+    if not quiet:
+        top_count = max(0, int(args.top))
+        print_summary(report)
+        if args.include_insights:
+            print_human_insights(report)
+        if args.include_explanation:
+            print_project_explanation(report)
+        if getattr(args, "impact", None):
+            print_impact_analysis(report, args.impact)
+        print_top_complexity(report, top_count)
+        print_top_risks(report, top_count)
+        print_export_summary(export_result)
 
     gate_failures = evaluate_quality_gates(report, args)
     if gate_failures:
@@ -102,12 +108,28 @@ def run_analyze(args: argparse.Namespace) -> int:
             print(f"[gate] {failure}", file=sys.stderr)
         return 2
 
-    print('[hint] Run "archmap serve <path>" to open the interactive graph.')
+    if not quiet:
+        print('[hint] Run "archmap serve <path>" to open the interactive graph.')
     return 0
 
 
+def _resolve_sarif_output(args: argparse.Namespace) -> str | None:
+    from archmap.cli.defaults import DEFAULT_SARIF_OUTPUT_PATH
+
+    out_sarif = getattr(args, "out_sarif", None)
+    include_sarif = getattr(args, "sarif", False)
+    if out_sarif:
+        return out_sarif
+    if include_sarif:
+        return DEFAULT_SARIF_OUTPUT_PATH
+    return None
+
+
 def run_serve(args: argparse.Namespace) -> int:
-    state = ReportState.from_path(args.path, parallel=getattr(args, "parallel", None))
+    no_cache = getattr(args, "no_cache", False)
+    state = ReportState.from_path(
+        args.path, parallel=getattr(args, "parallel", None), use_cache=not no_cache
+    )
     export_kwargs = {
         "report": state.report,
         "output_format": args.format,

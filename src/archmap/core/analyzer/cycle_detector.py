@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import deque
+
 
 def find_circular_dependencies(
     file_node_ids: list[str], adjacency: dict[str, list[str]]
@@ -23,6 +25,86 @@ def find_circular_dependencies(
             components.append(component)
 
     return sorted(components, key=lambda item: item[0])
+
+
+def find_cycle_path(cycle_members: list[str], adjacency: dict[str, list[str]]) -> list[str]:
+    """Return a concrete directed cycle path (first node repeated at end) within the SCC."""
+    if not cycle_members:
+        return []
+
+    members_set = set(cycle_members)
+    start = cycle_members[0]
+
+    # BFS: find shortest path from start back to start through SCC members
+    queue: deque[list[str]] = deque([[start]])
+    visited: set[str] = set()
+
+    while queue:
+        path = queue.popleft()
+        current = path[-1]
+
+        for neighbor in adjacency.get(current, []):
+            if neighbor not in members_set:
+                continue
+            if neighbor == start and len(path) > 1:
+                return path + [start]
+            if neighbor in visited or neighbor in set(path):
+                continue
+            visited.add(neighbor)
+            queue.append(path + [neighbor])
+
+    # Fallback: return members as a closed list (should not normally happen for a valid SCC)
+    return list(cycle_members) + [cycle_members[0]]
+
+
+def suggest_cycle_break(
+    cycle_members: list[str],
+    cycle_path: list[str],
+    incoming_counts: dict[str, int],
+) -> dict | None:
+    """Identify the best edge to remove to break the cycle.
+
+    Prefers the edge (a → b) where b has the fewest external incoming dependencies,
+    making b the easiest module to extract or invert.
+    """
+    if len(cycle_path) < 3:
+        return None
+
+    path_edges = list(zip(cycle_path[:-1], cycle_path[1:], strict=False))
+    if not path_edges:
+        return None
+
+    best_from, best_to = min(path_edges, key=lambda e: incoming_counts.get(e[1], 0))
+    incoming = incoming_counts.get(best_to, 0)
+    return {
+        "from": best_from,
+        "to": best_to,
+        "reason": (
+            f"'{best_to}' has {incoming} incoming dependenc{'y' if incoming == 1 else 'ies'} — "
+            "consider extracting an interface or inverting this dependency"
+        ),
+    }
+
+
+def enrich_cycles(
+    cycles: list[list[str]],
+    adjacency: dict[str, list[str]],
+    incoming_counts: dict[str, int],
+) -> list[dict]:
+    """Return enriched cycle objects with path and break suggestion."""
+    enriched: list[dict] = []
+    for members in cycles:
+        path = find_cycle_path(members, adjacency)
+        break_suggestion = suggest_cycle_break(members, path, incoming_counts)
+        enriched.append(
+            {
+                "members": members,
+                "path": path,
+                "size": len(members),
+                "breakSuggestion": break_suggestion,
+            }
+        )
+    return enriched
 
 
 def _compute_finish_order(
