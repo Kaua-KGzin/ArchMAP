@@ -136,6 +136,7 @@ def run_serve(args: argparse.Namespace) -> int:
         "json_output": args.out,
         "mermaid_output": args.out_mermaid,
         "cytoscape_output": args.out_cytoscape,
+        "sarif_output": _resolve_sarif_output(args),
         "include_cytoscape": args.include_cytoscape,
         "no_subgraphs": getattr(args, "no_subgraphs", False),
     }
@@ -160,8 +161,9 @@ def run_serve(args: argparse.Namespace) -> int:
     browser_url = f"http://{host_for_browser}:{args.port}"
     bind_url = f"http://{args.host}:{args.port}"
 
+    browser_opened = False
     if not args.no_open and can_open_browser(args.host):
-        webbrowser.open(browser_url, new=2, autoraise=False)
+        browser_opened = webbrowser.open(browser_url, new=2, autoraise=False)
 
     if getattr(args, "watch", False):
         watcher_thread = threading.Thread(
@@ -176,6 +178,8 @@ def run_serve(args: argparse.Namespace) -> int:
     print(f"[info] Web UI available at {browser_url}")
     if bind_url != browser_url:
         print(f"[info] Listening on {bind_url}")
+    if not browser_opened:
+        print(f"[hint] Open {browser_url} in your browser to view the interactive graph.")
     print("[info] Press Ctrl+C to stop.")
     try:
         server.serve_forever()

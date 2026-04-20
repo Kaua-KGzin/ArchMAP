@@ -57,7 +57,10 @@ def test_resolve_static_dir() -> None:
     assert isinstance(static_dir, Path)
 
 
-def test_can_open_browser() -> None:
+def test_can_open_browser(monkeypatch) -> None:
+    import archmap.cli.server as _srv
+    monkeypatch.setattr(_srv, "_is_termux", lambda: False)
+    monkeypatch.setattr(_srv, "_has_display", lambda: True)
     assert can_open_browser("localhost") is True
     assert can_open_browser("127.0.0.1") is True
     assert can_open_browser("0.0.0.0") is True
