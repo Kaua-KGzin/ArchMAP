@@ -65,6 +65,7 @@ def test_run_analyze_prints_summary_and_hint(monkeypatch, capsys) -> None:
                 "json_output": "graph.json",
                 "mermaid_output": "graph.mmd",
                 "cytoscape_output": "graph-cytoscape.json",
+                "sarif_output": None,
                 "include_cytoscape": False,
                 "no_subgraphs": False,
             },

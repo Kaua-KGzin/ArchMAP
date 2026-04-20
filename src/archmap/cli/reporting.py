@@ -7,6 +7,7 @@ from archmap.exporters import (
     export_graph_as_cytoscape,
     export_graph_as_json,
     export_graph_as_mermaid,
+    export_graph_as_sarif,
 )
 
 
@@ -17,10 +18,11 @@ def export_outputs(
     json_output: str,
     mermaid_output: str,
     cytoscape_output: str,
+    sarif_output: str | None = None,
     include_cytoscape: bool,
     no_subgraphs: bool = False,
 ) -> dict:
-    result = {"jsonPath": None, "mermaidPath": None, "cytoscapePath": None}
+    result = {"jsonPath": None, "mermaidPath": None, "cytoscapePath": None, "sarifPath": None}
 
     if output_format in {"json", "both"}:
         result["jsonPath"] = str(export_graph_as_json(report, json_output))
@@ -36,6 +38,8 @@ def export_outputs(
         result["mermaidPath"] = str(mermaid_path)
     if include_cytoscape:
         result["cytoscapePath"] = str(export_graph_as_cytoscape(report, cytoscape_output))
+    if sarif_output:
+        result["sarifPath"] = str(export_graph_as_sarif(report, sarif_output))
 
     return result
 
@@ -162,7 +166,21 @@ def print_summary(report: dict) -> None:
     metrics = report["metrics"]
     print(f"[ok] {metrics['filesAnalyzed']} files analyzed")
     print(f"[ok] {metrics['totalDependencies']} dependencies detected")
-    print(f"[ok] {metrics['circularDependencyCount']} circular dependencies detected")
+
+    cycle_count = int(metrics.get("circularDependencyCount", 0))
+    print(f"[ok] {cycle_count} circular dependencies detected")
+    if 0 < cycle_count <= 5:
+        for detail in report.get("cycleDetails", [])[:cycle_count]:
+            path = detail.get("path") or detail.get("members", [])
+            members = path[:-1] if (path and path[0] == path[-1]) else path
+            label = " → ".join(members[:5])
+            if len(members) > 5:
+                label += f" (+{len(members) - 5} more)"
+            print(f"  ↻ {label}")
+            suggestion = detail.get("breakSuggestion")
+            if suggestion:
+                print(f"    break: remove {suggestion['from']} → {suggestion['to']}")
+
     coupling = metrics.get("coupling", {})
     if coupling:
         print(
@@ -231,6 +249,8 @@ def print_export_summary(export_result: dict) -> None:
         print(f"[info] Mermaid graph exported to {export_result['mermaidPath']}")
     if export_result["cytoscapePath"]:
         print(f"[info] Cytoscape data exported to {export_result['cytoscapePath']}")
+    if export_result.get("sarifPath"):
+        print(f"[info] SARIF report exported to {export_result['sarifPath']}")
 
 
 def evaluate_quality_gates(report: dict, args: argparse.Namespace) -> list[str]:

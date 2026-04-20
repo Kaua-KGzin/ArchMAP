@@ -7,7 +7,7 @@ from archmap.core.analyzer.complexity_analyzer import (
     summarize_coupling,
     summarize_critical_files,
 )
-from archmap.core.analyzer.cycle_detector import find_circular_dependencies
+from archmap.core.analyzer.cycle_detector import enrich_cycles, find_circular_dependencies
 from archmap.core.analyzer.human_analyzer import analyze_human
 from archmap.core.analyzer.impact_analyzer import calculate_impact
 from archmap.core.analyzer.project_explainer import explain_project
@@ -32,6 +32,9 @@ def analyze_graph(
 
     for node in nodes:
         node["impact"] = calculate_impact(node["id"], edges)
+
+    incoming_counts = {node["id"]: int(node.get("incoming", 0)) for node in nodes}
+    enriched = enrich_cycles(cycles, adjacency, incoming_counts)
 
     metrics = {
         "filesAnalyzed": len(file_nodes),
@@ -63,6 +66,7 @@ def analyze_graph(
         "edges": edges,
         "metrics": metrics,
         "cycles": cycles,
+        "cycleDetails": enriched,
         "risks": risks,
         "architecture": architecture,
         "insights": analyze_human({

@@ -42,6 +42,7 @@ def test_export_outputs_writes_requested_formats(monkeypatch, tmp_path) -> None:
         "jsonPath": str(tmp_path / "graph.json"),
         "mermaidPath": str(tmp_path / "graph.mmd"),
         "cytoscapePath": str(tmp_path / "graph-cytoscape.json"),
+        "sarifPath": None,
     }
     assert calls == [
         ("json", str(tmp_path / "graph.json")),

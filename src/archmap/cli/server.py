@@ -22,17 +22,24 @@ class ReportState:
     path: Path
     report: dict
     parallel: bool | None = None
+    use_cache: bool = True
     history_cache: dict[tuple[str, int], dict] = field(default_factory=dict)
     _listeners: list[threading.Event] = field(default_factory=list, repr=False)
     _listeners_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     @classmethod
-    def from_path(cls, path: str | Path, parallel: bool | None = None) -> ReportState:
+    def from_path(
+        cls,
+        path: str | Path,
+        parallel: bool | None = None,
+        use_cache: bool = True,
+    ) -> ReportState:
         resolved = Path(path).resolve()
         return cls(
             path=resolved,
-            report=analyze_project(resolved, parallel=parallel),
+            report=analyze_project(resolved, parallel=parallel, use_cache=use_cache),
             parallel=parallel,
+            use_cache=use_cache,
         )
 
     def set_path(self, new_path: Path) -> None:
@@ -40,7 +47,7 @@ class ReportState:
         self.reanalyze()
 
     def reanalyze(self) -> None:
-        self.report = analyze_project(self.path, parallel=self.parallel)
+        self.report = analyze_project(self.path, parallel=self.parallel, use_cache=self.use_cache)
         self.history_cache.clear()
         self.notify_listeners()
 
