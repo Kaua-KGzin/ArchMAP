@@ -141,18 +141,9 @@ def test_build_http_handler_returns_class(tmp_path) -> None:
     assert handler_class is not None
 
 
-def test_report_state_history_uses_cache(tmp_path, monkeypatch) -> None:
+def test_report_state_history_uses_cache(tmp_path) -> None:
     (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
     state = ReportState.from_path(tmp_path)
-
-    calls: list[tuple[str, int]] = []
-
-    def fake_history(path, *, ref, limit):
-        calls.append((ref, limit))
-        return {"ref": ref, "limit": limit}
-
-    import archmap.cli.server as server_mod
-    monkeypatch.setattr(server_mod, "analyze_git_history", fake_history)
 
     result1 = state.history(ref="HEAD", limit=5)
     result2 = state.history(ref="HEAD", limit=5)
@@ -160,7 +151,7 @@ def test_report_state_history_uses_cache(tmp_path, monkeypatch) -> None:
 
     assert result1 == result2
     assert result3["ref"] == "main"
-    assert len(calls) == 2
+    assert result1 is result2  # same cached object
 
 
 def test_resolve_node_file_path_returns_none_for_package_node(tmp_path) -> None:

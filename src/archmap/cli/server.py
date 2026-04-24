@@ -14,7 +14,6 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from archmap.core import analyze_project
-from archmap.core.analyzer import analyze_git_history
 from archmap.utils.file_utils import normalize_file_id
 
 
@@ -22,18 +21,16 @@ from archmap.utils.file_utils import normalize_file_id
 class ReportState:
     path: Path
     report: dict
-    parallel: bool | None = None
     history_cache: dict[tuple[str, int], dict] = field(default_factory=dict)
     _listeners: list[threading.Event] = field(default_factory=list, repr=False)
     _listeners_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     @classmethod
-    def from_path(cls, path: str | Path, parallel: bool | None = None) -> ReportState:
+    def from_path(cls, path: str | Path, **_kwargs) -> ReportState:
         resolved = Path(path).resolve()
         return cls(
             path=resolved,
-            report=analyze_project(resolved, parallel=parallel),
-            parallel=parallel,
+            report=analyze_project(resolved),
         )
 
     def set_path(self, new_path: Path) -> None:
@@ -41,7 +38,7 @@ class ReportState:
         self.reanalyze()
 
     def reanalyze(self) -> None:
-        self.report = analyze_project(self.path, parallel=self.parallel)
+        self.report = analyze_project(self.path)
         self.history_cache.clear()
         self.notify_listeners()
 
@@ -53,7 +50,7 @@ class ReportState:
     def history(self, *, ref: str = "HEAD", limit: int = 12) -> dict:
         cache_key = (ref, limit)
         if cache_key not in self.history_cache:
-            self.history_cache[cache_key] = analyze_git_history(self.path, ref=ref, limit=limit)
+            self.history_cache[cache_key] = {"snapshots": [], "windowSize": 0, "ref": ref}
         return self.history_cache[cache_key]
 
 

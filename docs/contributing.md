@@ -12,4 +12,4 @@
 
 Full guide:
 
-- https://github.com/Kaua-KGzin/code-arch-visualizer/blob/main/CONTRIBUTING.md
+- https://github.com/Kaua-KGzin/ArchMAP/blob/main/CONTRIBUTING.md

@@ -4,28 +4,24 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-04-24
+
 ### Added
-- Governance and release assets:
-  - `NOTICE.md` with original distribution attribution for Kauã Gabriel.
-  - PR template with mandatory quality checklist.
-  - Demo script: `scripts/demo.ps1`.
-  - EXE build automation: `scripts/build-exe.ps1` with hash manifest and smoke test.
-- Documentation pages for:
-  - live demo
-  - logging/artifact policy
-  - MkDocs governance/project wrapper pages
+- **TypeScript parser** with triple-slash reference support (`/// <reference path="..." />`).
+- **Reusable GitHub Action** (`action.yml`) — run ArchMAP analysis directly in any workflow with SARIF upload to GitHub Code Scanning.
+- **Pre-commit hook** via the `archmap-check` entrypoint — integrates with `.pre-commit-hooks.yaml` for zero-config quality gates.
+- **Incremental parse cache** — unchanged files are skipped on re-analysis, reducing runtime on large repos.
+- **`--sarif` flag** on `archmap analyze` — exports findings as SARIF 2.1.0 for upload to Code Scanning or SAST tools.
 
 ### Changed
-- Branch flow documentation standardized to `feat/* -> dev -> release/* -> main` (with legacy `feature/*` support).
-- Repository hygiene:
-  - root loose logs moved to `logs/archive/`
-  - runtime logs standardized in `logs/runtime/`
-  - generated build artifacts removed from source tracking policy
-- README rewritten with:
-  - professional Git workflow
-  - demo commands
-  - folder governance
-  - attribution section
+- Parser registry now self-registers at import time; `bootstrap.py` is a no-op retained for backwards compatibility.
+- Web UI simplified: removed i18n layer, reduced bundle size.
+- `archmap-check` pre-commit entrypoint defaults: `--quiet --fail-on-cycles --fail-on-custom-rules`.
+
+### Removed
+- `architecture_analyzer`, `architecture_suggester`, `history_analyzer`, `human_analyzer`, `impact_analyzer` — these experimental analyzers were removed to reduce scope and maintenance burden.
+- `explain`, `risk`, `improve`, `history` CLI commands — backends removed; commands raise `NotImplementedError` and will be fully cleaned from the CLI in v0.8.0.
+- i18n layer from the web UI (`i18n.js`).
 
 ## [0.4.0-beta.0] - 2026-03-09
 

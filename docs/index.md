@@ -36,4 +36,4 @@ It parses code, builds dependency graphs, detects circular dependencies, compute
 ## Attribution
 
 Original distributor: **Kaua Gabriel / Kauã Gabriel** (Kaua-KGzin).  
-See [Original Distribution Notice](notice.md) and the [MIT License](https://github.com/Kaua-KGzin/code-arch-visualizer/blob/main/LICENSE).
+See [Original Distribution Notice](notice.md) and the [MIT License](https://github.com/Kaua-KGzin/ArchMAP/blob/main/LICENSE).

@@ -69,6 +69,7 @@ def test_run_analyze_prints_summary_and_hint(monkeypatch, capsys) -> None:
                 "cytoscape_output": "graph-cytoscape.json",
                 "include_cytoscape": False,
                 "no_subgraphs": False,
+                "sarif_output": None,
             },
         ),
         ("summary", report),
@@ -824,13 +825,17 @@ def test_get_project_mtimes_handles_oserror(monkeypatch, tmp_path) -> None:
     src_file = tmp_path / "app.py"
     src_file.write_text("x = 1\n", encoding="utf-8")
 
+    import archmap.utils.file_utils as fu
+    monkeypatch.setattr(fu, "discover_source_files", lambda _: [src_file])
+
     original_stat = Path.stat
 
     def patched_stat(self, **kwargs):
-        if self == src_file.resolve() or self == src_file:
+        if str(self) == str(src_file):
             raise OSError("permission denied")
         return original_stat(self, **kwargs)
 
     monkeypatch.setattr(Path, "stat", patched_stat)
     result = cli_commands._get_project_mtimes(tmp_path)
     assert isinstance(result, dict)
+    assert str(src_file) not in result

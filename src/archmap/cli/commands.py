@@ -36,14 +36,20 @@ from archmap.cli.server import (
     resolve_static_dir,
 )
 from archmap.core import analyze_project
-from archmap.core.analyzer import (
-    analyze_git_history,
-    analyze_git_ref,
-    diff_reports,
-    generate_refactor_script,
-    suggest_architecture,
-)
+from archmap.core.analyzer import analyze_git_ref, diff_reports
 from archmap.utils.file_utils import normalize_file_id
+
+
+def analyze_git_history(*_args, **_kwargs) -> dict:
+    raise NotImplementedError("git history analysis was removed in v0.7.0")
+
+
+def generate_refactor_script(*_args, **_kwargs) -> str:
+    raise NotImplementedError("refactor script generation was removed in v0.7.0")
+
+
+def suggest_architecture(*_args, **_kwargs) -> dict:
+    raise NotImplementedError("architecture suggestion was removed in v0.7.0")
 
 KNOWN_INIT_IGNORE_DIRS = {
     ".eggs",

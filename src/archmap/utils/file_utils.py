@@ -58,12 +58,17 @@ def should_ignore_parts(parts: Iterable[str]) -> bool:
     return any(part in DEFAULT_IGNORE_DIRS for part in parts)
 
 
-def discover_source_files(project_root: Path) -> list[Path]:
+def discover_source_files(
+    project_root: Path,
+    extra_ignored_dirs: Iterable[str] | None = None,
+    max_file_size_bytes: int = 0,
+) -> list[Path]:
     if project_root.is_file():
         if project_root.suffix.lower() in SUPPORTED_EXTENSIONS:
             return [project_root]
         return []
 
+    extra = {d.casefold() for d in (extra_ignored_dirs or [])}
     files: list[Path] = []
 
     for file_path in project_root.rglob("*"):
@@ -71,8 +76,17 @@ def discover_source_files(project_root: Path) -> list[Path]:
             continue
         if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             continue
-        if should_ignore_parts(file_path.relative_to(project_root).parts):
+        parts = file_path.relative_to(project_root).parts
+        if should_ignore_parts(parts):
             continue
+        if extra and any(p.casefold() in extra for p in parts):
+            continue
+        if max_file_size_bytes > 0:
+            try:
+                if file_path.stat().st_size > max_file_size_bytes:
+                    continue
+            except OSError:
+                continue
         files.append(file_path)
 
     return sorted(files)

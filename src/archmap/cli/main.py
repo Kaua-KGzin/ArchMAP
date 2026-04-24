@@ -35,35 +35,68 @@ def _print_banner() -> None:
    \___/|_| \___|_||_| |_|  |_/_/ \_\_|
 
    ArchMAP Architectural Visualizer v{__version__}
-   Professional Analysis for Modern Codebases
+   by Kaua-KGzin — Professional Analysis for Modern Codebases
     """
     print(banner)
+
+
+def _configure_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, AttributeError):
+            pass
+
+
+def _resolve_command_handler(command: str | None):
+    if command == "analyze":
+        return _run_analyze
+    if command == "serve":
+        return _run_serve
+    if command == "diff":
+        return _run_diff
+    if command in {"explain", "risk", "improve", "history", "init", "watch"}:
+        from archmap.cli import commands
+        return {
+            "explain": commands.run_explain,
+            "risk": commands.run_risk,
+            "improve": commands.run_improve,
+            "history": commands.run_history,
+            "init": commands.run_init,
+            "watch": commands.run_watch,
+        }.get(command)
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     _apply_default_command(args)
+    _configure_stdio()
+
+    if args.command == "version":
+        _print_banner()
+        print(f"archmap {__version__}")
+        return 0
 
     _print_banner()
+
+    handler = _resolve_command_handler(args.command)
+    if handler is None:
+        parser.print_help()
+        return 1
+
     try:
-        if args.command == "version":
-            print(f"archmap {__version__}")
-            return 0
-        if args.command == "analyze":
-            return _run_analyze(args)
-        if args.command == "serve":
-            return _run_serve(args)
-        if args.command == "diff":
-            return _run_diff(args)
+        return handler(args)
+    except KeyboardInterrupt:
+        print("\n[info] Interrupted.", file=sys.stderr)
+        return 130
     except Exception as exc:  # noqa: BLE001
         print(f"[error] {exc}", file=sys.stderr)
         if getattr(sys, "frozen", False):
             input("\n[info] Press Enter to exit...")
         return 1
-
-    parser.print_help()
-    return 1
 
 
 def _apply_default_command(args: argparse.Namespace) -> None:

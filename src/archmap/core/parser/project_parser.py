@@ -33,7 +33,7 @@ def _parse_single_file(
     file_id: str,
     source_code: str,
     file_ids: set[str],
-    get_file_content: Callable[[str], str | None],
+    get_file_content: Callable[[str], str | None] | None = None,
 ) -> ParsedFile | None:
     ext = Path(file_id).suffix.lower()
     language = registry.get_language_by_ext(ext)
@@ -46,9 +46,7 @@ def _parse_single_file(
 
     try:
         import_entries = parser.parse(source_code)
-        dependencies = parser.resolve(
-            import_entries, file_id, file_ids, get_file_content=get_file_content
-        )
+        dependencies = parser.resolve(import_entries, file_id, file_ids)
 
         return {
             "id": file_id,
