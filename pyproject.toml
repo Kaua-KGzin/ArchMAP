@@ -20,6 +20,7 @@ docs = ["mkdocs-material>=9.5"]
 [project.scripts]
 archmap = "archmap.cli.main:main"
 code-arch = "archmap.cli.main:main"
+archmap-check = "archmap.cli.check:main"
 
 [tool.hatch.version]
 path = "src/archmap/__init__.py"
