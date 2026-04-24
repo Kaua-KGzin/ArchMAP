@@ -480,6 +480,7 @@ def test_build_http_handler_security_headers_present(tmp_path) -> None:
 
     assert headers.get("X-Content-Type-Options") == "nosniff"
     assert headers.get("X-Frame-Options") == "SAMEORIGIN"
+    assert "default-src 'self'" in headers.get("Content-Security-Policy", "")
 
 
 def test_build_http_handler_open_project_error_on_set_path(tmp_path) -> None:
@@ -575,3 +576,37 @@ def test_build_http_handler_requires_valid_file_node_for_open_file(tmp_path) -> 
         "status": "error",
         "message": "File node not found or unavailable: requests",
     }
+
+
+def test_open_endpoints_forbidden_for_remote_clients(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    state = StubState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    # Simulate a non-local client by patching _is_local_request on the class
+    handler._is_local_request = lambda self: False  # type: ignore[method-assign]
+
+    with run_handler_server(handler) as base_url:
+        status_open, payload_open = request_json(f"{base_url}/api/open", method="POST")
+        status_file, payload_file = request_json(f"{base_url}/api/open-file", method="POST")
+
+    assert status_open == 403
+    assert payload_open == {"status": "error", "message": "only available on localhost"}
+    assert status_file == 403
+    assert payload_file == {"status": "error", "message": "only available on localhost"}
+
+
+def test_is_local_request_allows_loopback_addresses(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    state = StubState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    for addr in ("127.0.0.1", "::1", "localhost"):
+        instance = handler.__new__(handler)
+        instance.client_address = (addr, 12345)
+        assert instance._is_local_request() is True
+
+    instance.client_address = ("192.168.1.10", 12345)
+    assert instance._is_local_request() is False
