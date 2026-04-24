@@ -7,6 +7,7 @@ from archmap.cli.defaults import (
     DEFAULT_HOST,
     DEFAULT_JSON_OUTPUT_PATH,
     DEFAULT_MERMAID_OUTPUT_PATH,
+    DEFAULT_SARIF_OUTPUT_PATH,
     DEFAULT_PORT,
     DEFAULT_TOP_ITEMS,
 )
@@ -29,6 +30,7 @@ def apply_default_command(args: argparse.Namespace) -> None:
     args.include_cytoscape = False
     args.no_subgraphs = False
     args.parallel = True
+    args.sarif = None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -260,4 +262,12 @@ def _add_export_arguments(parser: argparse.ArgumentParser, *, default_format: st
         "--no-subgraphs",
         action="store_true",
         help="Disable subgraph grouping by layer in Mermaid output",
+    )
+    parser.add_argument(
+        "--sarif",
+        metavar="PATH",
+        nargs="?",
+        const=DEFAULT_SARIF_OUTPUT_PATH,
+        default=None,
+        help="Export results in SARIF 2.1.0 format (default path: %(const)s)",
     )

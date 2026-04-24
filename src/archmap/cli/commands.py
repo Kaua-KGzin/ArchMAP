@@ -80,6 +80,7 @@ def run_analyze(args: argparse.Namespace) -> int:
         "cytoscape_output": args.out_cytoscape,
         "include_cytoscape": args.include_cytoscape,
         "no_subgraphs": getattr(args, "no_subgraphs", False),
+        "sarif_output": getattr(args, "sarif", None),
     }
 
     export_result = export_outputs(
@@ -120,6 +121,7 @@ def run_serve(args: argparse.Namespace) -> int:
         "cytoscape_output": args.out_cytoscape,
         "include_cytoscape": args.include_cytoscape,
         "no_subgraphs": getattr(args, "no_subgraphs", False),
+        "sarif_output": getattr(args, "sarif", None),
     }
 
     export_result = export_outputs(**export_kwargs)
