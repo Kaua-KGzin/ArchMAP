@@ -40,5 +40,5 @@ jobs:
         run: python -m pytest
 
       - name: Run smoke analysis
-        run: python -m archmap.cli.main analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd --include-cytoscape
+        run: python -m archmap.cli.main analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd --include-cytoscape --sarif .codeatlas/ci-archmap.sarif
         if: matrix.python-version == '3.13'

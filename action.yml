@@ -1,0 +1,160 @@
+name: "ArchMAP Architecture Analysis"
+description: "Analyze your codebase architecture with ArchMAP — cycles, risks, and layer violations."
+author: "KGzin"
+
+branding:
+  icon: "git-branch"
+  color: "blue"
+
+inputs:
+  path:
+    description: "Path to the project to analyze (relative to repo root)."
+    required: false
+    default: "."
+
+  python-version:
+    description: "Python version to use."
+    required: false
+    default: "3.13"
+
+  archmap-version:
+    description: "ArchMAP version to install (e.g. '0.7.0'). Defaults to latest."
+    required: false
+    default: ""
+
+  format:
+    description: "Output format: json, mermaid, or both."
+    required: false
+    default: "json"
+
+  out:
+    description: "Path for the JSON output file."
+    required: false
+    default: ".codeatlas/graph.json"
+
+  sarif:
+    description: "Export SARIF and upload to GitHub Code Scanning (true/false)."
+    required: false
+    default: "false"
+
+  sarif-path:
+    description: "Path for the SARIF output file."
+    required: false
+    default: ".codeatlas/archmap.sarif"
+
+  fail-on-cycles:
+    description: "Fail the workflow if any circular dependency is detected."
+    required: false
+    default: "false"
+
+  fail-on-god-modules:
+    description: "Fail the workflow if any god module is detected."
+    required: false
+    default: "false"
+
+  fail-on-explosions:
+    description: "Fail the workflow if any dependency explosion is detected."
+    required: false
+    default: "false"
+
+  fail-on-custom-rules:
+    description: "Fail the workflow if custom architecture rules are violated."
+    required: false
+    default: "false"
+
+  min-health:
+    description: "Minimum health score (0–100). Workflow fails if score is below this value."
+    required: false
+    default: "0"
+
+  quiet:
+    description: "Suppress banner and insights output."
+    required: false
+    default: "false"
+
+outputs:
+  json-path:
+    description: "Absolute path to the generated JSON report."
+    value: ${{ steps.analyze.outputs.json-path }}
+
+  sarif-path:
+    description: "Absolute path to the generated SARIF file (empty if sarif is false)."
+    value: ${{ steps.analyze.outputs.sarif-path }}
+
+  health-score:
+    description: "Architecture health score (0–100)."
+    value: ${{ steps.analyze.outputs.health-score }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install ArchMAP
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.archmap-version }}" ]; then
+          pip install "archmap==${{ inputs.archmap-version }}" --quiet
+        else
+          pip install archmap --quiet
+        fi
+
+    - name: Run analysis
+      id: analyze
+      shell: bash
+      env:
+        CI: "true"
+      run: |
+        ARGS="--format ${{ inputs.format }} --out ${{ inputs.out }}"
+
+        if [ "${{ inputs.fail-on-cycles }}" = "true" ]; then
+          ARGS="$ARGS --fail-on-cycles"
+        fi
+        if [ "${{ inputs.fail-on-god-modules }}" = "true" ]; then
+          ARGS="$ARGS --fail-on-god-modules"
+        fi
+        if [ "${{ inputs.fail-on-explosions }}" = "true" ]; then
+          ARGS="$ARGS --fail-on-explosions"
+        fi
+        if [ "${{ inputs.fail-on-custom-rules }}" = "true" ]; then
+          ARGS="$ARGS --fail-on-custom-rules"
+        fi
+        if [ "${{ inputs.min-health }}" != "0" ]; then
+          ARGS="$ARGS --min-health ${{ inputs.min-health }}"
+        fi
+        if [ "${{ inputs.quiet }}" = "true" ]; then
+          ARGS="$ARGS --quiet"
+        fi
+        if [ "${{ inputs.sarif }}" = "true" ]; then
+          ARGS="$ARGS --sarif ${{ inputs.sarif-path }}"
+        fi
+
+        python -m archmap.cli.main analyze ${{ inputs.path }} $ARGS
+
+        JSON_ABS="$(realpath "${{ inputs.out }}" 2>/dev/null || echo "")"
+        echo "json-path=${JSON_ABS}" >> "$GITHUB_OUTPUT"
+
+        if [ "${{ inputs.sarif }}" = "true" ]; then
+          SARIF_ABS="$(realpath "${{ inputs.sarif-path }}" 2>/dev/null || echo "")"
+          echo "sarif-path=${SARIF_ABS}" >> "$GITHUB_OUTPUT"
+        else
+          echo "sarif-path=" >> "$GITHUB_OUTPUT"
+        fi
+
+        # Extract health score from JSON report
+        if command -v python3 &>/dev/null && [ -f "${{ inputs.out }}" ]; then
+          HEALTH=$(python3 -c "import json,sys; d=json.load(open('${{ inputs.out }}')); print(d.get('architecture',{}).get('health',{}).get('score',100))" 2>/dev/null || echo "100")
+          echo "health-score=${HEALTH}" >> "$GITHUB_OUTPUT"
+        else
+          echo "health-score=100" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Upload SARIF to GitHub Code Scanning
+      if: inputs.sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.sarif-path }}
+        category: archmap
