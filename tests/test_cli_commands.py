@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import json
-import os
 from argparse import Namespace
 from pathlib import Path
-from unittest.mock import patch
 
 from archmap.cli import commands as cli_commands
 
@@ -560,34 +558,6 @@ def test_run_analyze_quiet_suppresses_output(monkeypatch, capsys) -> None:
     assert exit_code == 0
     assert output.out == ""
     assert output.err == ""
-
-
-def test_run_analyze_ci_env_suppresses_output(monkeypatch, capsys) -> None:
-    empty_report = {"metrics": {}, "risks": {}}
-    monkeypatch.setattr(cli_commands, "analyze_project", lambda path, **kwargs: empty_report)
-    monkeypatch.setattr(cli_commands, "export_outputs", lambda **kwargs: {"jsonPath": "out.json"})
-    monkeypatch.setattr(cli_commands, "evaluate_quality_gates", lambda _report, _args: [])
-
-    args = Namespace(
-        path="repo",
-        format="json",
-        out="graph.json",
-        out_mermaid="graph.mmd",
-        out_cytoscape="graph-cytoscape.json",
-        include_cytoscape=False,
-        no_subgraphs=False,
-        include_insights=True,
-        include_explanation=True,
-        top=5,
-        quiet=False,
-    )
-
-    with patch.dict(os.environ, {"CI": "true"}):
-        exit_code = cli_commands.run_analyze(args)
-
-    output = capsys.readouterr()
-    assert exit_code == 0
-    assert output.out == ""
 
 
 def test_run_risk_prints_report_when_not_json(monkeypatch, capsys) -> None:

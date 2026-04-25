@@ -79,8 +79,7 @@ KNOWN_INIT_IGNORE_DIRS = {
 
 
 def run_analyze(args: argparse.Namespace) -> int:
-    ci_env = os.environ.get("CI", "").lower() in {"1", "true", "yes"}
-    quiet = getattr(args, "quiet", False) or ci_env
+    quiet = getattr(args, "quiet", False)
     report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
     export_kwargs = {
         "report": report,
