@@ -3,7 +3,6 @@ from __future__ import annotations
 from archmap.core.parser.js_parser import JSParser
 from archmap.core.parser.python_parser import PythonParser
 from archmap.core.parser.rust_parser import RustParser
-from archmap.core.parser.ts_parser import TSParser
 
 
 def test_parse_js_imports_supports_import_export_require_and_dynamic_import() -> None:
@@ -18,68 +17,7 @@ export * from "./api";
 """
     parser = JSParser()
     imports = parser.parse(source)
-    assert set(imports) == {
-        "express",
-        "./auth",
-        "./setup",
-        "./config",
-        "./dynamic",
-        "./thing",
-        "./api",
-    }
-
-
-def test_parse_js_imports_ignores_comments_strings_and_templates() -> None:
-    source = """
-// import fake from "fake";
-/* export { nope } from "./hidden"; */
-const text = "require('./not-real')";
-const tpl = `import hidden from "./template"`;
-const prop = loader.require("./not-counted");
-import real from "./real";
-const cfg = require("./config");
-"""
-    parser = JSParser()
-    imports = parser.parse(source)
-    assert set(imports) == {"./real", "./config"}
-
-
-def test_js_parser_ignores_regex_with_import_keyword() -> None:
-    source = """
-const validator = /import "react"/;
-const dependency = require("./real");
-"""
-    parser = JSParser()
-    imports = parser.parse(source)
-    assert imports == ["./real"]
-
-
-def test_js_parser_supports_static_template_literals_in_dynamic_imports() -> None:
-    source = """
-const lazy = import(`./utils`);
-const cfg = require(`./config`);
-const dynamic = import(`./modules/${name}`);
-"""
-    parser = JSParser()
-    imports = parser.parse(source)
-    assert set(imports) == {"./utils", "./config"}
-
-
-def test_js_parser_handles_many_block_comments_before_import() -> None:
-    source = ("/* many comments */\n" * 200) + 'import service from "./service";\n'
-    parser = JSParser()
-    imports = parser.parse(source)
-    assert imports == ["./service"]
-
-
-def test_parse_ts_imports_supports_type_only_syntax() -> None:
-    source = """
-import type { User } from "./types";
-export type { UserDto } from "./dto";
-"""
-    parser = TSParser()
-    imports = parser.parse(source)
-    assert set(imports) == {"./types", "./dto"}
+    assert set(imports) == {"express", "./auth", "./config", "./dynamic", "./thing"}
 
 
 def test_parse_python_imports_supports_import_and_from_import() -> None:

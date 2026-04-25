@@ -1,6 +1,7 @@
 """Tests for server.py - covering HTTP handler paths, state, and helpers."""
 from __future__ import annotations
 
+import sys
 import threading
 from pathlib import Path
 
@@ -8,7 +9,9 @@ from archmap.cli.server import (
     ReportState,
     _candidate_file_path,
     _describe_directory_picker_error,
+    _open_local_path,
     _parse_history_limit,
+    _resolve_node_file_path,
     browser_host,
     build_http_handler,
     can_open_browser,
@@ -57,10 +60,7 @@ def test_resolve_static_dir() -> None:
     assert isinstance(static_dir, Path)
 
 
-def test_can_open_browser(monkeypatch) -> None:
-    import archmap.cli.server as _srv
-    monkeypatch.setattr(_srv, "_is_termux", lambda: False)
-    monkeypatch.setattr(_srv, "_has_display", lambda: True)
+def test_can_open_browser() -> None:
     assert can_open_browser("localhost") is True
     assert can_open_browser("127.0.0.1") is True
     assert can_open_browser("0.0.0.0") is True
@@ -139,3 +139,94 @@ def test_build_http_handler_returns_class(tmp_path) -> None:
     state = ReportState.from_path(tmp_path)
     handler_class = build_http_handler(state, static)
     assert handler_class is not None
+
+
+def test_report_state_history_uses_cache(tmp_path) -> None:
+    (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+    state = ReportState.from_path(tmp_path)
+
+    result1 = state.history(ref="HEAD", limit=5)
+    result2 = state.history(ref="HEAD", limit=5)
+    result3 = state.history(ref="main", limit=5)
+
+    assert result1 == result2
+    assert result3["ref"] == "main"
+    assert result1 is result2  # same cached object
+
+
+def test_resolve_node_file_path_returns_none_for_package_node(tmp_path) -> None:
+    report = {
+        "projectRoot": str(tmp_path),
+        "nodes": [{"id": "requests", "type": "package"}],
+    }
+
+    result = _resolve_node_file_path(tmp_path, report, "requests")
+    assert result is None
+
+
+def test_resolve_node_file_path_returns_none_for_missing_file(tmp_path) -> None:
+    report = {
+        "projectRoot": str(tmp_path),
+        "nodes": [{"id": "ghost.py", "type": "file"}],
+    }
+
+    result = _resolve_node_file_path(tmp_path, report, "ghost.py")
+    assert result is None
+
+
+def test_open_local_path_windows(tmp_path, monkeypatch) -> None:
+    target = tmp_path / "app.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+
+    opened: list[str] = []
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    import archmap.cli.server as server_mod
+    monkeypatch.setattr(server_mod.os, "startfile", lambda path: opened.append(path), raising=False)
+
+    _open_local_path(target)
+    assert len(opened) == 1
+
+
+def test_open_local_path_darwin(tmp_path, monkeypatch) -> None:
+    target = tmp_path / "app.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+
+    popen_calls: list[list] = []
+    monkeypatch.setattr(sys, "platform", "darwin")
+
+    import archmap.cli.server as server_mod
+    monkeypatch.setattr(
+        server_mod.subprocess,
+        "Popen",
+        lambda cmd, **kwargs: popen_calls.append(cmd),
+    )
+
+    _open_local_path(target)
+    assert popen_calls and popen_calls[0][0] == "open"
+
+
+def test_open_local_path_linux(tmp_path, monkeypatch) -> None:
+    target = tmp_path / "app.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+
+    popen_calls: list[list] = []
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    import archmap.cli.server as server_mod
+    monkeypatch.setattr(
+        server_mod.subprocess,
+        "Popen",
+        lambda cmd, **kwargs: popen_calls.append(cmd),
+    )
+
+    _open_local_path(target)
+    assert popen_calls and popen_calls[0][0] == "xdg-open"
+
+
+def test_candidate_file_path_file_root_traversal_blocked(tmp_path) -> None:
+    target = tmp_path / "single.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+
+    result = _candidate_file_path(target, "../../../etc/passwd")
+    assert result is None

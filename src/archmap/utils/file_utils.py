@@ -65,15 +65,12 @@ def should_ignore_parts(
     ignored_dirs = _ignored_dir_names(extra_ignored_dirs)
     return any(part.casefold() in ignored_dirs for part in parts)
 
+
 def discover_source_files(
     project_root: Path,
     extra_ignored_dirs: Iterable[str] | None = None,
     max_file_size_bytes: int = 0,
 ) -> list[Path]:
-    """
-    Localiza arquivos de código fonte suportados no diretório do projeto.
-    Utiliza os.scandir() por performance para evitar syscalls stat() redundantes.
-    """
     if project_root.is_file():
         if project_root.suffix.lower() in SUPPORTED_EXTENSIONS:
             if max_file_size_bytes > 0:
@@ -85,22 +82,26 @@ def discover_source_files(
             return [project_root]
         return []
 
-    ignored = _ignored_dir_names(extra_ignored_dirs)
+    extra = {d.casefold() for d in (extra_ignored_dirs or [])}
     files: list[Path] = []
 
-    def _scandir_recursive(current_path: str):
-        try:
-            with os.scandir(current_path) as it:
-                for entry in it:
-                    try:
-                        if entry.is_dir(follow_symlinks=False):
-                            if entry.name.casefold() in ignored:
-                                continue
-                            _scandir_recursive(entry.path)
-                        elif entry.is_file(follow_symlinks=False):
-                            ext = os.path.splitext(entry.name)[1].lower()
-                            if ext not in SUPPORTED_EXTENSIONS:
-                                continue
+    for file_path in project_root.rglob("*"):
+        if not file_path.is_file():
+            continue
+        if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+            continue
+        parts = file_path.relative_to(project_root).parts
+        if should_ignore_parts(parts):
+            continue
+        if extra and any(p.casefold() in extra for p in parts):
+            continue
+        if max_file_size_bytes > 0:
+            try:
+                if file_path.stat().st_size > max_file_size_bytes:
+                    continue
+            except OSError:
+                continue
+        files.append(file_path)
 
                             if max_file_size_bytes > 0:
                                 # entry.stat() em sistemas modernos (como Linux/Win)

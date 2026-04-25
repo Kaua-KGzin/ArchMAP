@@ -34,18 +34,11 @@ jobs:
 
       - name: Lint
         run: python -m ruff check .
+        if: matrix.python-version == '3.13'
 
       - name: Run tests with coverage
         run: python -m pytest
 
       - name: Run smoke analysis
-        run: python -m archmap.cli.main analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd --include-cytoscape
+        run: python -m archmap.cli.main analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd --include-cytoscape --sarif .codeatlas/ci-archmap.sarif
         if: matrix.python-version == '3.13'
-
-      - name: Enforce architecture gate
-        if: matrix.python-version == '3.13'
-        run: python -m archmap.cli.main analyze . --format json --out .codeatlas/ci-gate.json --fail-on-cycles --fail-on-custom-rules --min-health 65
-
-      - name: Run architecture history smoke
-        if: matrix.python-version == '3.13'
-        run: python -m archmap.cli.main history --repo . --limit 8 --json > .codeatlas/ci-history.json

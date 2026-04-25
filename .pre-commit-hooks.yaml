@@ -1,0 +1,21 @@
+- id: archmap-check
+  name: ArchMAP architecture check
+  description: >
+    Analyze project architecture with ArchMAP.
+    Fails on circular dependencies or custom rule violations by default.
+  language: python
+  entry: archmap-check
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit]
+
+- id: archmap-check-strict
+  name: ArchMAP architecture check (strict)
+  description: >
+    Strict mode: fails on cycles, god modules, dependency explosions,
+    and custom rule violations.
+  language: python
+  entry: archmap-check --fail-on-god-modules --fail-on-explosions
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit]

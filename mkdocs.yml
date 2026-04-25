@@ -1,8 +1,8 @@
 site_name: ArchMAP
 site_description: Static architecture analysis and visualization for any codebase
-site_url: https://kaua-kgzin.github.io/ArchMAP/
-repo_url: https://github.com/Kaua-KGzin/ArchMAP
-repo_name: Kaua-KGzin/ArchMAP
+site_url: https://kaua-kgzin.github.io/code-arch-visualizer/
+repo_url: https://github.com/Kaua-KGzin/code-arch-visualizer
+repo_name: Kaua-KGzin/code-arch-visualizer
 edit_uri: edit/main/docs/
 
 theme:
@@ -55,11 +55,6 @@ nav:
   - CLI Reference:
       - analyze: cli/analyze.md
       - serve: cli/serve.md
-      - explain: cli/explain.md
-      - risk: cli/risk.md
-      - improve: cli/improve.md
-      - init: cli/init.md
-      - watch: cli/watch.md
       - diff: cli/diff.md
   - Internals:
       - Architecture: architecture.md
@@ -82,4 +77,4 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/Kaua-KGzin/ArchMAP
+      link: https://github.com/Kaua-KGzin/code-arch-visualizer

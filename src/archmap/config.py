@@ -13,6 +13,7 @@ class AnalysisConfig(TypedDict):
     ignore_dirs: list[str]
     max_file_size_bytes: int
     parallel: bool
+    cache: bool
 
 
 class ArchitectureRulesConfig(TypedDict):
@@ -44,6 +45,7 @@ def default_project_config() -> ProjectConfig:
             "ignore_dirs": [],
             "max_file_size_bytes": DEFAULT_MAX_FILE_SIZE_BYTES,
             "parallel": True,
+            "cache": True,
         },
         "architecture": {"rules": {"forbid": [], "allow": []}},
         "risks": {"layer_order": {}},
@@ -75,6 +77,7 @@ def load_project_config(
             "ignore_dirs": _normalize_ignore_dirs(analysis_section),
             "max_file_size_bytes": _normalize_max_file_size(analysis_section),
             "parallel": _normalize_parallel(analysis_section),
+            "cache": _normalize_bool_field(analysis_section, "cache", default=True),
         },
         "architecture": {
             "rules": {
@@ -147,6 +150,13 @@ def _normalize_parallel(section: object) -> bool:
     if not isinstance(section, dict):
         return True
     val = section.get("parallel", True)
+    return bool(val)
+
+
+def _normalize_bool_field(section: object, key: str, *, default: bool) -> bool:
+    if not isinstance(section, dict):
+        return default
+    val = section.get(key, default)
     return bool(val)
 
 

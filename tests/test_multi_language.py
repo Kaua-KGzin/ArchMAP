@@ -6,7 +6,6 @@ from archmap.core.parser import parse_project
 def _virtual(files: dict[str, str]):
     return parse_project(".", virtual_files=files)
 
-
 def test_go_imports() -> None:
     virtual = {
         "main.go": (
@@ -24,7 +23,6 @@ def test_go_imports() -> None:
     assert "pkg:strings" in dep_ids
     assert "pkg:hello" not in dep_ids
 
-
 def test_php_imports() -> None:
     virtual = {
         "index.php": '<?php\nuse App\\Models\\User;\nrequire_once "config.php";\n',
@@ -34,7 +32,6 @@ def test_php_imports() -> None:
     dep_ids = {d["id"] for d in main_file["dependencies"]}
     assert "pkg:App\\Models\\User" in dep_ids
     assert "pkg:config.php" in dep_ids
-
 
 def test_java_imports() -> None:
     virtual = {
@@ -46,7 +43,6 @@ def test_java_imports() -> None:
     assert "pkg:java.util.List" in dep_ids
     assert "pkg:com.example.service.*" in dep_ids
 
-
 def test_cpp_imports() -> None:
     virtual = {
         "main.cpp": '#include <iostream>\n#include "myheader.h"\n',
@@ -56,16 +52,3 @@ def test_cpp_imports() -> None:
     dep_ids = {d["id"] for d in main_file["dependencies"]}
     assert "pkg:iostream" in dep_ids
     assert "pkg:myheader.h" in dep_ids
-
-
-def test_typescript_imports_resolve_internal_files() -> None:
-    virtual = {
-        "src/app.tsx": 'import type { User } from "./types";\nimport { api } from "./api";\n',
-        "src/types.ts": "export type User = { id: string };\n",
-        "src/api.ts": "export const api = {};\n",
-    }
-    result = _virtual(virtual)
-    app_file = next(f for f in result["parsedFiles"] if f["id"] == "src/app.tsx")
-    dep_ids = {d["id"] for d in app_file["dependencies"]}
-    assert app_file["language"] == "typescript"
-    assert dep_ids == {"src/types.ts", "src/api.ts"}

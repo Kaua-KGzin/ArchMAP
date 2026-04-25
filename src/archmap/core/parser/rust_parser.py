@@ -10,11 +10,9 @@ class RustImportEntry(TypedDict):
     module: str
     crate: str
 
-
 USE_RE = re.compile(r"^\s*use\s+([^;]+);", re.MULTILINE)
 MOD_RE = re.compile(r"^\s*mod\s+([a-zA-Z0-9_]+)\s*;", re.MULTILINE)
 EXTERN_RE = re.compile(r"^\s*extern\s+crate\s+([a-zA-Z0-9_]+)\s*;", re.MULTILINE)
-
 
 class RustParser(ParserPlugin):
     language = "rust"
@@ -37,16 +35,14 @@ class RustParser(ParserPlugin):
         return dependencies
 
     def resolve(
-        self, import_entries: list[Any], file_id: str, file_ids: set[str], **kwargs: Any
+        self, import_entries: list[Any], file_id: str, file_ids: set[str]
     ) -> list[Dependency]:
-        from archmap.core.parser.resolvers import _resolve_rust_dependency
-
+        from archmap.core.parser import _resolve_rust_dependency
         resolved: list[Dependency] = []
         for entry in import_entries:
             if isinstance(entry, dict):
                 resolved.extend(_resolve_rust_dependency(entry, file_id, file_ids))
         return resolved
-
 
 def _normalize_use_path(raw_path: str) -> str:
     compact = " ".join(raw_path.split()).removeprefix("pub ").strip()

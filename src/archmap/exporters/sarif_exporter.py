@@ -4,85 +4,39 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from archmap import __version__
 from archmap.utils.file_utils import ensure_parent_dir
 
-# SARIF rule IDs
-_RULE_CIRCULAR = "ARCH001"
-_RULE_LAYER = "ARCH002"
-_RULE_GOD_MODULE = "ARCH003"
-_RULE_DEP_EXPLOSION = "ARCH004"
-_RULE_CUSTOM = "ARCH005"
+_SARIF_SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"
+_SARIF_VERSION = "2.1.0"
 
 _RULES = [
     {
-        "id": _RULE_CIRCULAR,
+        "id": "archmap/cycle",
         "name": "CircularDependency",
-        "shortDescription": {"text": "Circular dependency between modules"},
-        "fullDescription": {
-            "text": (
-                "Two or more files form a directed cycle. "
-                "Circular dependencies make code harder to test, reason about, and refactor."
-            )
-        },
-        "helpUri": "https://github.com/Kaua-KGzin/ArchMAP/blob/main/docs/rules.md#ARCH001",
+        "shortDescription": {"text": "Circular dependency cycle detected."},
+        "helpUri": "https://archmap.dev/docs/rules/cycle",
         "defaultConfiguration": {"level": "warning"},
-        "properties": {"tags": ["architecture", "coupling"]},
     },
     {
-        "id": _RULE_LAYER,
+        "id": "archmap/rule-violation",
+        "name": "ForbiddenDependency",
+        "shortDescription": {"text": "Architecture rule violation: forbidden dependency."},
+        "helpUri": "https://archmap.dev/docs/rules/rule-violation",
+        "defaultConfiguration": {"level": "error"},
+    },
+    {
+        "id": "archmap/high-risk",
+        "name": "HighRiskFile",
+        "shortDescription": {"text": "High-risk file (god module or dependency explosion)."},
+        "helpUri": "https://archmap.dev/docs/rules/high-risk",
+        "defaultConfiguration": {"level": "warning"},
+    },
+    {
+        "id": "archmap/layer-violation",
         "name": "LayerViolation",
-        "shortDescription": {"text": "Forbidden inter-layer dependency"},
-        "fullDescription": {
-            "text": (
-                "A dependency flows against a configured architectural rule "
-                "(e.g. core -> cli is forbidden)."
-            )
-        },
-        "helpUri": "https://github.com/Kaua-KGzin/ArchMAP/blob/main/docs/rules.md#ARCH002",
-        "defaultConfiguration": {"level": "error"},
-        "properties": {"tags": ["architecture", "layers"]},
-    },
-    {
-        "id": _RULE_GOD_MODULE,
-        "name": "GodModule",
-        "shortDescription": {"text": "Module with excessive coupling"},
-        "fullDescription": {
-            "text": (
-                "A file imports a disproportionately large number of other modules, "
-                "becoming a coupling bottleneck."
-            )
-        },
-        "helpUri": "https://github.com/Kaua-KGzin/ArchMAP/blob/main/docs/rules.md#ARCH003",
-        "defaultConfiguration": {"level": "note"},
-        "properties": {"tags": ["architecture", "complexity"]},
-    },
-    {
-        "id": _RULE_DEP_EXPLOSION,
-        "name": "DependencyExplosion",
-        "shortDescription": {"text": "Explosive growth in outgoing dependencies"},
-        "fullDescription": {
-            "text": (
-                "A file's outgoing dependency count is far above the project average, "
-                "indicating an abstraction or responsibility leak."
-            )
-        },
-        "helpUri": "https://github.com/Kaua-KGzin/ArchMAP/blob/main/docs/rules.md#ARCH004",
-        "defaultConfiguration": {"level": "note"},
-        "properties": {"tags": ["architecture", "complexity"]},
-    },
-    {
-        "id": _RULE_CUSTOM,
-        "name": "CustomRuleViolation",
-        "shortDescription": {"text": "Custom architecture rule violated"},
-        "fullDescription": {
-            "text": (
-                "A dependency violates an allow/forbid rule defined in .archmap.toml."
-            )
-        },
-        "helpUri": "https://github.com/Kaua-KGzin/ArchMAP/blob/main/docs/rules.md#ARCH005",
-        "defaultConfiguration": {"level": "error"},
-        "properties": {"tags": ["architecture", "custom-rules"]},
+        "shortDescription": {"text": "Dependency violates the declared layer order."},
+        "helpUri": "https://archmap.dev/docs/rules/layer-violation",
+        "defaultConfiguration": {"level": "warning"},
     },
 ]
 
@@ -91,190 +45,148 @@ def export_graph_as_sarif(report: dict, output_path: str | Path) -> Path:
     target = Path(output_path).resolve()
     ensure_parent_dir(target)
 
-    results = _build_results(report)
-    document = {
-        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
-        "version": "2.1.0",
+    project_root = report.get("projectRoot", "")
+    results: list[dict] = []
+
+    results.extend(_cycle_results(report.get("cycles", []), project_root))
+    results.extend(_rule_violation_results(report.get("architecture", {})))
+    results.extend(_risk_results(report.get("risks", {}), project_root))
+    results.extend(_layer_violation_results(report.get("risks", {})))
+
+    sarif = {
+        "$schema": _SARIF_SCHEMA,
+        "version": _SARIF_VERSION,
         "runs": [
             {
                 "tool": {
                     "driver": {
                         "name": "ArchMAP",
-                        "version": __version__,
-                        "informationUri": "https://github.com/Kaua-KGzin/ArchMAP",
+                        "informationUri": "https://archmap.dev",
                         "rules": _RULES,
                     }
                 },
-                "originalUriBaseIds": {
-                    "%SRCROOT%": {"uri": _path_to_uri(report.get("projectRoot", "."))}
-                },
+                "originalUriBaseIds": {"PROJECTROOT": {"uri": _path_to_uri(project_root)}},
                 "results": results,
-                "properties": {
-                    "generatedAt": datetime.now(UTC).isoformat(),
-                    "projectRoot": report.get("projectRoot", "."),
-                    "filesAnalyzed": report.get("metrics", {}).get("filesAnalyzed", 0),
-                    "healthScore": report.get("architecture", {})
-                    .get("health", {})
-                    .get("score", 0),
-                },
+                "invocations": [
+                    {
+                        "executionSuccessful": True,
+                        "endTimeUtc": datetime.now(UTC).isoformat(),
+                    }
+                ],
             }
         ],
     }
 
-    target.write_text(f"{json.dumps(document, indent=2)}\n", encoding="utf-8")
+    target.write_text(f"{json.dumps(sarif, indent=2)}\n", encoding="utf-8")
     return target
 
 
-def _build_results(report: dict) -> list[dict]:
-    results: list[dict] = []
-    project_root = report.get("projectRoot", ".")
+# ---------------------------------------------------------------------------
+# Result builders
+# ---------------------------------------------------------------------------
 
-    _append_cycle_results(results, report.get("cycles", []), project_root)
-    _append_layer_results(results, report.get("risks", {}), project_root)
-    _append_god_module_results(results, report.get("risks", {}), project_root)
-    _append_explosion_results(results, report.get("risks", {}), project_root)
-    _append_custom_rule_results(results, report.get("architecture", {}), project_root)
-
-    return results
-
-
-def _append_cycle_results(
-    results: list[dict], cycles: list, project_root: str
-) -> None:
+def _cycle_results(cycles: list, project_root: str) -> list[dict]:
+    results = []
     for cycle in cycles:
         if not cycle:
             continue
-        members = cycle if isinstance(cycle, list) else cycle.get("members", [])
-        if not members:
-            continue
+        first_file = cycle[0]
+        path_str = "/".join(str(Path(first_file)).replace("\\", "/").split("/"))
+        message = "Circular dependency: " + " → ".join(cycle) + " → " + cycle[0]
+        results.append(
+            {
+                "ruleId": "archmap/cycle",
+                "level": "warning",
+                "message": {"text": message},
+                "locations": [_file_location(path_str)],
+            }
+        )
+    return results
 
-        path_display = " → ".join(members)
-        if len(members) > 1:
-            path_display += f" → {members[0]}"
 
-        # Emit one result per file in the cycle, all sharing the same message
-        for file_id in members:
+def _rule_violation_results(architecture: dict) -> list[dict]:
+    results = []
+    for v in architecture.get("ruleViolations", []):
+        source = str(v.get("source", "")).replace("\\", "/")
+        message = v.get("message") or f"Forbidden dependency: {source} → {v.get('target', '')}"
+        results.append(
+            {
+                "ruleId": "archmap/rule-violation",
+                "level": "error",
+                "message": {"text": message},
+                "locations": [_file_location(source)],
+                "relatedLocations": [
+                    {
+                        "id": 1,
+                        "message": {"text": "Imported by forbidden rule"},
+                        "physicalLocation": _physical_location(str(v.get("target", "")).replace("\\", "/")),
+                    }
+                ],
+            }
+        )
+    return results
+
+
+def _risk_results(risks: dict, project_root: str) -> list[dict]:
+    results = []
+    seen: set[str] = set()
+    for category in ("god_modules", "dependency_explosions"):
+        for item in risks.get(category, []):
+            file_id = str(item.get("id", item) if isinstance(item, dict) else item).replace("\\", "/")
+            if file_id in seen:
+                continue
+            seen.add(file_id)
+            label = "god module" if category == "god_modules" else "dependency explosion"
             results.append(
                 {
-                    "ruleId": _RULE_CIRCULAR,
+                    "ruleId": "archmap/high-risk",
                     "level": "warning",
-                    "message": {
-                        "text": f"Circular dependency: {path_display}"
-                    },
-                    "locations": [_make_location(file_id, project_root)],
-                    "relatedLocations": [
-                        {
-                            "id": idx,
-                            "message": {"text": "Also part of this cycle"},
-                            **_make_location(other, project_root),
-                        }
-                        for idx, other in enumerate(members)
-                        if other != file_id
-                    ],
+                    "message": {"text": f"High-risk file ({label}): {file_id}"},
+                    "locations": [_file_location(file_id)],
                 }
             )
+    return results
 
 
-def _append_layer_results(
-    results: list[dict], risks: dict, project_root: str
-) -> None:
-    for violation in risks.get("layer_violations", []):
-        source = violation.get("from", "")
-        target_file = violation.get("to", "")
-        rule_text = violation.get("rule", f"{source} -> {target_file}")
+def _layer_violation_results(risks: dict) -> list[dict]:
+    results = []
+    for v in risks.get("layer_violations", []):
+        source = str(v.get("source", "")).replace("\\", "/")
+        target = str(v.get("target", "")).replace("\\", "/")
         results.append(
             {
-                "ruleId": _RULE_LAYER,
-                "level": "error",
+                "ruleId": "archmap/layer-violation",
+                "level": "warning",
                 "message": {
-                    "text": (
-                        f"Layer violation: {source} → {target_file} "
-                        f"(rule: {rule_text})"
-                    )
+                    "text": f"Layer violation: {source} depends on {target} (violates declared layer order)"
                 },
-                "locations": [_make_location(source, project_root)],
+                "locations": [_file_location(source)],
             }
         )
+    return results
 
 
-def _append_god_module_results(
-    results: list[dict], risks: dict, project_root: str
-) -> None:
-    for item in risks.get("god_modules", []):
-        file_id = item.get("file", "")
-        outgoing = item.get("outgoing", 0)
-        results.append(
-            {
-                "ruleId": _RULE_GOD_MODULE,
-                "level": "note",
-                "message": {
-                    "text": (
-                        f"God module: '{file_id}' imports {outgoing} modules "
-                        "(excessive coupling)"
-                    )
-                },
-                "locations": [_make_location(file_id, project_root)],
-            }
-        )
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _file_location(file_id: str) -> dict:
+    return {"physicalLocation": _physical_location(file_id)}
 
 
-def _append_explosion_results(
-    results: list[dict], risks: dict, project_root: str
-) -> None:
-    for item in risks.get("dependency_explosions", []):
-        file_id = item.get("file", "")
-        outgoing = item.get("outgoing", 0)
-        results.append(
-            {
-                "ruleId": _RULE_DEP_EXPLOSION,
-                "level": "note",
-                "message": {
-                    "text": (
-                        f"Dependency explosion: '{file_id}' has {outgoing} outgoing "
-                        "dependencies (far above average)"
-                    )
-                },
-                "locations": [_make_location(file_id, project_root)],
-            }
-        )
-
-
-def _append_custom_rule_results(
-    results: list[dict], architecture: dict, project_root: str
-) -> None:
-    for violation in architecture.get("ruleViolations", []):
-        source = violation.get("from", "")
-        target_file = violation.get("to", "")
-        rule_text = violation.get("rule", f"{source} -> {target_file}")
-        results.append(
-            {
-                "ruleId": _RULE_CUSTOM,
-                "level": "error",
-                "message": {
-                    "text": (
-                        f"Custom rule violated: {source} → {target_file} "
-                        f"(rule: {rule_text})"
-                    )
-                },
-                "locations": [_make_location(source, project_root)],
-            }
-        )
-
-
-def _make_location(file_id: str, project_root: str) -> dict:
+def _physical_location(file_id: str) -> dict:
     return {
-        "physicalLocation": {
-            "artifactLocation": {
-                "uri": file_id,
-                "uriBaseId": "%SRCROOT%",
-            }
-        }
+        "artifactLocation": {
+            "uri": file_id,
+            "uriBaseId": "PROJECTROOT",
+        },
+        "region": {"startLine": 1},
     }
 
 
 def _path_to_uri(path: str) -> str:
-    resolved = Path(path).resolve()
-    uri = resolved.as_uri()
+    p = Path(path).resolve()
+    uri = p.as_uri()
     if not uri.endswith("/"):
         uri += "/"
     return uri

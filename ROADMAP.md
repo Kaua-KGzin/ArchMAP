@@ -1,6 +1,6 @@
 # ArchMAP Roadmap
 
-## v0.6.0 (current)
+## v0.4.0-beta.0 (current beta)
 
 - Zero-config CLI flow strengthened around:
   - `archmap analyze`

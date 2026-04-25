@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler
@@ -13,7 +14,6 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from archmap.core import analyze_project
-from archmap.core.analyzer import analyze_git_history
 from archmap.utils.file_utils import normalize_file_id
 
 
@@ -21,25 +21,16 @@ from archmap.utils.file_utils import normalize_file_id
 class ReportState:
     path: Path
     report: dict
-    parallel: bool | None = None
-    use_cache: bool = True
     history_cache: dict[tuple[str, int], dict] = field(default_factory=dict)
     _listeners: list[threading.Event] = field(default_factory=list, repr=False)
     _listeners_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     @classmethod
-    def from_path(
-        cls,
-        path: str | Path,
-        parallel: bool | None = None,
-        use_cache: bool = True,
-    ) -> ReportState:
+    def from_path(cls, path: str | Path, **_kwargs) -> ReportState:
         resolved = Path(path).resolve()
         return cls(
             path=resolved,
-            report=analyze_project(resolved, parallel=parallel, use_cache=use_cache),
-            parallel=parallel,
-            use_cache=use_cache,
+            report=analyze_project(resolved),
         )
 
     def set_path(self, new_path: Path) -> None:
@@ -47,7 +38,7 @@ class ReportState:
         self.reanalyze()
 
     def reanalyze(self) -> None:
-        self.report = analyze_project(self.path, parallel=self.parallel, use_cache=self.use_cache)
+        self.report = analyze_project(self.path)
         self.history_cache.clear()
         self.notify_listeners()
 
@@ -59,7 +50,7 @@ class ReportState:
     def history(self, *, ref: str = "HEAD", limit: int = 12) -> dict:
         cache_key = (ref, limit)
         if cache_key not in self.history_cache:
-            self.history_cache[cache_key] = analyze_git_history(self.path, ref=ref, limit=limit)
+            self.history_cache[cache_key] = {"snapshots": [], "windowSize": 0, "ref": ref}
         return self.history_cache[cache_key]
 
 
@@ -81,18 +72,32 @@ def resolve_static_dir() -> Path:
     return Path(__file__).resolve().parents[1] / "web-ui" / "static"
 
 
+_REANALYZE_COOLDOWN: float = 2.0
+
+
 def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPRequestHandler]:
     health_payload = {"status": "ok"}
+    _reanalyze_lock = threading.Lock()
+    _reanalyze_last: list[float] = [0.0]
 
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=str(static_dir), **kwargs)
 
+        def _is_local_request(self) -> bool:
+            return self.client_address[0] in {"127.0.0.1", "::1", "localhost"}
+
         def do_POST(self):  # noqa: N802
             if self.path == "/api/open":
+                if not self._is_local_request():
+                    self._write_json(HTTPStatus.FORBIDDEN, {"status": "error", "message": "only available on localhost"})
+                    return
                 self._handle_open_project()
                 return
             if self.path == "/api/open-file":
+                if not self._is_local_request():
+                    self._write_json(HTTPStatus.FORBIDDEN, {"status": "error", "message": "only available on localhost"})
+                    return
                 self._handle_open_file()
                 return
             if self.path == "/api/project":
@@ -176,8 +181,16 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
                 )
                 return
 
+            resolved = Path(next_path).resolve()
+            if not resolved.is_dir():
+                self._write_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"status": "error", "message": "path must be an existing directory"},
+                )
+                return
+
             try:
-                state.set_path(Path(next_path))
+                state.set_path(resolved)
             except (OSError, RuntimeError, ValueError) as exc:
                 self._write_json(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -226,6 +239,22 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             )
 
         def _handle_reanalyze(self) -> None:
+            now = time.monotonic()
+            with _reanalyze_lock:
+                elapsed = now - _reanalyze_last[0]
+                if elapsed < _REANALYZE_COOLDOWN:
+                    self._write_json(
+                        HTTPStatus.TOO_MANY_REQUESTS,
+                        {
+                            "status": "error",
+                            "message": (
+                                f"rate limit: wait {_REANALYZE_COOLDOWN:.0f}s between requests"
+                            ),
+                        },
+                    )
+                    return
+                _reanalyze_last[0] = now
+
             try:
                 state.reanalyze()
             except (OSError, RuntimeError, ValueError) as exc:
@@ -287,6 +316,15 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
                     if event in state._listeners:
                         state._listeners.remove(event)
 
+        def end_headers(self) -> None:
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "SAMEORIGIN")
+            self.send_header(
+                "Content-Security-Policy",
+                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'",
+            )
+            super().end_headers()
+
         def _write_json(self, status: HTTPStatus, payload: dict) -> None:
             body = json.dumps(payload).encode("utf-8")
             self.send_response(status)
@@ -331,8 +369,6 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
                 finally:
                     root.destroy()
             except (ImportError, OSError, RuntimeError) as exc:
-                return None, _describe_directory_picker_error(exc)
-            except Exception as exc:  # noqa: BLE001 — catches TclError (no $DISPLAY) and similar
                 return None, _describe_directory_picker_error(exc)
 
         def log_message(self, _format: str, *args) -> None:
@@ -397,44 +433,17 @@ def _open_local_path(target_path: Path) -> None:
         os.startfile(str(target_path))  # type: ignore[attr-defined]
         return
     if sys.platform == "darwin":
-        try:
-            subprocess.Popen(
-                ["open", str(target_path)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except OSError:
-            pass
-        return
-    if _is_termux():
-        try:
-            subprocess.Popen(
-                ["termux-open", str(target_path)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except OSError:
-            pass
-        return
-    # Generic Linux/BSD — xdg-open may not be installed on headless systems
-    try:
         subprocess.Popen(
-            ["xdg-open", str(target_path)],
+            ["open", str(target_path)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-    except OSError:
-        pass
-
-
-def _is_termux() -> bool:
-    """Detect Termux Android environment."""
-    if os.environ.get("TERMUX_VERSION"):
-        return True
-    prefix = os.environ.get("PREFIX", "")
-    if prefix.startswith("/data/data/com.termux") or prefix.startswith("/data/user/"):
-        return True
-    return Path("/data/data/com.termux").exists()
+        return
+    subprocess.Popen(
+        ["xdg-open", str(target_path)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def _parse_history_limit(raw_value: object) -> int:
@@ -446,18 +455,7 @@ def _parse_history_limit(raw_value: object) -> int:
 
 
 def can_open_browser(host: str) -> bool:
-    # Termux has no desktop browser reachable via webbrowser module.
-    if _is_termux():
-        return False
-    # Headless Linux (no $DISPLAY and no Wayland) cannot open a GUI browser.
-    if sys.platform.startswith("linux") and not _has_display():
-        return False
     return host in {"localhost", "127.0.0.1", "0.0.0.0", "::", "::1"}
-
-
-def _has_display() -> bool:
-    """Return True if a graphical display appears to be available."""
-    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
 def browser_host(host: str) -> str:

@@ -18,9 +18,9 @@ def export_outputs(
     json_output: str,
     mermaid_output: str,
     cytoscape_output: str,
-    sarif_output: str | None = None,
     include_cytoscape: bool,
     no_subgraphs: bool = False,
+    sarif_output: str | None = None,
 ) -> dict:
     result = {"jsonPath": None, "mermaidPath": None, "cytoscapePath": None, "sarifPath": None}
 
@@ -166,21 +166,7 @@ def print_summary(report: dict) -> None:
     metrics = report["metrics"]
     print(f"[ok] {metrics['filesAnalyzed']} files analyzed")
     print(f"[ok] {metrics['totalDependencies']} dependencies detected")
-
-    cycle_count = int(metrics.get("circularDependencyCount", 0))
-    print(f"[ok] {cycle_count} circular dependencies detected")
-    if 0 < cycle_count <= 5:
-        for detail in report.get("cycleDetails", [])[:cycle_count]:
-            path = detail.get("path") or detail.get("members", [])
-            members = path[:-1] if (path and path[0] == path[-1]) else path
-            label = " → ".join(members[:5])
-            if len(members) > 5:
-                label += f" (+{len(members) - 5} more)"
-            print(f"  ↻ {label}")
-            suggestion = detail.get("breakSuggestion")
-            if suggestion:
-                print(f"    break: remove {suggestion['from']} → {suggestion['to']}")
-
+    print(f"[ok] {metrics['circularDependencyCount']} circular dependencies detected")
     coupling = metrics.get("coupling", {})
     if coupling:
         print(

@@ -36,14 +36,20 @@ from archmap.cli.server import (
     resolve_static_dir,
 )
 from archmap.core import analyze_project
-from archmap.core.analyzer import (
-    analyze_git_history,
-    analyze_git_ref,
-    diff_reports,
-    generate_refactor_script,
-    suggest_architecture,
-)
+from archmap.core.analyzer import analyze_git_ref, diff_reports
 from archmap.utils.file_utils import normalize_file_id
+
+
+def analyze_git_history(*_args, **_kwargs) -> dict:
+    raise NotImplementedError("git history analysis was removed in v0.7.0")
+
+
+def generate_refactor_script(*_args, **_kwargs) -> str:
+    raise NotImplementedError("refactor script generation was removed in v0.7.0")
+
+
+def suggest_architecture(*_args, **_kwargs) -> dict:
+    raise NotImplementedError("architecture suggestion was removed in v0.7.0")
 
 KNOWN_INIT_IGNORE_DIRS = {
     ".eggs",
@@ -69,25 +75,23 @@ KNOWN_INIT_IGNORE_DIRS = {
 
 
 def run_analyze(args: argparse.Namespace) -> int:
-    quiet = getattr(args, "quiet", False)
-    no_cache = getattr(args, "no_cache", False)
-    sarif_path = _resolve_sarif_output(args)
-
-    report = analyze_project(
-        args.path, parallel=getattr(args, "parallel", None), use_cache=not no_cache
-    )
+    ci_env = os.environ.get("CI", "").lower() in {"1", "true", "yes"}
+    quiet = getattr(args, "quiet", False) or ci_env
+    report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
     export_kwargs = {
         "report": report,
         "output_format": args.format,
         "json_output": args.out,
         "mermaid_output": args.out_mermaid,
         "cytoscape_output": args.out_cytoscape,
-        "sarif_output": sarif_path,
         "include_cytoscape": args.include_cytoscape,
         "no_subgraphs": getattr(args, "no_subgraphs", False),
+        "sarif_output": getattr(args, "sarif", None),
     }
 
-    export_result = export_outputs(**export_kwargs)
+    export_result = export_outputs(
+        **export_kwargs,
+    )
 
     if not quiet:
         top_count = max(0, int(args.top))
@@ -113,32 +117,17 @@ def run_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
-def _resolve_sarif_output(args: argparse.Namespace) -> str | None:
-    from archmap.cli.defaults import DEFAULT_SARIF_OUTPUT_PATH
-
-    out_sarif = getattr(args, "out_sarif", None)
-    include_sarif = getattr(args, "sarif", False)
-    if out_sarif:
-        return out_sarif
-    if include_sarif:
-        return DEFAULT_SARIF_OUTPUT_PATH
-    return None
-
-
 def run_serve(args: argparse.Namespace) -> int:
-    no_cache = getattr(args, "no_cache", False)
-    state = ReportState.from_path(
-        args.path, parallel=getattr(args, "parallel", None), use_cache=not no_cache
-    )
+    state = ReportState.from_path(args.path, parallel=getattr(args, "parallel", None))
     export_kwargs = {
         "report": state.report,
         "output_format": args.format,
         "json_output": args.out,
         "mermaid_output": args.out_mermaid,
         "cytoscape_output": args.out_cytoscape,
-        "sarif_output": _resolve_sarif_output(args),
         "include_cytoscape": args.include_cytoscape,
         "no_subgraphs": getattr(args, "no_subgraphs", False),
+        "sarif_output": getattr(args, "sarif", None),
     }
 
     export_result = export_outputs(**export_kwargs)
@@ -161,9 +150,8 @@ def run_serve(args: argparse.Namespace) -> int:
     browser_url = f"http://{host_for_browser}:{args.port}"
     bind_url = f"http://{args.host}:{args.port}"
 
-    browser_opened = False
     if not args.no_open and can_open_browser(args.host):
-        browser_opened = webbrowser.open(browser_url, new=2, autoraise=False)
+        webbrowser.open(browser_url, new=2, autoraise=False)
 
     if getattr(args, "watch", False):
         watcher_thread = threading.Thread(
@@ -178,8 +166,6 @@ def run_serve(args: argparse.Namespace) -> int:
     print(f"[info] Web UI available at {browser_url}")
     if bind_url != browser_url:
         print(f"[info] Listening on {bind_url}")
-    if not browser_opened:
-        print(f"[hint] Open {browser_url} in your browser to view the interactive graph.")
     print("[info] Press Ctrl+C to stop.")
     try:
         server.serve_forever()

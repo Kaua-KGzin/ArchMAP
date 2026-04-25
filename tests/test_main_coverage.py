@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import importlib
+import sys
+import types
 
 from archmap.cli.main import _configure_stdio, _print_banner, _resolve_command_handler, main
 
@@ -66,3 +68,39 @@ def test_main_runtime_error(monkeypatch, capsys) -> None:
 def test_dunder_main_importable() -> None:
     mod = importlib.import_module("archmap.__main__")
     assert hasattr(mod, "main")
+
+
+def test_main_prints_banner_when_tty(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    result = main(["version"])
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "ArchMAP" in output
+
+
+def test_main_frozen_shows_pause_on_error(monkeypatch, capsys) -> None:
+    def raise_runtime(_args):
+        raise RuntimeError("something broke")
+
+    monkeypatch.setattr("archmap.cli.main._resolve_command_handler", lambda _: raise_runtime)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr("builtins.input", lambda _: "")
+
+    result = main(["analyze"])
+    assert result == 1
+    assert "something broke" in capsys.readouterr().err
+
+
+def test_configure_stdio_handles_stream_without_reconfigure(monkeypatch) -> None:
+    fake_stream = types.SimpleNamespace()  # no reconfigure attr
+    monkeypatch.setattr(sys, "stdout", fake_stream)
+    _configure_stdio()  # must not raise
+
+
+def test_configure_stdio_handles_reconfigure_error(monkeypatch) -> None:
+    def bad_reconfigure(**kwargs):
+        raise ValueError("not supported")
+
+    fake_stream = types.SimpleNamespace(reconfigure=bad_reconfigure)
+    monkeypatch.setattr(sys, "stdout", fake_stream)
+    _configure_stdio()  # must not raise

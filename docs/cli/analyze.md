@@ -8,11 +8,7 @@ Analyzes a project and exports the dependency graph.
 archmap analyze [path] [options]
 ```
 
-`path` defaults to `.`.
-
-ArchMAP automatically skips common generated folders such as `build/`, `dist/`,
-`node_modules/`, `.venv/`, `tests/`, and `examples/`. Optional project rules
-can be loaded from `.archmap.toml` or `archmap.toml`.
+`path` defaults to `.` (current directory).
 
 ## Options
 
@@ -23,43 +19,45 @@ can be loaded from `.archmap.toml` or `archmap.toml`.
 | `--out-mermaid` | `.codeatlas/graph.mmd` | Mermaid output path |
 | `--out-cytoscape` | `.codeatlas/graph-cytoscape.json` | Cytoscape output path |
 | `--include-cytoscape` | off | Also write Cytoscape JSON |
-| `--no-subgraphs` | off | Disable Mermaid layer subgraphs |
-| `--impact <path>` | unset | Simulate the impact of changing one file |
-| `--include-insights` | on | Print human-oriented architecture insights |
-| `--include-explanation` | on | Print an automatic project explanation |
 | `--top` | `5` | Number of top complexity/risk items printed to terminal |
-| `--parallel` | on | Enable parallel file parsing |
 | `--fail-on-cycles` | off | Exit code `2` when cycles are found |
 | `--fail-on-layer-violations` | off | Exit code `2` when layer violations are found |
 | `--fail-on-god-modules` | off | Exit code `2` when god modules are found |
 | `--fail-on-dependency-explosions` | off | Exit code `2` when dependency explosions are found |
-| `--fail-on-custom-rules` | off | Exit code `2` when custom architecture rules are violated |
 | `--fail-on-risks` | off | Exit code `2` when any cycle/risk category is found |
-| `--min-health` | unset | Exit code `2` when architecture health drops below the given score |
 
 ## Examples
 
 ```bash
+# Analyze current directory, JSON only
 archmap analyze .
+
+# Analyze specific path, all formats
 archmap analyze ./src --format both
-archmap analyze . --impact src/auth/login.ts
+
+# Include Cytoscape export
+archmap analyze . --format both --include-cytoscape
+
+# Custom output paths
+archmap analyze . --out reports/graph.json --out-mermaid reports/graph.mmd
+
+# CI quality gate
 archmap analyze . --fail-on-risks --top 10
-archmap analyze . --fail-on-custom-rules --min-health 75
 ```
 
 ## Output
 
-Terminal summary:
+Prints a summary to stdout:
 
 ```text
 [ok] 42 files analyzed
 [ok] 130 dependencies detected
 [ok] 3 circular dependencies detected
-[ok] Architecture health 78/100 (B)
-[insight] Architectural reading
-[explain] Project summary
+Top complexity (imports):
+  - src/main.py: 14 imports (87% score)
 Top risk files:
   - src/core/__init__.py: score 42 (god_module)
+[info] JSON report exported to .codeatlas/graph.json
 ```
 
-See the [API Reference](../api.md) for the JSON report shape.
+See the [API Reference](../api.md) for the full JSON schema.

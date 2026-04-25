@@ -1,5 +1,5 @@
 """
-ArchMAP benchmark - measures analysis time for projects of different sizes.
+ArchMAP benchmark — measures analysis time for projects of different sizes.
 
 Usage:
     python scripts/benchmark.py
@@ -7,7 +7,6 @@ Usage:
 Generates synthetic Python projects (100 / 500 / 1000 / 5000 files),
 runs archmap.core.analyze_project on each, and prints a timing table.
 """
-
 from __future__ import annotations
 
 import sys
@@ -43,49 +42,39 @@ def _generate_project(root: Path, n_files: int) -> None:
         (root / name).write_text(content, encoding="utf-8")
 
 
-def _run_once(project_root: Path, parallel: bool) -> tuple[float, dict]:
+def _run_once(project_root: Path) -> tuple[float, dict]:
     start = time.perf_counter()
-    report = analyze_project(project_root, parallel=parallel)
+    report = analyze_project(project_root)
     elapsed = time.perf_counter() - start
     return elapsed, report
 
 
 def main() -> None:
-    print(
-        f"{'Files':>6}  {'Time(Seq)':>9}  {'Time(Par)':>9}  "
-        f"{'Speedup':>7}  {'Deps':>6}  {'Files/s':>7}"
-    )
-    print("-" * 60)
+    print(f"{'Files':>6}  {'Time (s)':>9}  {'Deps':>6}  {'Cycles':>6}  {'Files/s':>8}")
+    print("-" * 45)
 
     for size in SIZES:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             _generate_project(root, size)
 
-            # warm-up run (discard result, run seq)
-            _run_once(root, False)
+            # warm-up run (discard result)
+            _run_once(root)
 
-            # timed run sequential
-            elapsed_seq, _ = _run_once(root, False)
-
-            # timed run parallel
-            elapsed_par, report = _run_once(root, True)
-
-        speedup = elapsed_seq / elapsed_par if elapsed_par > 0 else 0
+            # timed run
+            elapsed, report = _run_once(root)
 
         metrics = report.get("metrics", {})
         deps = metrics.get("totalDependencies", "?")
-        rate = int(size / elapsed_par) if elapsed_par > 0 else "inf"
+        cycles = metrics.get("circularDependencyCount", "?")
+        rate = int(size / elapsed) if elapsed > 0 else "∞"
 
-        print(
-            f"{size:>6}  {elapsed_seq:>9.3f}s  {elapsed_par:>9.3f}s  "
-            f"{speedup:>6.1f}x  {deps:>6}  {rate:>7}"
-        )
+        print(f"{size:>6}  {elapsed:>9.3f}  {deps:>6}  {cycles:>6}  {rate:>8}")
 
     print()
     print("* Each file imports from 5 neighbour modules (wrapping).")
-    print("* Speedup = Time(Seq) / Time(Par) showing the ThreadPool efficiency.")
-    print("* Rate shows parallel files mapped per second.")
+    print("* Times include filesystem I/O for reading generated files.")
+    print("* Warm-up run discarded; result is single timed run.")
 
 
 if __name__ == "__main__":
