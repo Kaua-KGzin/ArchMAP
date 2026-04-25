@@ -18,7 +18,9 @@ export * from "./api";
 """
     parser = JSParser()
     imports = parser.parse(source)
-    assert set(imports) == {"express", "./auth", "./setup", "./config", "./dynamic", "./thing", "./api"}
+    assert set(imports) == {
+        "express", "./auth", "./setup", "./config", "./dynamic", "./thing", "./api"
+    }
 
 
 def test_parse_python_imports_supports_import_and_from_import() -> None:

@@ -5,8 +5,6 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 
 def test_check_injects_defaults_into_argv(tmp_path: Path) -> None:
     """archmap-check prepends default flags before forwarding to cli.main.main."""
@@ -64,7 +62,6 @@ def test_pre_commit_hooks_yaml_exists() -> None:
 
 
 def test_pre_commit_hooks_yaml_valid() -> None:
-    import re
     hooks_file = Path(".pre-commit-hooks.yaml")
     content = hooks_file.read_text(encoding="utf-8")
     assert "archmap-check" in content

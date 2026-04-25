@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from archmap.exporters.sarif_exporter import export_graph_as_sarif
 
 
@@ -98,7 +96,8 @@ def test_rule_violation_produces_error_result(tmp_path: Path) -> None:
                 "target": "src/db/session.py",
                 "kind": "forbid",
                 "rule": "ui -> db",
-                "message": "ui -> db is forbidden but src/ui/button.py depends on src/db/session.py",
+                "message": "ui -> db is forbidden but "
+                "src/ui/button.py depends on src/db/session.py",
             }
         ]
     }

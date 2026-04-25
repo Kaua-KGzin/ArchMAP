@@ -119,7 +119,9 @@ def _rule_violation_results(architecture: dict) -> list[dict]:
                     {
                         "id": 1,
                         "message": {"text": "Imported by forbidden rule"},
-                        "physicalLocation": _physical_location(str(v.get("target", "")).replace("\\", "/")),
+                        "physicalLocation": _physical_location(
+                            str(v.get("target", "")).replace("\\", "/")
+                        ),
                     }
                 ],
             }
@@ -132,7 +134,8 @@ def _risk_results(risks: dict, project_root: str) -> list[dict]:
     seen: set[str] = set()
     for category in ("god_modules", "dependency_explosions"):
         for item in risks.get(category, []):
-            file_id = str(item.get("id", item) if isinstance(item, dict) else item).replace("\\", "/")
+            raw = item.get("id", item) if isinstance(item, dict) else item
+            file_id = str(raw).replace("\\", "/")
             if file_id in seen:
                 continue
             seen.add(file_id)
@@ -158,7 +161,10 @@ def _layer_violation_results(risks: dict) -> list[dict]:
                 "ruleId": "archmap/layer-violation",
                 "level": "warning",
                 "message": {
-                    "text": f"Layer violation: {source} depends on {target} (violates declared layer order)"
+                    "text": (
+                        f"Layer violation: {source} depends on {target}"
+                        " (violates declared layer order)"
+                    )
                 },
                 "locations": [_file_location(source)],
             }

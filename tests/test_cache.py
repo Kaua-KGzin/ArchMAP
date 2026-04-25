@@ -3,9 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
-from archmap.core.cache import ParseCache, _CACHE_FILENAME, _CACHE_VERSION
+from archmap.core.cache import _CACHE_FILENAME, _CACHE_VERSION, ParseCache
 
 
 def _make_parsed(file_id: str = "src/foo.py") -> dict:
@@ -90,7 +88,15 @@ def test_load_returns_empty_when_no_file(tmp_path: Path) -> None:
 
 
 def test_load_ignores_wrong_version(tmp_path: Path) -> None:
-    bad = {"version": 999, "entries": {"src/foo.py": {"mtime": 1.0, "id": "src/foo.py", "label": "src/foo.py", "type": "file", "language": "python", "dependencies": []}}}
+    bad = {
+        "version": 999,
+        "entries": {
+            "src/foo.py": {
+                "mtime": 1.0, "id": "src/foo.py", "label": "src/foo.py",
+                "type": "file", "language": "python", "dependencies": [],
+            }
+        },
+    }
     (tmp_path / _CACHE_FILENAME).write_text(json.dumps(bad))
     loaded = ParseCache.load(tmp_path)
     assert loaded.size() == 0
@@ -106,8 +112,14 @@ def test_load_skips_entries_without_mtime(tmp_path: Path) -> None:
     payload = {
         "version": _CACHE_VERSION,
         "entries": {
-            "good.py": {"mtime": 1.0, "id": "good.py", "label": "good.py", "type": "file", "language": "python", "dependencies": []},
-            "bad.py": {"id": "bad.py", "label": "bad.py", "type": "file", "language": "python", "dependencies": []},
+            "good.py": {
+                "mtime": 1.0, "id": "good.py", "label": "good.py",
+                "type": "file", "language": "python", "dependencies": [],
+            },
+            "bad.py": {
+                "id": "bad.py", "label": "bad.py",
+                "type": "file", "language": "python", "dependencies": [],
+            },
         },
     }
     (tmp_path / _CACHE_FILENAME).write_text(json.dumps(payload))
@@ -160,8 +172,8 @@ def test_parse_project_reparsed_on_mtime_change(tmp_path: Path) -> None:
 
 
 def test_parse_project_cache_disabled_via_config(tmp_path: Path) -> None:
-    from archmap.core.parser.project_parser import parse_project
     from archmap.config import default_project_config
+    from archmap.core.parser.project_parser import parse_project
 
     cfg = default_project_config()
     cfg["analysis"]["cache"] = False

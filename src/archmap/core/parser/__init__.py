@@ -11,10 +11,10 @@ from archmap.core.parser.go_parser import GoParser
 from archmap.core.parser.java_parser import JavaParser
 from archmap.core.parser.js_parser import JSParser
 from archmap.core.parser.php_parser import PHPParser
-from archmap.core.parser.ts_parser import TSParser
 from archmap.core.parser.python_parser import PythonImportEntry, PythonParser
 from archmap.core.parser.registry import Dependency, registry
 from archmap.core.parser.rust_parser import RustImportEntry, RustParser
+from archmap.core.parser.ts_parser import TSParser
 from archmap.utils.file_utils import (
     JS_TS_EXTENSIONS,
     discover_source_files,

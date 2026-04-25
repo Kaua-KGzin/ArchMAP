@@ -90,13 +90,19 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
         def do_POST(self):  # noqa: N802
             if self.path == "/api/open":
                 if not self._is_local_request():
-                    self._write_json(HTTPStatus.FORBIDDEN, {"status": "error", "message": "only available on localhost"})
+                    self._write_json(
+                        HTTPStatus.FORBIDDEN,
+                        {"status": "error", "message": "only available on localhost"},
+                    )
                     return
                 self._handle_open_project()
                 return
             if self.path == "/api/open-file":
                 if not self._is_local_request():
-                    self._write_json(HTTPStatus.FORBIDDEN, {"status": "error", "message": "only available on localhost"})
+                    self._write_json(
+                        HTTPStatus.FORBIDDEN,
+                        {"status": "error", "message": "only available on localhost"},
+                    )
                     return
                 self._handle_open_file()
                 return
@@ -321,7 +327,8 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             self.send_header("X-Frame-Options", "SAMEORIGIN")
             self.send_header(
                 "Content-Security-Policy",
-                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'",
+                "default-src 'self'; script-src 'self' 'unsafe-inline';"
+                " style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'",
             )
             super().end_headers()
 
