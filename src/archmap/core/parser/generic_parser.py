@@ -38,6 +38,7 @@ class GenericParser(ParserPlugin):
         import_entries: list[Any],
         file_id: str,
         file_ids: set[str],
+        **kwargs: Any,
     ) -> list[Dependency]:
         # Minimal resolution logic for generic languages:
         # Treat everything as a potential package unless we want to add local path resolution later.

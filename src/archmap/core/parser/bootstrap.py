@@ -1,5 +1,36 @@
 from __future__ import annotations
 
+from archmap.core.parser.registry import LanguageRegistry, registry
 
-def ensure_default_registry() -> None:
+
+def register_core_parsers(target_registry: LanguageRegistry | None = None) -> LanguageRegistry:
+    from archmap.core.parser.cpp_parser import CParser, CppParser
+    from archmap.core.parser.csharp_parser import CSharpParser
+    from archmap.core.parser.go_parser import GoParser
+    from archmap.core.parser.java_parser import JavaParser
+    from archmap.core.parser.js_parser import JSParser
+    from archmap.core.parser.php_parser import PHPParser
+    from archmap.core.parser.python_parser import PythonParser
+    from archmap.core.parser.rust_parser import RustParser
+    from archmap.core.parser.ts_parser import TSParser
+
+    active = target_registry or registry
+    for parser in (
+        PythonParser(),
+        JSParser(),
+        TSParser(),
+        RustParser(),
+        GoParser(),
+        PHPParser(),
+        JavaParser(),
+        CParser(),
+        CppParser(),
+        CSharpParser(),
+    ):
+        active.register(parser)
+    return active
+
+
+def ensure_default_registry() -> LanguageRegistry:
     """No-op: parsers are registered in archmap.core.parser.__init__ at import time."""
+    return registry

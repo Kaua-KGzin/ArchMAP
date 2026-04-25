@@ -109,9 +109,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="exit with code 2 when architecture health score falls below this threshold",
     )
     analyze_parser.add_argument(
-        "--quiet",
+        "--quiet", "-q",
         action="store_true",
+        dest="quiet",
         help="suppress banner, insights, and hints — print only violations (useful in CI)",
+    )
+    analyze_parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        default=False,
+        help="skip loading and saving cached analysis results",
     )
 
     serve_parser = subparsers.add_parser("serve", help="serve the interactive graph UI")
@@ -265,9 +272,13 @@ def _add_export_arguments(parser: argparse.ArgumentParser, *, default_format: st
     )
     parser.add_argument(
         "--sarif",
-        metavar="PATH",
-        nargs="?",
-        const=DEFAULT_SARIF_OUTPUT_PATH,
+        action="store_true",
+        default=False,
+        help="export a SARIF 2.1.0 report alongside the other outputs",
+    )
+    parser.add_argument(
+        "--out-sarif",
         default=None,
-        help="Export results in SARIF 2.1.0 format (default path: %(const)s)",
+        metavar="PATH",
+        help="path for the SARIF 2.1.0 output file",
     )

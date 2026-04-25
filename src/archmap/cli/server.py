@@ -433,17 +433,46 @@ def _open_local_path(target_path: Path) -> None:
         os.startfile(str(target_path))  # type: ignore[attr-defined]
         return
     if sys.platform == "darwin":
+        try:
+            subprocess.Popen(
+                ["open", str(target_path)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError:
+            pass
+        return
+    if _is_termux():
+        try:
+            subprocess.Popen(
+                ["termux-open", str(target_path)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError:
+            pass
+        return
+    try:
         subprocess.Popen(
-            ["open", str(target_path)],
+            ["xdg-open", str(target_path)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        return
-    subprocess.Popen(
-        ["xdg-open", str(target_path)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    except OSError:
+        pass
+
+
+def _is_termux() -> bool:
+    if os.environ.get("TERMUX_VERSION"):
+        return True
+    prefix = os.environ.get("PREFIX", "")
+    if prefix.startswith("/data/data/com.termux") or prefix.startswith("/data/user/"):
+        return True
+    return Path("/data/data/com.termux").exists()
+
+
+def _has_display() -> bool:
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
 def _parse_history_limit(raw_value: object) -> int:
@@ -455,6 +484,10 @@ def _parse_history_limit(raw_value: object) -> int:
 
 
 def can_open_browser(host: str) -> bool:
+    if _is_termux():
+        return False
+    if sys.platform.startswith("linux") and not _has_display():
+        return False
     return host in {"localhost", "127.0.0.1", "0.0.0.0", "::", "::1"}
 
 

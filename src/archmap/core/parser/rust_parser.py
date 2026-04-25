@@ -35,7 +35,7 @@ class RustParser(ParserPlugin):
         return dependencies
 
     def resolve(
-        self, import_entries: list[Any], file_id: str, file_ids: set[str]
+        self, import_entries: list[Any], file_id: str, file_ids: set[str], **kwargs: Any
     ) -> list[Dependency]:
         from archmap.core.parser import _resolve_rust_dependency
         resolved: list[Dependency] = []

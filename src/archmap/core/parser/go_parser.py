@@ -45,16 +45,16 @@ class GoParser(ParserPlugin):
         import_entries: list[Any],
         file_id: str,
         file_ids: set[str],
+        **kwargs: Any,
     ) -> list[Dependency]:
-        dependencies: list[Dependency] = []
-        for specifier in import_entries:
-            if not isinstance(specifier, str):
-                continue
-            dependencies.append(
-                {
-                    "id": f"pkg:{specifier}",
-                    "label": specifier,
-                    "type": "package",
-                }
-            )
-        return dependencies
+        from archmap.core.parser.resolvers import _resolve_go_dependency
+
+        module_name = None
+        get_file_content = kwargs.get("get_file_content")
+        if get_file_content:
+            mod_content = get_file_content("go.mod")
+            if mod_content:
+                match = re.search(r"^module\s+(.+)$", mod_content, re.MULTILINE)
+                if match:
+                    module_name = match.group(1).strip()
+        return _resolve_go_dependency(import_entries, file_id, file_ids, module_name)

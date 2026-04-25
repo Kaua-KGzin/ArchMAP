@@ -3,6 +3,7 @@ from __future__ import annotations
 from archmap.core.parser.js_parser import JSParser
 from archmap.core.parser.python_parser import PythonParser
 from archmap.core.parser.rust_parser import RustParser
+from archmap.core.parser.ts_parser import TSParser
 
 
 def test_parse_js_imports_supports_import_export_require_and_dynamic_import() -> None:
@@ -17,7 +18,7 @@ export * from "./api";
 """
     parser = JSParser()
     imports = parser.parse(source)
-    assert set(imports) == {"express", "./auth", "./config", "./dynamic", "./thing"}
+    assert set(imports) == {"express", "./auth", "./setup", "./config", "./dynamic", "./thing", "./api"}
 
 
 def test_parse_python_imports_supports_import_and_from_import() -> None:

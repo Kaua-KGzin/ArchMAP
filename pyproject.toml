@@ -41,9 +41,6 @@ archmap-check = "archmap.cli.check:main"
 [tool.hatch.version]
 path = "src/archmap/__init__.py"
 
-[tool.hatch.version]
-path = "src/archmap/__init__.py"
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/archmap"]
 

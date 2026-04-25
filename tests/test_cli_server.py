@@ -133,7 +133,9 @@ def test_resolve_static_dir_falls_back_to_source_checkout(monkeypatch) -> None:
     assert cli_server.resolve_static_dir() == fallback
 
 
-def test_server_helpers_handle_browser_hosts() -> None:
+def test_server_helpers_handle_browser_hosts(monkeypatch) -> None:
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.delenv("TERMUX_VERSION", raising=False)
     assert cli_server.can_open_browser("localhost") is True
     assert cli_server.can_open_browser("10.0.0.4") is False
     assert cli_server.browser_host("0.0.0.0") == "localhost"

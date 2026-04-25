@@ -46,7 +46,10 @@ def _parse_single_file(
 
     try:
         import_entries = parser.parse(source_code)
-        dependencies = parser.resolve(import_entries, file_id, file_ids)
+        resolve_kwargs: dict[str, Any] = {}
+        if get_file_content is not None:
+            resolve_kwargs["get_file_content"] = get_file_content
+        dependencies = parser.resolve(import_entries, file_id, file_ids, **resolve_kwargs)
 
         return {
             "id": file_id,

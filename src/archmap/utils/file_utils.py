@@ -103,19 +103,6 @@ def discover_source_files(
                 continue
         files.append(file_path)
 
-                            if max_file_size_bytes > 0:
-                                # entry.stat() em sistemas modernos (como Linux/Win)
-                                # já contém o tamanho vindo do readdir(), sem nova syscall.
-                                if entry.stat().st_size > max_file_size_bytes:
-                                    continue
-
-                            files.append(Path(entry.path))
-                    except (PermissionError, OSError):
-                        continue
-        except (PermissionError, OSError):
-            pass
-
-    _scandir_recursive(str(project_root))
     return sorted(files)
 
 

@@ -3,52 +3,12 @@ from typing import Any
 
 from archmap.core.parser.registry import Dependency, ParserPlugin
 
-from archmap.core.parser.registry import Dependency, ParserPlugin
+IMPORT_EXPORT_RE = re.compile(
+    r"""\b(?:import|export)\s+(?:type\s+)?(?:[^"'()]*?\s+from\s+)?["']([^"']+)["']"""
+)
+REQUIRE_RE = re.compile(r"""\brequire\(\s*["']([^"']+)["']\s*\)""")
+DYNAMIC_IMPORT_RE = re.compile(r"""\bimport\(\s*["']([^"']+)["']\s*\)""")
 
-STRING_QUOTES = {'"', "'"}
-TEMPLATE_QUOTE = "`"
-STATEMENT_TERMINATORS = {";"}
-OPENING_DELIMITERS = {"(", "{", "["}
-CLOSING_DELIMITERS = {
-    ")": "(",
-    "}": "{",
-    "]": "[",
-}
-REGEX_PREFIX_CHARS = {
-    "",
-    "(",
-    "[",
-    "{",
-    ",",
-    ";",
-    ":",
-    "=",
-    "!",
-    "?",
-    "&",
-    "|",
-    "^",
-    "~",
-    "+",
-    "-",
-    "*",
-    "%",
-    "<",
-    ">",
-}
-REGEX_PREFIX_KEYWORDS = {
-    "await",
-    "case",
-    "delete",
-    "in",
-    "instanceof",
-    "new",
-    "return",
-    "throw",
-    "typeof",
-    "void",
-    "yield",
-}
 
 class JSParser(ParserPlugin):
     language = "javascript"
@@ -64,9 +24,10 @@ class JSParser(ParserPlugin):
         return sorted(imports)
 
     def resolve(
-        self, import_entries: list[Any], file_id: str, file_ids: set[str]
+        self, import_entries: list[Any], file_id: str, file_ids: set[str], **kwargs: Any
     ) -> list[Dependency]:
         from archmap.core.parser import _resolve_js_ts_dependency
+
         resolved: list[Dependency] = []
         for specifier in import_entries:
             if isinstance(specifier, str):
@@ -74,7 +35,3 @@ class JSParser(ParserPlugin):
                 if dep:
                     resolved.append(dep)
         return resolved
-
-class TSParser(JSParser):
-    language = "typescript"
-    extensions = [".ts", ".tsx", ".mts", ".cts"]

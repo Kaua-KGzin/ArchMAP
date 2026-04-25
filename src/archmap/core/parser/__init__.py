@@ -4,9 +4,14 @@ import posixpath
 from pathlib import Path, PurePosixPath
 from typing import Any, TypedDict
 
-from archmap.core.parser import plugins as plugins  # Register additional generic languages
+from archmap.core.parser import plugins as plugins  # noqa: F401
+from archmap.core.parser.cpp_parser import CParser, CppParser
+from archmap.core.parser.csharp_parser import CSharpParser
 from archmap.core.parser.go_parser import GoParser
-from archmap.core.parser.js_parser import JSParser, TSParser
+from archmap.core.parser.java_parser import JavaParser
+from archmap.core.parser.js_parser import JSParser
+from archmap.core.parser.php_parser import PHPParser
+from archmap.core.parser.ts_parser import TSParser
 from archmap.core.parser.python_parser import PythonImportEntry, PythonParser
 from archmap.core.parser.registry import Dependency, registry
 from archmap.core.parser.rust_parser import RustImportEntry, RustParser
@@ -17,12 +22,17 @@ from archmap.utils.file_utils import (
     to_file_id,
 )
 
-# Register core languages
+# Register all parsers
 registry.register(PythonParser())
 registry.register(JSParser())
 registry.register(TSParser())
 registry.register(RustParser())
 registry.register(GoParser())
+registry.register(PHPParser())
+registry.register(JavaParser())
+registry.register(CParser())
+registry.register(CppParser())
+registry.register(CSharpParser())
 
 JS_TS_RESOLUTION_EXTENSIONS = sorted(JS_TS_EXTENSIONS | {".json"})
 
@@ -41,37 +51,74 @@ class ParsedProject(TypedDict):
 
 
 def parse_project(
-    project_path: str | Path, virtual_files: dict[str, str] | None = None
+    project_path: str | Path,
+    virtual_files: dict[str, str] | None = None,
+    config: Any = None,
+    parallel: bool = True,
 ) -> ParsedProject:
+    import concurrent.futures
+    import logging
+    import os
+
+    logger = logging.getLogger(__name__)
     project_root = Path(project_path).resolve()
-    file_content_map = _load_source_map(project_root, virtual_files)
+    if config is None and virtual_files is None:
+        from archmap.config import load_project_config
+        config = load_project_config(project_root)
+    file_content_map = _load_source_map(project_root, virtual_files, config=config)
     file_ids = set(file_content_map.keys())
 
-    parsed_files: list[ParsedFile] = []
+    def get_file_content(path: str) -> str | None:
+        if virtual_files is not None:
+            return virtual_files.get(path)
+        try:
+            content_path = project_root / path
+            if content_path.is_file():
+                return content_path.read_text(encoding="utf-8")
+        except OSError:
+            pass
+        return None
 
-    for file_id in sorted(file_content_map.keys()):
+    def _parse_one(file_id: str) -> ParsedFile | None:
         ext = Path(file_id).suffix.lower()
         language = registry.get_language_by_ext(ext)
         if not language:
-            continue
-
+            return None
         parser = registry.get_parser(language)
         if not parser:
-            continue
-
+            return None
         source_code = file_content_map[file_id]
-        import_entries = parser.parse(source_code)
-        dependencies = parser.resolve(import_entries, file_id, file_ids)
+        try:
+            import_entries = parser.parse(source_code)
+            dependencies = parser.resolve(
+                import_entries, file_id, file_ids, get_file_content=get_file_content
+            )
+        except Exception as exc:
+            logger.error("Failed to parse %s: %s", file_id, exc)
+            return None
+        return {
+            "id": file_id,
+            "label": file_id,
+            "type": "file",
+            "language": language,
+            "dependencies": dependencies,
+        }
 
-        parsed_files.append(
-            {
-                "id": file_id,
-                "label": file_id,
-                "type": "file",
-                "language": language,
-                "dependencies": dependencies,
-            }
-        )
+    parsed_files: list[ParsedFile] = []
+
+    if parallel and len(file_ids) > 1:
+        max_workers = min(os.cpu_count() or 4, 8)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for result in executor.map(_parse_one, sorted(file_ids)):
+                if result:
+                    parsed_files.append(result)
+    else:
+        for file_id in sorted(file_ids):
+            result = _parse_one(file_id)
+            if result:
+                parsed_files.append(result)
+
+    parsed_files.sort(key=lambda x: x["id"])
 
     return {
         "projectRoot": str(project_root),
@@ -80,8 +127,20 @@ def parse_project(
 
 
 def _load_source_map(
-    project_root: Path, virtual_files: dict[str, str] | None
+    project_root: Path,
+    virtual_files: dict[str, str] | None,
+    config: Any = None,
 ) -> dict[str, str]:
+    from archmap.config import DEFAULT_MAX_FILE_SIZE_BYTES
+
+    max_file_size_bytes = DEFAULT_MAX_FILE_SIZE_BYTES
+    extra_ignored_dirs: list[str] = []
+    if config:
+        max_file_size_bytes = config.get("analysis", {}).get(
+            "max_file_size_bytes", DEFAULT_MAX_FILE_SIZE_BYTES
+        )
+        extra_ignored_dirs = config.get("analysis", {}).get("ignore_dirs", [])
+
     if virtual_files is not None:
         source_map: dict[str, str] = {}
         for file_id, content in virtual_files.items():
@@ -89,11 +148,17 @@ def _load_source_map(
             ext = Path(normalized).suffix.lower()
             if not registry.get_language_by_ext(ext):
                 continue
+            if max_file_size_bytes > 0 and len(content.encode("utf-8")) > max_file_size_bytes:
+                continue
             source_map[normalized] = content
         return source_map
 
     source_map = {}
-    for file_path in discover_source_files(project_root):
+    for file_path in discover_source_files(
+        project_root,
+        extra_ignored_dirs=extra_ignored_dirs,
+        max_file_size_bytes=max_file_size_bytes,
+    ):
         file_id = to_file_id(project_root, file_path)
         try:
             source_map[file_id] = file_path.read_text(encoding="utf-8-sig")
