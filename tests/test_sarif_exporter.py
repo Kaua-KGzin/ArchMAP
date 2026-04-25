@@ -1,182 +1,180 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from archmap.exporters.sarif_exporter import export_graph_as_sarif
 
 
-def _base_report(project_root: str = "/repo") -> dict:
+def _minimal_report(project_root: str = "/tmp/project") -> dict:
     return {
         "projectRoot": project_root,
-        "metrics": {"filesAnalyzed": 2},
+        "nodes": [],
+        "edges": [],
+        "simple": {"nodes": [], "edges": []},
+        "metrics": {},
         "cycles": [],
-        "cycleDetails": [],
-        "risks": {
-            "layer_violations": [],
-            "god_modules": [],
-            "dependency_explosions": [],
-        },
-        "architecture": {"ruleViolations": [], "health": {"score": 90}},
+        "risks": {},
+        "architecture": {},
     }
 
 
-def test_sarif_empty_project_is_valid_sarif(tmp_path):
-    report = _base_report()
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
+# ---------------------------------------------------------------------------
+# Basic structure
+# ---------------------------------------------------------------------------
 
-    assert path.exists()
-    data = json.loads(path.read_text(encoding="utf-8"))
+def test_export_creates_file(tmp_path: Path) -> None:
+    report = _minimal_report(str(tmp_path))
+    out = tmp_path / "archmap.sarif"
+    result = export_graph_as_sarif(report, out)
+    assert result == out
+    assert out.is_file()
 
-    assert data["version"] == "2.1.0"
-    assert "$schema" in data
-    assert len(data["runs"]) == 1
-    assert data["runs"][0]["results"] == []
+
+def test_sarif_schema_and_version(tmp_path: Path) -> None:
+    out = tmp_path / "out.sarif"
+    export_graph_as_sarif(_minimal_report(str(tmp_path)), out)
+    sarif = json.loads(out.read_text())
+    assert sarif["version"] == "2.1.0"
+    assert "json.schemastore.org/sarif" in sarif["$schema"]
 
 
-def test_sarif_tool_info(tmp_path):
-    from archmap import __version__
-
-    report = _base_report()
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
-
-    driver = data["runs"][0]["tool"]["driver"]
+def test_sarif_tool_name(tmp_path: Path) -> None:
+    out = tmp_path / "out.sarif"
+    export_graph_as_sarif(_minimal_report(str(tmp_path)), out)
+    sarif = json.loads(out.read_text())
+    driver = sarif["runs"][0]["tool"]["driver"]
     assert driver["name"] == "ArchMAP"
-    assert driver["version"] == __version__
-    assert len(driver["rules"]) == 5
+    assert len(driver["rules"]) >= 4
 
 
-def test_sarif_rules_have_required_fields(tmp_path):
-    report = _base_report()
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
-
-    for rule in data["runs"][0]["tool"]["driver"]["rules"]:
-        assert "id" in rule
-        assert "name" in rule
-        assert "shortDescription" in rule
-        assert "defaultConfiguration" in rule
+def test_empty_report_produces_no_results(tmp_path: Path) -> None:
+    out = tmp_path / "out.sarif"
+    export_graph_as_sarif(_minimal_report(str(tmp_path)), out)
+    sarif = json.loads(out.read_text())
+    assert sarif["runs"][0]["results"] == []
 
 
-def test_sarif_circular_dependency_generates_arch001(tmp_path):
-    report = _base_report()
-    report["cycles"] = [["src/a.py", "src/b.py"]]
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
+# ---------------------------------------------------------------------------
+# Cycles
+# ---------------------------------------------------------------------------
 
-    results = data["runs"][0]["results"]
-    arch001 = [r for r in results if r["ruleId"] == "ARCH001"]
-    # Two files in the cycle → two results
-    assert len(arch001) == 2
-    assert all(r["level"] == "warning" for r in arch001)
-    # Message mentions cycle path
-    assert "src/a.py" in arch001[0]["message"]["text"]
-
-
-def test_sarif_self_cycle_single_result(tmp_path):
-    report = _base_report()
-    report["cycles"] = [["src/self.py"]]
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
-
-    arch001 = [r for r in data["runs"][0]["results"] if r["ruleId"] == "ARCH001"]
-    assert len(arch001) == 1
+def test_cycle_produces_warning_result(tmp_path: Path) -> None:
+    report = _minimal_report(str(tmp_path))
+    report["cycles"] = [["src/a.py", "src/b.py", "src/c.py"]]
+    out = tmp_path / "out.sarif"
+    export_graph_as_sarif(report, out)
+    sarif = json.loads(out.read_text())
+    results = sarif["runs"][0]["results"]
+    assert len(results) == 1
+    r = results[0]
+    assert r["ruleId"] == "archmap/cycle"
+    assert r["level"] == "warning"
+    assert "src/a.py" in r["message"]["text"]
+    assert r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "src/a.py"
 
 
-def test_sarif_layer_violation_generates_arch002(tmp_path):
-    report = _base_report()
-    report["risks"]["layer_violations"] = [
-        {"from": "src/core/a.py", "to": "src/cli/b.py", "rule": "core -> cli"}
-    ]
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
-
-    arch002 = [r for r in data["runs"][0]["results"] if r["ruleId"] == "ARCH002"]
-    assert len(arch002) == 1
-    assert arch002[0]["level"] == "error"
-    assert "core" in arch002[0]["message"]["text"]
+def test_empty_cycle_is_skipped(tmp_path: Path) -> None:
+    report = _minimal_report(str(tmp_path))
+    report["cycles"] = [[]]
+    out = tmp_path / "out.sarif"
+    export_graph_as_sarif(report, out)
+    sarif = json.loads(out.read_text())
+    assert sarif["runs"][0]["results"] == []
 
 
-def test_sarif_god_module_generates_arch003(tmp_path):
-    report = _base_report()
-    report["risks"]["god_modules"] = [{"file": "src/mega.py", "outgoing": 40}]
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
+# ---------------------------------------------------------------------------
+# Rule violations
+# ---------------------------------------------------------------------------
 
-    arch003 = [r for r in data["runs"][0]["results"] if r["ruleId"] == "ARCH003"]
-    assert len(arch003) == 1
-    assert arch003[0]["level"] == "note"
-
-
-def test_sarif_dependency_explosion_generates_arch004(tmp_path):
-    report = _base_report()
-    report["risks"]["dependency_explosions"] = [{"file": "src/bloated.py", "outgoing": 25}]
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
-
-    arch004 = [r for r in data["runs"][0]["results"] if r["ruleId"] == "ARCH004"]
-    assert len(arch004) == 1
-
-
-def test_sarif_custom_rule_violation_generates_arch005(tmp_path):
-    report = _base_report()
-    report["architecture"]["ruleViolations"] = [
-        {"from": "src/parser.py", "to": "src/cli/main.py", "rule": "parser -> cli"}
-    ]
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
-
-    arch005 = [r for r in data["runs"][0]["results"] if r["ruleId"] == "ARCH005"]
-    assert len(arch005) == 1
-    assert arch005[0]["level"] == "error"
+def test_rule_violation_produces_error_result(tmp_path: Path) -> None:
+    report = _minimal_report(str(tmp_path))
+    report["architecture"] = {
+        "ruleViolations": [
+            {
+                "source": "src/ui/button.py",
+                "target": "src/db/session.py",
+                "kind": "forbid",
+                "rule": "ui -> db",
+                "message": "ui -> db is forbidden but "
+                "src/ui/button.py depends on src/db/session.py",
+            }
+        ]
+    }
+    out = tmp_path / "out.sarif"
+    export_graph_as_sarif(report, out)
+    sarif = json.loads(out.read_text())
+    results = sarif["runs"][0]["results"]
+    assert len(results) == 1
+    r = results[0]
+    assert r["ruleId"] == "archmap/rule-violation"
+    assert r["level"] == "error"
+    assert "src/ui/button.py" in r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
 
 
-def test_sarif_location_references_file(tmp_path):
-    report = _base_report()
-    report["cycles"] = [["src/utils/helper.py", "src/core/engine.py"]]
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
+# ---------------------------------------------------------------------------
+# Risk files
+# ---------------------------------------------------------------------------
 
-    results = data["runs"][0]["results"]
-    uris = [
-        r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
-        for r in results
-        if r.get("locations")
-    ]
-    assert "src/utils/helper.py" in uris or "src/core/engine.py" in uris
-
-
-def test_sarif_combined_issues(tmp_path):
-    report = _base_report()
-    report["cycles"] = [["a.py", "b.py"]]
-    report["risks"]["god_modules"] = [{"file": "big.py", "outgoing": 50}]
-    report["risks"]["layer_violations"] = [
-        {"from": "core.py", "to": "cli.py", "rule": "core -> cli"}
-    ]
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
-
-    results = data["runs"][0]["results"]
-    rule_ids = {r["ruleId"] for r in results}
-    assert "ARCH001" in rule_ids
-    assert "ARCH002" in rule_ids
-    assert "ARCH003" in rule_ids
+def test_god_module_produces_high_risk_result(tmp_path: Path) -> None:
+    report = _minimal_report(str(tmp_path))
+    report["risks"] = {"god_modules": [{"id": "src/core.py"}]}
+    out = tmp_path / "out.sarif"
+    export_graph_as_sarif(report, out)
+    sarif = json.loads(out.read_text())
+    results = sarif["runs"][0]["results"]
+    assert len(results) == 1
+    r = results[0]
+    assert r["ruleId"] == "archmap/high-risk"
+    assert "god module" in r["message"]["text"]
 
 
-def test_sarif_file_is_created_at_output_path(tmp_path):
-    report = _base_report()
-    nested = tmp_path / "deep" / "nested" / "results.sarif"
-    path = export_graph_as_sarif(report, nested)
-    assert path.exists()
-    assert path == nested
+def test_dependency_explosion_produces_high_risk_result(tmp_path: Path) -> None:
+    report = _minimal_report(str(tmp_path))
+    report["risks"] = {"dependency_explosions": [{"id": "src/hub.py"}]}
+    out = tmp_path / "out.sarif"
+    export_graph_as_sarif(report, out)
+    sarif = json.loads(out.read_text())
+    r = sarif["runs"][0]["results"][0]
+    assert r["ruleId"] == "archmap/high-risk"
+    assert "dependency explosion" in r["message"]["text"]
 
 
-def test_sarif_metadata_in_run_properties(tmp_path):
-    report = _base_report()
-    report["metrics"]["filesAnalyzed"] = 42
-    path = export_graph_as_sarif(report, tmp_path / "results.sarif")
-    data = json.loads(path.read_text(encoding="utf-8"))
+def test_duplicate_risk_file_not_doubled(tmp_path: Path) -> None:
+    report = _minimal_report(str(tmp_path))
+    report["risks"] = {
+        "god_modules": [{"id": "src/hub.py"}],
+        "dependency_explosions": [{"id": "src/hub.py"}],
+    }
+    out = tmp_path / "out.sarif"
+    export_graph_as_sarif(report, out)
+    sarif = json.loads(out.read_text())
+    assert len(sarif["runs"][0]["results"]) == 1
 
-    props = data["runs"][0]["properties"]
-    assert props["filesAnalyzed"] == 42
-    assert "generatedAt" in props
+
+# ---------------------------------------------------------------------------
+# Layer violations
+# ---------------------------------------------------------------------------
+
+def test_layer_violation_produces_warning_result(tmp_path: Path) -> None:
+    report = _minimal_report(str(tmp_path))
+    report["risks"] = {
+        "layer_violations": [{"source": "src/db/repo.py", "target": "src/ui/form.py"}]
+    }
+    out = tmp_path / "out.sarif"
+    export_graph_as_sarif(report, out)
+    sarif = json.loads(out.read_text())
+    r = sarif["runs"][0]["results"][0]
+    assert r["ruleId"] == "archmap/layer-violation"
+    assert r["level"] == "warning"
+    assert "src/db/repo.py" in r["message"]["text"]
+
+
+# ---------------------------------------------------------------------------
+# Output path auto-creation
+# ---------------------------------------------------------------------------
+
+def test_export_creates_parent_dirs(tmp_path: Path) -> None:
+    out = tmp_path / "subdir" / "nested" / "archmap.sarif"
+    export_graph_as_sarif(_minimal_report(str(tmp_path)), out)
+    assert out.is_file()

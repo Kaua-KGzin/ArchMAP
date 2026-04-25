@@ -20,7 +20,7 @@ const { url } = await startWebUi({
   host,
   port,
   openBrowser,
-  staticDir: path.join(process.cwd(), "src", "archmap", "web-ui", "static"),
+  staticDir: path.join(process.cwd(), "web-ui", "static"),
 });
 
 console.log(`[info] ArchMAP web server running on ${url}`);

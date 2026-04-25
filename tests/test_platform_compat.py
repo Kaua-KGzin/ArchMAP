@@ -120,7 +120,10 @@ def test_open_local_path_termux_calls_termux_open(monkeypatch, tmp_path):
     def fake_popen(cmd, **kwargs):
         launched.append(cmd)
 
-    with patch("subprocess.Popen", side_effect=fake_popen):
+    with (
+        patch("sys.platform", "linux"),
+        patch("subprocess.Popen", side_effect=fake_popen),
+    ):
         _open_local_path(f)
 
     assert launched[0][0] == "termux-open"

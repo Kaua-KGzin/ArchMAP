@@ -57,5 +57,4 @@ class GoParser(ParserPlugin):
                 match = re.search(r"^module\s+(.+)$", mod_content, re.MULTILINE)
                 if match:
                     module_name = match.group(1).strip()
-
         return _resolve_go_dependency(import_entries, file_id, file_ids, module_name)

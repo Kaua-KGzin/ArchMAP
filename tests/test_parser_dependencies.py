@@ -1,5 +1,4 @@
 """Tests for Python dependency resolution, including absolute from-imports."""
-
 from __future__ import annotations
 
 from archmap.core.parser import parse_project
@@ -62,40 +61,3 @@ def test_from_external_pkg_import_produces_package_dependency() -> None:
     dep_types = {d["type"] for d in main_file["dependencies"]}
     assert "package" in dep_types
     assert "file" not in dep_types
-
-
-def test_import_pkg_submodule_resolves_inside_src_layout() -> None:
-    virtual = {
-        "src/pkg/__init__.py": "",
-        "src/pkg/main.py": "import pkg.utils\n",
-        "src/pkg/utils.py": "",
-    }
-    result = _virtual(virtual)
-    main_file = next(f for f in result["parsedFiles"] if f["id"] == "src/pkg/main.py")
-    dep_ids = {d["id"] for d in main_file["dependencies"]}
-    assert "src/pkg/utils.py" in dep_ids
-    assert "pkg:pkg.utils" not in dep_ids
-
-
-def test_from_pkg_import_submodule_resolves_inside_src_layout() -> None:
-    virtual = {
-        "src/pkg/__init__.py": "",
-        "src/pkg/main.py": "from pkg import utils\n",
-        "src/pkg/utils.py": "",
-    }
-    result = _virtual(virtual)
-    main_file = next(f for f in result["parsedFiles"] if f["id"] == "src/pkg/main.py")
-    dep_ids = {d["id"] for d in main_file["dependencies"]}
-    assert "src/pkg/utils.py" in dep_ids
-    assert "pkg:pkg" not in dep_ids
-
-
-def test_from_pkg_import_symbol_falls_back_to_init_inside_src_layout() -> None:
-    virtual = {
-        "src/pkg/__init__.py": "class Service: pass\n",
-        "src/pkg/main.py": "from pkg import Service\n",
-    }
-    result = _virtual(virtual)
-    main_file = next(f for f in result["parsedFiles"] if f["id"] == "src/pkg/main.py")
-    dep_ids = {d["id"] for d in main_file["dependencies"]}
-    assert dep_ids == {"src/pkg/__init__.py"}

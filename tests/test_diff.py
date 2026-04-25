@@ -17,6 +17,7 @@ def test_diff_reports_detects_dependency_and_cycle_changes(tmp_path) -> None:
     _git(repo, "init")
     _git(repo, "config", "user.email", "archmap@example.com")
     _git(repo, "config", "user.name", "ArchMAP Test")
+    _git(repo, "config", "commit.gpgsign", "false")
 
     (repo / "a.py").write_text("from b import fn\n", encoding="utf-8")
     (repo / "b.py").write_text("def fn():\n    return 1\n", encoding="utf-8")

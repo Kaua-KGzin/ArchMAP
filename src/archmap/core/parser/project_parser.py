@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from archmap.config import DEFAULT_MAX_FILE_SIZE_BYTES, ProjectConfig, load_project_config
+from archmap.core.cache import ParseCache
 from archmap.core.parser.bootstrap import ensure_default_registry
 from archmap.core.parser.registry import Dependency, registry
 from archmap.utils.file_utils import discover_source_files, normalize_file_id, to_file_id
@@ -32,7 +33,7 @@ def _parse_single_file(
     file_id: str,
     source_code: str,
     file_ids: set[str],
-    get_file_content: Callable[[str], str | None],
+    get_file_content: Callable[[str], str | None] | None = None,
 ) -> ParsedFile | None:
     ext = Path(file_id).suffix.lower()
     language = registry.get_language_by_ext(ext)
@@ -45,9 +46,10 @@ def _parse_single_file(
 
     try:
         import_entries = parser.parse(source_code)
-        dependencies = parser.resolve(
-            import_entries, file_id, file_ids, get_file_content=get_file_content
-        )
+        resolve_kwargs: dict[str, Any] = {}
+        if get_file_content is not None:
+            resolve_kwargs["get_file_content"] = get_file_content
+        dependencies = parser.resolve(import_entries, file_id, file_ids, **resolve_kwargs)
 
         return {
             "id": file_id,
@@ -66,10 +68,16 @@ def parse_project(
     virtual_files: dict[str, str] | None = None,
     config: ProjectConfig | None = None,
     parallel: bool = True,
+    cache: ParseCache | None = None,
 ) -> ParsedProject:
     ensure_default_registry()
     project_root = Path(project_path).resolve()
     active_config = config or load_project_config(project_root, virtual_files)
+    use_disk_cache = active_config["analysis"].get("cache", True) and virtual_files is None
+
+    if cache is None and use_disk_cache:
+        cache = ParseCache.load(project_root)
+
     file_content_map = _load_source_map(project_root, virtual_files, active_config)
     file_ids = set(file_content_map.keys())
 
@@ -84,22 +92,40 @@ def parse_project(
             pass
         return None
 
-    parsed_files: list[ParsedFile] = []
+    def _mtime(file_id: str) -> float | None:
+        try:
+            return (project_root / file_id).stat().st_mtime
+        except OSError:
+            return None
 
-    if parallel and file_ids:
+    parsed_files: list[ParsedFile] = []
+    files_to_parse: list[str] = []
+
+    for fid in file_ids:
+        if cache is not None:
+            mt = _mtime(fid)
+            if mt is not None:
+                cached = cache.get(fid, mt)
+                if cached is not None:
+                    parsed_files.append(cached)
+                    continue
+        files_to_parse.append(fid)
+
+    def _parse_and_cache(fid: str) -> ParsedFile | None:
+        result = _parse_single_file(fid, file_content_map[fid], file_ids, get_file_content)
+        if result is not None and cache is not None:
+            mt = _mtime(fid)
+            if mt is not None:
+                cache.put(fid, mt, result)
+        return result
+
+    if parallel and files_to_parse:
         max_workers = min(os.cpu_count() or 4, 8)
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_file = {
-                executor.submit(
-                    _parse_single_file,
-                    fid,
-                    file_content_map[fid],
-                    file_ids,
-                    get_file_content,
-                ): fid
-                for fid in file_ids
+                executor.submit(_parse_and_cache, fid): fid
+                for fid in files_to_parse
             }
-
             for future in concurrent.futures.as_completed(future_to_file):
                 fid = future_to_file[future]
                 try:
@@ -109,15 +135,13 @@ def parse_project(
                 except Exception as e:
                     logger.error("Worker reported critical failure for %s: %s", fid, e)
     else:
-        for file_id in file_ids:
-            result = _parse_single_file(
-                file_id,
-                file_content_map[file_id],
-                file_ids,
-                get_file_content,
-            )
+        for file_id in files_to_parse:
+            result = _parse_and_cache(file_id)
             if result:
                 parsed_files.append(result)
+
+    if use_disk_cache and cache is not None:
+        cache.save(project_root)
 
     parsed_files.sort(key=lambda x: x["id"])
 

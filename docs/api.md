@@ -1,112 +1,251 @@
-# ArchMAP JSON API Reference
+# ArchMAP — JSON API Reference
 
-This document describes the main report shape produced by `archmap analyze`
-and served by the web UI at `/api/graph`.
+This document describes the output schema produced by `archmap analyze` and consumed by the Web UI (`/api/graph`).
 
-## Main report fields
+---
+
+## `archmap analyze` — JSON output
+
+Default path: `.codeatlas/graph.json`
 
 ```json
 {
   "projectRoot": "/absolute/path/to/project",
-  "generatedAt": "2026-03-30T12:00:00+00:00",
-  "nodes": [ ... ],
-  "edges": [ ... ],
+  "generatedAt": "2026-03-07T12:00:00+00:00",
+
+  "nodes": ["src/main.py", "src/utils.py"],
+  "edges": [["src/main.py", "src/utils.py"]],
+
   "metrics": { ... },
-  "cycles": [ ... ],
-  "risks": { ... },
-  "architecture": { ... },
-  "insights": { ... },
-  "explanation": { ... }
+  "cycles":  [ ... ],
+  "risks":   { ... },
+
+  "detailed": {
+    "nodes": [ ... ],
+    "edges": [ ... ]
+  }
 }
 ```
 
-## Important sections
+---
 
-### `nodes`
+## Top-level fields
 
-List of graph nodes. File nodes include values such as:
+### `nodes` — `string[]`
 
-- `id`
-- `label`
-- `type`
-- `language`
-- `incoming`
-- `outgoing`
-- `isCircular`
-- `impact`
+Flat list of all node IDs (file paths and `pkg:*` names). Convenient for quick enumeration.
 
-### `edges`
+### `edges` — `[source: string, target: string][]`
 
-List of dependencies with:
+Flat list of dependency pairs.
 
-- `source`
-- `target`
-- `isCircular` when applicable
+---
 
-### `metrics`
+## `metrics`
 
-Project-wide summary values such as:
+```json
+{
+  "filesAnalyzed": 42,
+  "totalDependencies": 130,
+  "externalDependencies": 18,
+  "circularDependencyCount": 3,
+  "complexity": [
+    {
+      "file": "src/archmap/cli/main.py",
+      "imports": 14,
+      "score": 0.87
+    }
+  ],
+  "criticalFiles": [
+    {
+      "file": "src/archmap/core/__init__.py",
+      "dependents": 9
+    }
+  ]
+}
+```
 
-- `filesAnalyzed`
-- `totalDependencies`
-- `externalDependencies`
-- `circularDependencyCount`
-- `complexity`
-- `criticalFiles`
-- `coupling`
+| Field | Type | Description |
+|---|---|---|
+| `filesAnalyzed` | `int` | Count of source files parsed |
+| `totalDependencies` | `int` | Total edge count (internal + external) |
+| `externalDependencies` | `int` | Count of external package nodes |
+| `circularDependencyCount` | `int` | Number of detected cycles |
+| `complexity` | `ComplexityEntry[]` | Top files by normalized outgoing-import score (descending) |
+| `criticalFiles` | `CriticalFileEntry[]` | Top files by incoming dependency count (descending) |
 
-### `risks`
+#### `ComplexityEntry`
 
-Architecture risk output such as:
+| Field | Type | Description |
+|---|---|---|
+| `file` | `string` | Relative file ID |
+| `imports` | `int` | Outgoing dependency count |
+| `score` | `float` | Normalized score `[0, 1]` |
 
-- `god_modules`
-- `layer_violations`
-- `dependency_explosions`
-- `top_risk_files`
-- `thresholds`
+#### `CriticalFileEntry`
 
-### `architecture`
+| Field | Type | Description |
+|---|---|---|
+| `file` | `string` | Relative file ID |
+| `dependents` | `int` | Count of files that depend on this file |
 
-Higher-level architecture analysis such as:
+---
 
-- detected style
-- health score and grade
-- active rules
-- rule violations
+## `cycles` — `string[][]`
 
-### `insights`
+Each element is a list of file IDs forming a circular dependency group.
 
-Human-readable architecture interpretation:
+```json
+[
+  ["src/a.py", "src/b.py"],
+  ["src/x.py", "src/y.py", "src/z.py"]
+]
+```
 
-- `status`
-- `message`
-- `problems`
-- `actions`
+---
 
-### `explanation`
+## `risks`
 
-Simple project explanation for CLI and UI:
+```json
+{
+  "god_modules": [ ... ],
+  "layer_violations": [ ... ],
+  "dependency_explosions": [ ... ],
+  "top_risk_files": [ ... ],
+  "thresholds": {
+    "god_module_min_outgoing": 8,
+    "dependency_explosion_min_connections": 12
+  }
+}
+```
 
-- `architecture`
-- `simple`
-- `technical`
+### `god_modules`
 
-## Related commands
+Files with an outgoing dependency count ≥ max(8, p90).
 
-- `archmap analyze`
-- `archmap explain`
-- `archmap risk`
-- `archmap improve`
-- `archmap serve`
+```json
+[{ "file": "src/archmap/cli/main.py", "outgoing": 12 }]
+```
 
-## Live endpoints
+### `layer_violations`
 
-When `archmap serve` is running:
+Detected lower-level → higher-level dependency violations.
 
-```text
-GET  /api/graph
-GET  /api/history
-GET  /api/project
-GET  /api/health
-POST /api/reanalyze
+```json
+[
+  {
+    "source": "utils/helpers.py",
+    "target": "cli/main.py",
+    "sourceLayer": "utils",
+    "targetLayer": "cli",
+    "rule": "lower-level module should not depend on higher-level module"
+  }
+]
+```
+
+### `dependency_explosions`
+
+Files with `incoming + outgoing` ≥ max(12, p90).
+
+```json
+[
+  {
+    "file": "src/core/__init__.py",
+    "incoming": 9,
+    "outgoing": 6,
+    "totalConnections": 15
+  }
+]
+```
+
+### `top_risk_files`
+
+Up to 15 files ranked by composite risk score.
+
+```json
+[
+  {
+    "file": "src/core/__init__.py",
+    "riskScore": 42,
+    "dependents": 9,
+    "outgoing": 6,
+    "signals": ["god_module", "circular_dependency"]
+  }
+]
+```
+
+| Signal | Meaning |
+|---|---|
+| `circular_dependency` | Part of at least one cycle |
+| `god_module` | Too many outgoing dependencies |
+| `dependency_explosion` | High total connection count |
+| `layer_violations:N` | Committed N layer-order violations |
+
+### `thresholds`
+
+Dynamic per-project thresholds used for risk detection.
+
+```json
+{
+  "god_module_min_outgoing": 8,
+  "dependency_explosion_min_connections": 12
+}
+```
+
+---
+
+## `detailed`
+
+Full node and edge objects for the Web UI and Cytoscape integration.
+
+### `detailed.nodes`
+
+```json
+[
+  {
+    "id": "src/archmap/cli/main.py",
+    "label": "src/archmap/cli/main.py",
+    "type": "file",
+    "language": "python",
+    "folder": "src",
+    "outgoing": 12,
+    "incoming": 0,
+    "isCircular": false,
+    "complexity": 0.87
+  },
+  {
+    "id": "pkg:requests",
+    "label": "requests",
+    "type": "package",
+    "language": "package",
+    "folder": "(external)",
+    "outgoing": 0,
+    "incoming": 3,
+    "isCircular": false
+  }
+]
+```
+
+### `detailed.edges`
+
+```json
+[
+  {
+    "id": "src/main.py->src/utils.py",
+    "source": "src/main.py",
+    "target": "src/utils.py",
+    "isCircular": false
+  }
+]
+```
+
+---
+
+## Web UI live endpoint
+
+When `archmap serve` is running, the same report is available at:
+
+```
+GET http://localhost:3000/api/graph   → application/json (full report)
+GET http://localhost:3000/api/health  → {"status":"ok"}
 ```

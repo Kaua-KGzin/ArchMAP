@@ -1,131 +1,185 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-from archmap.cache import (
-    _cache_path,
-    compute_fingerprint,
-    invalidate_cache,
-    load_cached_report,
-    save_cached_report,
-)
+from archmap.core.cache import _CACHE_FILENAME, _CACHE_VERSION, ParseCache
 
 
-def _write_py(path: Path, content: str = "pass") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _dummy_config(ignore_dirs: list | None = None) -> dict:
+def _make_parsed(file_id: str = "src/foo.py") -> dict:
     return {
-        "analysis": {
-            "ignore_dirs": ignore_dirs or [],
-            "max_file_size_bytes": 1048576,
-            "parallel": True,
-        },
-        "architecture": {"rules": {"forbid": [], "allow": []}},
-        "risks": {"layer_order": {}},
+        "id": file_id,
+        "label": file_id,
+        "type": "file",
+        "language": "python",
+        "dependencies": [],
     }
 
 
-def test_compute_fingerprint_is_stable(tmp_path):
-    _write_py(tmp_path / "src" / "main.py")
-    config = _dummy_config()
-    fp1 = compute_fingerprint(tmp_path, config)
-    fp2 = compute_fingerprint(tmp_path, config)
-    assert fp1 == fp2
+# ---------------------------------------------------------------------------
+# ParseCache.get / put
+# ---------------------------------------------------------------------------
+
+def test_get_returns_none_when_empty() -> None:
+    cache = ParseCache()
+    assert cache.get("src/foo.py", 1000.0) is None
 
 
-def test_compute_fingerprint_changes_on_file_modification(tmp_path):
-    f = tmp_path / "src" / "main.py"
-    _write_py(f, "x = 1")
-    config = _dummy_config()
-    fp1 = compute_fingerprint(tmp_path, config)
-
-    import time
-    time.sleep(0.01)
-    f.touch()  # update mtime
-    fp2 = compute_fingerprint(tmp_path, config)
-    assert fp1 != fp2
+def test_put_and_get_hit() -> None:
+    cache = ParseCache()
+    parsed = _make_parsed()
+    cache.put("src/foo.py", 1000.0, parsed)
+    assert cache.get("src/foo.py", 1000.0) == parsed
 
 
-def test_compute_fingerprint_changes_on_config_change(tmp_path):
-    _write_py(tmp_path / "a.py")
-    fp1 = compute_fingerprint(tmp_path, _dummy_config([]))
-    fp2 = compute_fingerprint(tmp_path, _dummy_config(["vendor"]))
-    assert fp1 != fp2
+def test_get_miss_on_mtime_mismatch() -> None:
+    cache = ParseCache()
+    parsed = _make_parsed()
+    cache.put("src/foo.py", 1000.0, parsed)
+    assert cache.get("src/foo.py", 2000.0) is None
 
 
-def test_compute_fingerprint_changes_on_new_file(tmp_path):
-    _write_py(tmp_path / "a.py")
-    config = _dummy_config()
-    fp1 = compute_fingerprint(tmp_path, config)
-
-    _write_py(tmp_path / "b.py")
-    fp2 = compute_fingerprint(tmp_path, config)
-    assert fp1 != fp2
-
-
-def test_cache_roundtrip(tmp_path):
-    report = {"projectRoot": str(tmp_path), "nodes": [], "cycles": []}
-    fingerprint = "abc123"
-    save_cached_report(tmp_path, fingerprint, report)
-    loaded = load_cached_report(tmp_path, fingerprint)
-    assert loaded == report
+def test_put_overwrites_stale_entry() -> None:
+    cache = ParseCache()
+    old = _make_parsed()
+    new = {**_make_parsed(), "language": "typescript"}
+    cache.put("src/foo.py", 1000.0, old)
+    cache.put("src/foo.py", 2000.0, new)
+    assert cache.get("src/foo.py", 2000.0) == new
+    assert cache.get("src/foo.py", 1000.0) is None
 
 
-def test_cache_miss_on_wrong_fingerprint(tmp_path):
-    report = {"projectRoot": str(tmp_path)}
-    save_cached_report(tmp_path, "fp1", report)
-    assert load_cached_report(tmp_path, "fp2") is None
+def test_size_reflects_unique_file_ids() -> None:
+    cache = ParseCache()
+    cache.put("a.py", 1.0, _make_parsed("a.py"))
+    cache.put("b.py", 2.0, _make_parsed("b.py"))
+    cache.put("a.py", 3.0, _make_parsed("a.py"))  # overwrite a.py
+    assert cache.size() == 2
 
 
-def test_cache_miss_when_no_file(tmp_path):
-    assert load_cached_report(tmp_path, "any") is None
+# ---------------------------------------------------------------------------
+# Disk persistence — save / load
+# ---------------------------------------------------------------------------
+
+def test_save_creates_cache_file(tmp_path: Path) -> None:
+    cache = ParseCache()
+    cache.put("src/foo.py", 1234.5, _make_parsed())
+    cache.save(tmp_path)
+    cache_file = tmp_path / _CACHE_FILENAME
+    assert cache_file.is_file()
+    raw = json.loads(cache_file.read_text())
+    assert raw["version"] == _CACHE_VERSION
+    assert "src/foo.py" in raw["entries"]
 
 
-def test_cache_handles_corrupt_file(tmp_path):
-    cache = _cache_path(tmp_path)
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_text("not valid json", encoding="utf-8")
-    assert load_cached_report(tmp_path, "any") is None
+def test_load_restores_entries(tmp_path: Path) -> None:
+    parsed = _make_parsed()
+    cache = ParseCache()
+    cache.put("src/foo.py", 1234.5, parsed)
+    cache.save(tmp_path)
+
+    loaded = ParseCache.load(tmp_path)
+    assert loaded.get("src/foo.py", 1234.5) == parsed
 
 
-def test_invalidate_removes_cache(tmp_path):
-    save_cached_report(tmp_path, "fp", {"x": 1})
-    assert _cache_path(tmp_path).exists()
-    invalidate_cache(tmp_path)
-    assert not _cache_path(tmp_path).exists()
+def test_load_returns_empty_when_no_file(tmp_path: Path) -> None:
+    loaded = ParseCache.load(tmp_path)
+    assert loaded.size() == 0
 
 
-def test_invalidate_is_safe_when_no_cache(tmp_path):
-    # Should not raise even if cache doesn't exist
-    invalidate_cache(tmp_path)
+def test_load_ignores_wrong_version(tmp_path: Path) -> None:
+    bad = {
+        "version": 999,
+        "entries": {
+            "src/foo.py": {
+                "mtime": 1.0, "id": "src/foo.py", "label": "src/foo.py",
+                "type": "file", "language": "python", "dependencies": [],
+            }
+        },
+    }
+    (tmp_path / _CACHE_FILENAME).write_text(json.dumps(bad))
+    loaded = ParseCache.load(tmp_path)
+    assert loaded.size() == 0
 
 
-def test_cache_file_inside_archmap_dir(tmp_path):
-    save_cached_report(tmp_path, "fp", {"x": 1})
-    cache = _cache_path(tmp_path)
-    assert cache.parent.name == ".archmap"
-    assert cache.name == "cache.json"
+def test_load_ignores_malformed_json(tmp_path: Path) -> None:
+    (tmp_path / _CACHE_FILENAME).write_text("not json{{{")
+    loaded = ParseCache.load(tmp_path)
+    assert loaded.size() == 0
 
 
-def test_save_does_not_raise_on_readonly_dir(tmp_path):
-    # If directory is read-only, save should silently fail
-    import stat
-    cache_dir = tmp_path / ".archmap"
-    cache_dir.mkdir()
-    cache_dir.chmod(stat.S_IREAD | stat.S_IEXEC)
-    try:
-        # Should not raise
-        save_cached_report(tmp_path, "fp", {"x": 1})
-    finally:
-        cache_dir.chmod(stat.S_IRWXU)
+def test_load_skips_entries_without_mtime(tmp_path: Path) -> None:
+    payload = {
+        "version": _CACHE_VERSION,
+        "entries": {
+            "good.py": {
+                "mtime": 1.0, "id": "good.py", "label": "good.py",
+                "type": "file", "language": "python", "dependencies": [],
+            },
+            "bad.py": {
+                "id": "bad.py", "label": "bad.py",
+                "type": "file", "language": "python", "dependencies": [],
+            },
+        },
+    }
+    (tmp_path / _CACHE_FILENAME).write_text(json.dumps(payload))
+    loaded = ParseCache.load(tmp_path)
+    assert loaded.size() == 1
+    assert loaded.get("good.py", 1.0) is not None
 
 
-def test_cache_atomic_write_uses_temp_file(tmp_path, monkeypatch):
-    """Verify that tmp file is used (indirectly: test that file ends up valid)."""
-    report = {"projectRoot": str(tmp_path), "data": list(range(100))}
-    save_cached_report(tmp_path, "fp", report)
-    loaded = load_cached_report(tmp_path, "fp")
-    assert loaded["data"] == list(range(100))
+# ---------------------------------------------------------------------------
+# Integration with parse_project
+# ---------------------------------------------------------------------------
+
+def test_parse_project_uses_cache_for_unchanged_files(tmp_path: Path) -> None:
+    """Files whose mtime matches cache are not re-parsed (parse count stays low)."""
+    from archmap.core.parser.project_parser import parse_project
+
+    src = tmp_path / "main.py"
+    src.write_text("x = 1\n")
+
+    # First parse — populates cache
+    result1 = parse_project(tmp_path)
+    assert any(f["id"] == "main.py" for f in result1["parsedFiles"])
+
+    cache_file = tmp_path / _CACHE_FILENAME
+    assert cache_file.is_file()
+
+    # Second parse — should hit cache (no mtime change)
+    result2 = parse_project(tmp_path)
+    ids1 = {f["id"] for f in result1["parsedFiles"]}
+    ids2 = {f["id"] for f in result2["parsedFiles"]}
+    assert ids1 == ids2
+
+
+def test_parse_project_reparsed_on_mtime_change(tmp_path: Path) -> None:
+    from archmap.core.parser.project_parser import parse_project
+
+    src = tmp_path / "util.py"
+    src.write_text("def foo(): pass\n")
+
+    parse_project(tmp_path)
+
+    # Simulate file change by writing new content and touching mtime
+    src.write_text("def bar(): pass\n")
+    import os
+    current_mtime = os.path.getmtime(src)
+    os.utime(src, (current_mtime + 5, current_mtime + 5))
+
+    result = parse_project(tmp_path)
+    assert any(f["id"] == "util.py" for f in result["parsedFiles"])
+
+
+def test_parse_project_cache_disabled_via_config(tmp_path: Path) -> None:
+    from archmap.config import default_project_config
+    from archmap.core.parser.project_parser import parse_project
+
+    cfg = default_project_config()
+    cfg["analysis"]["cache"] = False
+
+    src = tmp_path / "main.py"
+    src.write_text("x = 1\n")
+
+    parse_project(tmp_path, config=cfg)
+    assert not (tmp_path / _CACHE_FILENAME).exists()

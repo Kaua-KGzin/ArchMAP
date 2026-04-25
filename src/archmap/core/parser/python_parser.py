@@ -20,7 +20,7 @@ class PythonParser(ParserPlugin):
     extensions = [".py"]
 
     def parse(self, source_code: str) -> list[PythonImportEntry]:
-        source_code = source_code.lstrip("\ufeff")
+        source_code = source_code.lstrip("﻿")
         try:
             return _parse_with_ast(source_code)
         except SyntaxError:

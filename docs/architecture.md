@@ -1,145 +1,154 @@
-# ArchMAP - Architecture Overview
+# ArchMAP — Architecture Overview
 
-## Pipeline Summary
+## Pipeline summary
 
 Every `archmap` command runs the same core pipeline:
 
-```text
-Source files on disk / git ref
-        |
-        v
-Parser (archmap.core.parser)
-        |
-        v
-Graph Builder (archmap.core.graph)
-        |
-        v
-Analyzer (archmap.core.analyzer)
-        |
-        v
-Exporters / Web UI
+```
+Source files on disk
+     │
+     ▼
+┌─────────────────────────────────────┐
+│  Parser   (archmap.core.parser)     │  Reads source, extracts imports
+└────────────────┬────────────────────┘
+                 │  ParsedProject
+                 ▼
+┌─────────────────────────────────────┐
+│  Graph Builder (archmap.core.graph) │  Builds directed node/edge graph
+└────────────────┬────────────────────┘
+                 │  Graph dict
+                 ▼
+┌─────────────────────────────────────┐
+│  Analyzer  (archmap.core.analyzer)  │  Cycles, complexity, risks
+└────────────────┬────────────────────┘
+                 │  Report dict
+                 ▼
+┌─────────────────────────────────────┐
+│  Exporters (archmap.exporters)      │  JSON / Mermaid / Cytoscape
+└─────────────────────────────────────┘
 ```
 
-## Module Reference
+---
+
+## Module reference
 
 ### `archmap.core.parser`
 
-Entry point: `parse_project(project_path, virtual_files=None, config=None) -> ParsedProject`
+**Entry point:** `parse_project(project_path, virtual_files=None) → ParsedProject`
 
-Responsibilities:
-- Load project configuration from `.archmap.toml` / `archmap.toml`
-- Discover supported source files
-- Dispatch each file to the language-specific parser
-- Resolve imports to internal files or external packages
-
-Current parser modules:
+Discovers all source files under `project_path` and calls the language-specific sub-parser for each:
 
 | Sub-parser | Language | Strategy |
 |---|---|---|
-| `python_parser.py` | Python | AST walk with regex fallback |
-| `js_parser.py` | JavaScript | Lightweight scanner for `import`, `require`, `export ... from`, and dynamic `import()` |
-| `ts_parser.py` | TypeScript | Same scanner as JS with TS extensions |
-| `rust_parser.py` | Rust | Regex for `use`, `mod`, `extern crate` |
-| `go_parser.py` | Go | Regex for grouped and direct imports |
-| `generic_parser.py` | PHP / Java / C# / C / C++ | Reusable regex-based parser |
+| `python_parser.py` | Python | AST walk — captures `import X`, `from X import Y` |
+| `js_parser.py` | JavaScript | Regex — `import`, `require`, `export ... from`, dynamic `import()` |
+| `ts_parser.py` | TypeScript | Same as JS |
+| `rust_parser.py` | Rust | Regex — `use`, `mod`, `extern crate` |
 
-Configuration currently supported:
+Dependency resolution (`_resolve_python_dependency`, `_resolve_js_ts_dependency`, etc.) maps each import string to:
+- An **internal file ID** (`type: "file"`) when the path exists in the project
+- An **external package** (`type: "package"`, id prefixed with `pkg:`) otherwise
 
-```toml
-[analysis]
-ignore_dirs = ["generated", "vendor"]
-max_file_size_bytes = 1048576
+For Python absolute `from pkg import name` imports, each imported name is checked as a potential submodule (`pkg/name.py`, `pkg/name/__init__.py`) before falling back to the package root.
 
-[architecture.rules]
-forbid = ["controller -> repository", "ui -> database"]
-
-[risks.layer_order]
-platform = 6
-core = 3
-```
+---
 
 ### `archmap.core.graph`
 
-Entry point: `build_graph(parsed_project) -> Graph`
+**Entry point:** `build_graph(parsed_project) → Graph`
 
-Responsibilities:
-- Convert parsed files into graph nodes and edges
-- Create synthetic package nodes for external dependencies
-- Compute `incoming` and `outgoing` counters on each node
-- Deduplicate graph edges
+Converts a `ParsedProject` into a directed graph:
+
+- **Nodes** — one per file (plus synthetic package nodes for external deps)
+  - Fields: `id`, `label`, `type`, `language`, `folder`, `outgoing`, `incoming`, `isCircular`
+- **Edges** — one per resolved dependency
+  - Fields: `id` (`"source->target"`), `source`, `target`, `isCircular`
+
+Edge deduplication is handled at this stage.
+
+---
 
 ### `archmap.core.analyzer`
 
-Entry point: `analyze_graph(graph, layer_order=None) -> Report`
+**Entry point:** `analyze_graph(graph) → Report`
 
-Sub-analyzers:
+Three sub-analyzers run in sequence:
 
-1. `cycle_detector.py`
-Finds strongly connected components iteratively, avoiding Python recursion depth limits.
+#### 1. `cycle_detector.py`
+Finds strongly connected components using a DFS variant.
+Returns `cycles: list[list[str]]` — each inner list is a set of file IDs forming a cycle.
 
-2. `complexity_analyzer.py`
-Computes per-file complexity using outgoing, incoming, and total file connections.
-Exposes:
-- `complexityImports`
-- `complexityDependents`
-- `complexityConnections`
-- `complexityScore`
+#### 2. `complexity_analyzer.py`
+Annotates each node with a `complexity` score `[0, 1]` (normalized outgoing edge count).
+Produces `metrics.complexity` (top files by score) and `metrics.criticalFiles` (top files by incoming count).
 
-3. `risk_analyzer.py`
-Detects:
-- God modules
-- Dependency explosions
-- Layer violations
-- Top risk files
+#### 3. `risk_analyzer.py`
+Detects three architecture smell categories:
 
-Layer order is built from defaults and can be extended or overridden via `.archmap.toml`.
+| Risk | Detection | Threshold |
+|---|---|---|
+| **God module** | `outgoing ≥` p90 or 8 | Dynamic, per-project |
+| **Dependency explosion** | `incoming + outgoing ≥` p90 or 12 | Dynamic, per-project |
+| **Layer violation** | Lower-rank layer imports higher-rank layer | Hardcoded `LAYER_ORDER` map |
 
-4. `diff_analyzer.py`
-Analyzes two git refs and produces:
-- edge deltas
-- cycle deltas
-- complexity deltas
-- risk summary deltas
-- architecture health/style deltas
-- file-level deltas (`added`, `removed`, `changed`)
+Built-in layer ranks (higher = closer to user):
 
-Git ref loading uses `git cat-file --batch` to avoid one subprocess per file.
+```
+cli / web-ui / api / interface  →  5 (entry)
+app / application               →  4
+core / domain                   →  3
+exporters / adapters            →  2
+utils / shared                  →  1 (foundation)
+```
 
-5. `architecture_analyzer.py`
-Infers broad topology traits and lintable architecture signals:
-- detected style (`monolith`, `modular_monolith`, `microservice_like`)
-- detected layer tags from path structure
-- custom rule violations from `[architecture.rules]`
-- architecture health score and grade
+A violation fires when a layer with rank `< N` imports from a layer with rank `> N`.
+
+Every file receives a composite `riskScore`:
+
+```
+score = incoming×2 + outgoing
+      + 10 (if in a cycle)
+      + 8  (if god module)
+      + 6  (if dependency explosion)
+      + 4× (layer violations count)
+```
+
+---
 
 ### `archmap.exporters`
 
-Output modules:
-- `json_exporter.py`
-- `mermaid_exporter.py`
-- `cytoscape_exporter.py`
+| Exporter | Output |
+|---|---|
+| `json_exporter.py` | Structured JSON (see `docs/api.md`) |
+| `mermaid_exporter.py` | Mermaid `graph TD` diagram |
+| `cytoscape_exporter.py` | Cytoscape.js `elements` format |
+
+---
 
 ### `archmap.cli`
 
-Entry point: `archmap.cli.main`
+`main.py` is the CLI entry point (registered as `archmap` and `code-arch` scripts).
 
-Current structure:
-- `main.py` - bootstrap and routing
-- `args.py` - CLI parser and default command behavior
-- `commands.py` - command execution
-- `reporting.py` - terminal rendering and diff formatting
-- `server.py` - built-in HTTP server for the UI
-- `defaults.py` - shared CLI defaults
+Commands:
+- `analyze` — parse + export, print summary
+- `serve` — analyze + start an HTTP server serving the Web UI and `/api/graph`
+- `diff` — analyze two git refs, print delta metrics
+- `version` — print version
 
-### `archmap.web-ui`
+Static file resolution order for `serve`:
+1. PyInstaller `_MEIPASS` bundle
+2. `importlib.resources.files("archmap") / "web-ui" / "static"` (installed wheel)
+3. `src/archmap/../../../web-ui/static` (source checkout)
 
-The UI assets live in a single location:
-- `src/archmap/web-ui/static/` for both the packaged Python distribution and the local Node development server
+---
 
-The root `web-ui/` folder also contains `server.js` and `dev-server.js`, which are
-development-only helpers and are intentionally not duplicated under `src/`.
+### `archmap.utils`
 
-## Data Flow Types
+- `file_utils.py` — filesystem helpers: `discover_source_files`, `normalize_file_id`, `to_file_id`, extension sets, `first_segment`, `percentile`
+
+---
+
+## Data flow types (simplified)
 
 ```python
 ParsedProject = {
@@ -148,7 +157,7 @@ ParsedProject = {
 }
 
 ParsedFile = {
-    "id": str,
+    "id": str,           # relative posix path e.g. "src/archmap/cli/main.py"
     "label": str,
     "type": "file",
     "language": str,
@@ -156,7 +165,7 @@ ParsedFile = {
 }
 
 Dependency = {
-    "id": str,
+    "id": str,           # e.g. "src/archmap/core/__init__.py" or "pkg:requests"
     "label": str,
     "type": "file" | "package",
 }

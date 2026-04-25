@@ -3,9 +3,9 @@ requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "KG-ARCHMAP"
+name = "archmap"
 dynamic = ["version"]
-description = "Static architectural analysis and visualization for software codebases."
+description = "Static architecture analysis and visualization for software projects."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
@@ -32,18 +32,11 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8.2.0", "pytest-cov>=5.0.0", "ruff>=0.11.0"]
 docs = ["mkdocs-material>=9.5"]
-release = ["build>=1.2.2", "twine>=6.1.0"]
-
-[project.urls]
-Homepage = "https://github.com/Kaua-KGzin/ArchMAP"
-Repository = "https://github.com/Kaua-KGzin/ArchMAP"
-Documentation = "https://kaua-kgzin.github.io/ArchMAP/"
-Issues = "https://github.com/Kaua-KGzin/ArchMAP/issues"
-Changelog = "https://github.com/Kaua-KGzin/ArchMAP/blob/main/CHANGELOG.md"
 
 [project.scripts]
 archmap = "archmap.cli.main:main"
 code-arch = "archmap.cli.main:main"
+archmap-check = "archmap.cli.check:main"
 
 [tool.hatch.version]
 path = "src/archmap/__init__.py"

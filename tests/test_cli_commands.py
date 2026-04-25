@@ -65,9 +65,9 @@ def test_run_analyze_prints_summary_and_hint(monkeypatch, capsys) -> None:
                 "json_output": "graph.json",
                 "mermaid_output": "graph.mmd",
                 "cytoscape_output": "graph-cytoscape.json",
-                "sarif_output": None,
                 "include_cytoscape": False,
                 "no_subgraphs": False,
+                "sarif_output": None,
             },
         ),
         ("summary", report),
@@ -530,3 +530,282 @@ def test_run_history_resolves_repo_and_prints_result(monkeypatch, tmp_path) -> N
         "history": {"snapshots": []},
         "as_json": True,
     }
+
+
+def test_run_analyze_quiet_suppresses_output(monkeypatch, capsys) -> None:
+    empty_report = {"metrics": {}, "risks": {}}
+    monkeypatch.setattr(cli_commands, "analyze_project", lambda path, **kwargs: empty_report)
+    monkeypatch.setattr(cli_commands, "export_outputs", lambda **kwargs: {"jsonPath": "out.json"})
+    monkeypatch.setattr(cli_commands, "evaluate_quality_gates", lambda _report, _args: [])
+
+    args = Namespace(
+        path="repo",
+        format="json",
+        out="graph.json",
+        out_mermaid="graph.mmd",
+        out_cytoscape="graph-cytoscape.json",
+        include_cytoscape=False,
+        no_subgraphs=False,
+        include_insights=True,
+        include_explanation=True,
+        top=5,
+        quiet=True,
+    )
+
+    exit_code = cli_commands.run_analyze(args)
+
+    output = capsys.readouterr()
+    assert exit_code == 0
+    assert output.out == ""
+    assert output.err == ""
+
+
+def test_run_risk_prints_report_when_not_json(monkeypatch, capsys) -> None:
+    report = {
+        "projectRoot": "repo",
+        "nodes": [
+            {
+                "id": "src/app.py",
+                "type": "file",
+                "incoming": 1,
+                "outgoing": 2,
+                "isCircular": False,
+                "impact": {"impactCount": 1, "impactedFiles": ["src/utils.py"]},
+            }
+        ],
+        "risks": {
+            "top_risk_files": [
+                {"file": "src/app.py", "riskScore": 45, "signals": ["hub"]}
+            ]
+        },
+    }
+
+    monkeypatch.setattr(cli_commands, "analyze_project", lambda path, **kwargs: report)
+
+    args = Namespace(
+        target="src/app.py",
+        path="repo",
+        json=False,
+        max_impacted=10,
+        parallel=True,
+    )
+
+    exit_code = cli_commands.run_risk(args)
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "[risk] src/app.py" in output
+    assert "Risk score: 45" in output
+    assert "Signals: hub" in output
+
+
+def test_run_serve_starts_watch_thread(monkeypatch, tmp_path, capsys) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    state = type("State", (), {"path": tmp_path / "repo", "report": {}})()
+
+    class StubReportState:
+        @classmethod
+        def from_path(cls, _path, **kwargs):
+            return state
+
+    class FakeServer:
+        def __init__(self, address, handler):
+            pass
+
+        def serve_forever(self) -> None:
+            raise KeyboardInterrupt
+
+        def server_close(self) -> None:
+            pass
+
+    thread_targets: list[object] = []
+
+    class FakeThread:
+        def __init__(self, target, args, daemon):
+            thread_targets.append(target)
+            self._daemon = daemon
+
+        def start(self) -> None:
+            pass
+
+    monkeypatch.setattr(cli_commands, "ReportState", StubReportState)
+    monkeypatch.setattr(cli_commands, "export_outputs", lambda **_kwargs: {})
+    monkeypatch.setattr(cli_commands, "print_summary", lambda _payload: None)
+    monkeypatch.setattr(cli_commands, "print_top_complexity", lambda _payload, _limit: None)
+    monkeypatch.setattr(cli_commands, "print_top_risks", lambda _payload, _limit: None)
+    monkeypatch.setattr(cli_commands, "print_export_summary", lambda _payload: None)
+    monkeypatch.setattr(cli_commands, "resolve_static_dir", lambda: static_dir)
+    monkeypatch.setattr(cli_commands, "build_http_handler", lambda _state, _static_dir: "handler")
+    monkeypatch.setattr(cli_commands, "ThreadingHTTPServer", FakeServer)
+    monkeypatch.setattr(cli_commands, "browser_host", lambda _host: "localhost")
+    monkeypatch.setattr(cli_commands, "can_open_browser", lambda _host: False)
+    monkeypatch.setattr(cli_commands, "threading", type("T", (), {"Thread": FakeThread})())
+
+    args = Namespace(
+        path="repo",
+        format="json",
+        out="graph.json",
+        out_mermaid="graph.mmd",
+        out_cytoscape="graph-cytoscape.json",
+        include_cytoscape=False,
+        no_subgraphs=False,
+        host="127.0.0.1",
+        port=5000,
+        no_open=True,
+        watch=True,
+    )
+
+    exit_code = cli_commands.run_serve(args)
+    assert exit_code == 0
+    assert len(thread_targets) == 1
+
+
+def test_run_analyze_with_impact_flag(monkeypatch, capsys) -> None:
+    report = {
+        "metrics": {
+            "filesAnalyzed": 2, "totalDependencies": 1,
+            "circularDependencyCount": 0, "complexity": [],
+        },
+        "risks": {"top_risk_files": []},
+        "nodes": [
+            {
+                "id": "src/auth.py",
+                "impact": {"impactedFiles": ["src/app.py"], "impactCount": 1, "risk": "medium"},
+            }
+        ],
+    }
+
+    _export_result = {"jsonPath": "out.json", "mermaidPath": None, "cytoscapePath": None}
+
+    monkeypatch.setattr(cli_commands, "analyze_project", lambda path, **kwargs: report)
+    monkeypatch.setattr(cli_commands, "export_outputs", lambda **kwargs: _export_result)
+    monkeypatch.setattr(cli_commands, "evaluate_quality_gates", lambda _report, _args: [])
+
+    args = Namespace(
+        path="repo",
+        format="json",
+        out="graph.json",
+        out_mermaid="graph.mmd",
+        out_cytoscape="graph-cytoscape.json",
+        include_cytoscape=False,
+        no_subgraphs=False,
+        include_insights=False,
+        include_explanation=False,
+        top=0,
+        quiet=False,
+        impact="src/auth.py",
+    )
+
+    exit_code = cli_commands.run_analyze(args)
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "[risk] Impact analysis for src/auth.py" in output
+
+
+def test_run_improve_prints_report_when_not_json(monkeypatch, capsys) -> None:
+    report = {"projectRoot": "repo"}
+    suggestions = {
+        "summary": "2 groups suggested",
+        "simpleMap": {"auth": ["users"]},
+        "groups": [{"name": "auth", "count": 2}],
+        "moves": [],
+        "suggestedLayout": {},
+    }
+
+    monkeypatch.setattr(cli_commands, "analyze_project", lambda path, **kwargs: report)
+    monkeypatch.setattr(
+        cli_commands, "suggest_architecture", lambda payload, max_groups: suggestions
+    )
+
+    args = Namespace(
+        path="repo",
+        json=False,
+        max_groups=6,
+        out_script=None,
+        parallel=True,
+    )
+
+    exit_code = cli_commands.run_improve(args)
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "[improve] Automatic architecture suggestions" in output
+    assert "[map] Simple architecture view" in output
+
+
+def test_run_init_handles_oserror_scanning(monkeypatch, tmp_path, capsys) -> None:
+    import os as _os
+
+    def raise_oserror(path):
+        raise OSError("permission denied")
+
+    monkeypatch.setattr(_os, "scandir", raise_oserror)
+
+    args = Namespace(
+        path=str(tmp_path),
+        dry_run=False,
+        force=True,
+    )
+
+    exit_code = cli_commands.run_init(args)
+
+    output = capsys.readouterr()
+    assert exit_code == 1
+    assert "[error]" in output.err
+    assert "permission denied" in output.err
+
+
+def test_serve_watch_loop_detects_change_and_handles_error(monkeypatch, capsys) -> None:
+    import itertools
+
+    call_counter = itertools.count()
+
+    class FakeState:
+        path = Path(".")
+
+        def reanalyze(self) -> None:
+            raise RuntimeError("disk full")
+
+    def fake_get_mtimes(path):
+        n = next(call_counter)
+        return {"file.py": float(n)}
+
+    sleep_calls: list[float] = []
+
+    def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+        if len(sleep_calls) >= 2:
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli_commands, "_get_project_mtimes", fake_get_mtimes)
+    monkeypatch.setattr(cli_commands.time, "sleep", fake_sleep)
+    monkeypatch.setattr(cli_commands.time, "strftime", lambda _: "00:00:01")
+
+    try:
+        cli_commands._serve_watch_loop(FakeState())
+    except KeyboardInterrupt:
+        pass
+
+    output = capsys.readouterr().out
+    assert "[error] Watch re-analysis failed: disk full" in output
+
+
+def test_get_project_mtimes_handles_oserror(monkeypatch, tmp_path) -> None:
+    src_file = tmp_path / "app.py"
+    src_file.write_text("x = 1\n", encoding="utf-8")
+
+    import archmap.utils.file_utils as fu
+    monkeypatch.setattr(fu, "discover_source_files", lambda _: [src_file])
+
+    original_stat = Path.stat
+
+    def patched_stat(self, **kwargs):
+        if str(self) == str(src_file):
+            raise OSError("permission denied")
+        return original_stat(self, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", patched_stat)
+    result = cli_commands._get_project_mtimes(tmp_path)
+    assert isinstance(result, dict)
+    assert str(src_file) not in result

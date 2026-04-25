@@ -2,7 +2,7 @@
 
 Original distributor and primary author:
 
-- **Kaua Gabriel** (Kaua-KGzin)
+- **Kaua Gabriel / Kauã Gabriel** (Kaua-KGzin)
 
 Redistributions must preserve:
 

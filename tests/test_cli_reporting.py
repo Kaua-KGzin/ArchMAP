@@ -309,3 +309,224 @@ def test_evaluate_quality_gates_returns_empty_when_disabled() -> None:
     )
 
     assert reporting.evaluate_quality_gates(report, args) == []
+
+
+def test_evaluate_quality_gates_triggers_cycle_gate() -> None:
+    report = {
+        "metrics": {"circularDependencyCount": 2},
+        "risks": {},
+        "architecture": {},
+    }
+    args = Namespace(
+        fail_on_cycles=True,
+        fail_on_layer_violations=False,
+        fail_on_god_modules=False,
+        fail_on_dependency_explosions=False,
+        fail_on_custom_rules=False,
+        fail_on_risks=False,
+        min_health=None,
+    )
+
+    failures = reporting.evaluate_quality_gates(report, args)
+    assert len(failures) == 1
+    assert "cycle gate" in failures[0]
+    assert "2" in failures[0]
+
+
+def test_evaluate_quality_gates_triggers_min_health_gate() -> None:
+    report = {
+        "metrics": {},
+        "risks": {},
+        "architecture": {"health": {"score": 55}},
+    }
+    args = Namespace(
+        fail_on_cycles=False,
+        fail_on_layer_violations=False,
+        fail_on_god_modules=False,
+        fail_on_dependency_explosions=False,
+        fail_on_custom_rules=False,
+        fail_on_risks=False,
+        min_health=70,
+    )
+
+    failures = reporting.evaluate_quality_gates(report, args)
+    assert len(failures) == 1
+    assert "health gate" in failures[0]
+    assert "55" in failures[0]
+    assert "70" in failures[0]
+
+
+def test_evaluate_quality_gates_triggers_fail_on_risks_gate() -> None:
+    report = {
+        "metrics": {"circularDependencyCount": 1},
+        "risks": {
+            "layer_violations": [{"rule": "a -> b"}],
+            "god_modules": [],
+            "dependency_explosions": [],
+        },
+        "architecture": {"ruleViolations": []},
+    }
+    args = Namespace(
+        fail_on_cycles=False,
+        fail_on_layer_violations=False,
+        fail_on_god_modules=False,
+        fail_on_dependency_explosions=False,
+        fail_on_custom_rules=False,
+        fail_on_risks=True,
+        min_health=None,
+    )
+
+    failures = reporting.evaluate_quality_gates(report, args)
+    assert len(failures) == 1
+    assert "risk gate" in failures[0]
+
+
+def test_print_human_insights_renders_problems_and_actions(capsys) -> None:
+    report = {
+        "insights": {
+            "status": "warning",
+            "message": "Architecture needs attention",
+            "problems": ["Circular dependency in auth"],
+            "actions": ["Extract shared types to break cycle"],
+        }
+    }
+
+    reporting.print_human_insights(report)
+
+    output = capsys.readouterr().out
+    assert "[insight] Architectural reading" in output
+    assert "Status: WARNING" in output
+    assert "Circular dependency in auth" in output
+    assert "Extract shared types to break cycle" in output
+
+
+def test_print_human_insights_skips_empty_report(capsys) -> None:
+    reporting.print_human_insights({})
+    assert capsys.readouterr().out == ""
+
+
+def test_print_project_explanation_renders_content(capsys) -> None:
+    report = {
+        "explanation": {
+            "architecture": "Layered",
+            "simple": "Three layers: api, services, core",
+            "technical": "api -> services -> core with no back-edges",
+        }
+    }
+
+    reporting.print_project_explanation(report)
+
+    output = capsys.readouterr().out
+    assert "[explain] Project summary" in output
+    assert "Layered" in output
+    assert "Three layers" in output
+    assert "Technical view:" in output
+
+
+def test_print_impact_analysis_no_downstream(capsys) -> None:
+    report = {
+        "nodes": [
+            {
+                "id": "src/leaf.py",
+                "impact": {"impactedFiles": [], "impactCount": 0, "risk": "low"},
+            }
+        ]
+    }
+
+    reporting.print_impact_analysis(report, "src/leaf.py")
+
+    output = capsys.readouterr().out
+    assert "No downstream files" in output
+
+
+def test_print_impact_analysis_file_not_found(capsys) -> None:
+    reporting.print_impact_analysis({"nodes": []}, "missing.py")
+
+    output = capsys.readouterr().out
+    assert "[error]" in output
+    assert "missing.py" in output
+
+
+def test_print_risk_report_renders_payload(capsys) -> None:
+    payload = {
+        "file": "src/auth.py",
+        "riskScore": 88,
+        "signals": ["cycle", "god-module"],
+        "incoming": 5,
+        "outgoing": 7,
+        "impact": {"impactCount": 3, "impactedFiles": ["a.py", "b.py", "c.py"]},
+    }
+
+    reporting.print_risk_report(payload, max_impacted=5)
+
+    output = capsys.readouterr().out
+    assert "[risk] src/auth.py" in output
+    assert "Risk score: 88" in output
+    assert "cycle, god-module" in output
+    assert "Incoming dependencies: 5" in output
+    assert "Outgoing dependencies: 7" in output
+    assert "a.py" in output
+
+
+def test_print_improve_report_renders_groups_and_moves(capsys) -> None:
+    suggestions = {
+        "summary": "2 groups suggested",
+        "groups": [{"name": "auth", "count": 3}],
+        "moves": [
+            {"source": "src/a.py", "target": "auth/a.py"},
+        ],
+    }
+
+    reporting.print_improve_report(suggestions)
+
+    output = capsys.readouterr().out
+    assert "[improve] Automatic architecture suggestions" in output
+    assert "/auth (3 file(s))" in output
+    assert "src/a.py -> auth/a.py" in output
+
+
+def test_export_outputs_json_only(monkeypatch) -> None:
+    from pathlib import Path as _Path
+
+    exported: list[str] = []
+    monkeypatch.setattr(
+        reporting,
+        "export_graph_as_json",
+        lambda r, o: exported.append("json") or _Path(o),
+    )
+
+    result = reporting.export_outputs(
+        report={"graph": True},
+        output_format="json",
+        json_output="out.json",
+        mermaid_output="out.mmd",
+        cytoscape_output="out-cytoscape.json",
+        include_cytoscape=False,
+    )
+
+    assert result["jsonPath"] == "out.json"
+    assert result["mermaidPath"] is None
+    assert result["cytoscapePath"] is None
+    assert exported == ["json"]
+
+
+def test_export_outputs_mermaid_no_subgraphs(monkeypatch) -> None:
+    captured: list[dict] = []
+
+    def fake_mermaid(report, output, **kwargs):
+        captured.append(kwargs)
+        return __import__("pathlib").Path(output)
+
+    monkeypatch.setattr(reporting, "export_graph_as_mermaid", fake_mermaid)
+
+    reporting.export_outputs(
+        report={},
+        output_format="mermaid",
+        json_output="out.json",
+        mermaid_output="out.mmd",
+        cytoscape_output="out-cytoscape.json",
+        include_cytoscape=False,
+        no_subgraphs=True,
+    )
+
+    assert captured[0].get("no_subgraphs") is True

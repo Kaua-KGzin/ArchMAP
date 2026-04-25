@@ -134,8 +134,8 @@ def test_resolve_static_dir_falls_back_to_source_checkout(monkeypatch) -> None:
 
 
 def test_server_helpers_handle_browser_hosts(monkeypatch) -> None:
-    monkeypatch.setattr(cli_server, "_is_termux", lambda: False)
-    monkeypatch.setattr(cli_server, "_has_display", lambda: True)
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.delenv("TERMUX_VERSION", raising=False)
     assert cli_server.can_open_browser("localhost") is True
     assert cli_server.can_open_browser("10.0.0.4") is False
     assert cli_server.browser_host("0.0.0.0") == "localhost"
@@ -308,6 +308,237 @@ def test_build_http_handler_opens_selected_file_node(tmp_path, monkeypatch) -> N
     assert opened_paths == [target_file.resolve()]
 
 
+def test_build_http_handler_rejects_nonexistent_path_in_set_project(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    state = StubState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        status, payload = request_json(
+            f"{base_url}/api/project",
+            method="POST",
+            payload={"path": str(tmp_path / "does-not-exist")},
+        )
+
+    assert status == 400
+    assert payload["status"] == "error"
+    assert "directory" in payload["message"]
+
+
+def test_build_http_handler_rejects_file_path_in_set_project(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    file_path = tmp_path / "somefile.py"
+    file_path.write_text("x = 1\n", encoding="utf-8")
+    state = StubState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        status, payload = request_json(
+            f"{base_url}/api/project",
+            method="POST",
+            payload={"path": str(file_path)},
+        )
+
+    assert status == 400
+    assert payload["status"] == "error"
+    assert "directory" in payload["message"]
+
+
+def test_build_http_handler_reanalyze_rate_limited(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    state = StubState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        status1, _ = request_json(f"{base_url}/api/reanalyze", method="POST")
+        status2, payload2 = request_json(f"{base_url}/api/reanalyze", method="POST")
+
+    assert status1 == 200
+    assert status2 == 429
+    assert payload2["status"] == "error"
+    assert "rate limit" in payload2["message"]
+
+
+def test_build_http_handler_reanalyze_error_path(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+
+    class ErrorState(StubState):
+        def reanalyze(self) -> None:
+            raise RuntimeError("disk full")
+
+    state = ErrorState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        status, payload = request_json(f"{base_url}/api/reanalyze", method="POST")
+
+    assert status == 500
+    assert payload["status"] == "error"
+    assert "disk full" in payload["message"]
+
+
+def test_build_http_handler_set_project_error_path(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+
+    class ErrorState(StubState):
+        def set_path(self, new_path) -> None:
+            raise RuntimeError("cannot read")
+
+    state = ErrorState(project_dir)
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        status, payload = request_json(
+            f"{base_url}/api/project",
+            method="POST",
+            payload={"path": str(project_dir)},
+        )
+
+    assert status == 500
+    assert payload["status"] == "error"
+    assert "cannot read" in payload["message"]
+
+
+def test_build_http_handler_history_error_path(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+
+    class ErrorState(StubState):
+        def history(self, *, ref="HEAD", limit=12):
+            raise RuntimeError("no git repo")
+
+    state = ErrorState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        status, payload = request_json(f"{base_url}/api/history", method="GET")
+
+    assert status == 500
+    assert payload["status"] == "error"
+    assert "no git repo" in payload["message"]
+
+
+def test_build_http_handler_unknown_post_returns_404(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    state = StubState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        request = Request(f"{base_url}/api/unknown-endpoint", data=b"", method="POST")
+        try:
+            with __import__("urllib.request", fromlist=["urlopen"]).urlopen(request):
+                pass
+        except __import__("urllib.error", fromlist=["HTTPError"]).HTTPError as exc:
+            status = exc.code
+
+    assert status == 404
+
+
+def test_build_http_handler_history_cache_hit(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    history_calls: list[tuple[str, int]] = []
+
+    class CachingState(StubState):
+        def __init__(self, path):
+            super().__init__(path)
+            self._cache: dict = {}
+
+        def history(self, *, ref="HEAD", limit=12):
+            key = (ref, limit)
+            if key not in self._cache:
+                history_calls.append((ref, limit))
+                self._cache[key] = super().history(ref=ref, limit=limit)
+            return self._cache[key]
+
+    state = CachingState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        request_json(f"{base_url}/api/history?ref=HEAD&limit=5")
+        request_json(f"{base_url}/api/history?ref=HEAD&limit=5")
+
+    assert len(history_calls) == 1
+
+
+def test_build_http_handler_security_headers_present(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    state = StubState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        import urllib.request
+        with urllib.request.urlopen(f"{base_url}/api/graph") as response:
+            headers = dict(response.headers)
+
+    assert headers.get("X-Content-Type-Options") == "nosniff"
+    assert headers.get("X-Frame-Options") == "SAMEORIGIN"
+    assert "default-src 'self'" in headers.get("Content-Security-Policy", "")
+
+
+def test_build_http_handler_open_project_error_on_set_path(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    new_path = tmp_path / "next"
+    new_path.mkdir()
+
+    class ErrorState(StubState):
+        def set_path(self, new_path) -> None:
+            raise OSError("read-only filesystem")
+
+    state = ErrorState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+    handler._pick_directory = lambda self: (new_path, None)
+
+    with run_handler_server(handler) as base_url:
+        status, payload = request_json(f"{base_url}/api/open", method="POST", payload={})
+
+    assert status == 500
+    assert payload["status"] == "error"
+    assert "read-only filesystem" in payload["message"]
+
+
+def test_build_http_handler_open_file_error_on_open(tmp_path, monkeypatch) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    project_root = tmp_path / "project"
+    source_dir = project_root / "src"
+    source_dir.mkdir(parents=True)
+    target_file = source_dir / "app.py"
+    target_file.write_text("x = 1\n", encoding="utf-8")
+
+    state = StubState(project_root)
+    state.report = {
+        "projectRoot": str(project_root),
+        "nodes": [{"id": "src/app.py", "label": "app.py", "type": "file"}],
+        "edges": [],
+    }
+
+    def raise_oserror(path):
+        raise OSError("no editor found")
+
+    monkeypatch.setattr(cli_server, "_open_local_path", raise_oserror)
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        status, payload = request_json(
+            f"{base_url}/api/open-file", method="POST", payload={"nodeId": "src/app.py"}
+        )
+
+    assert status == 500
+    assert payload["status"] == "error"
+    assert "no editor found" in payload["message"]
+
+
 def test_build_http_handler_requires_valid_file_node_for_open_file(tmp_path) -> None:
     static_dir = tmp_path / "static"
     static_dir.mkdir()
@@ -347,3 +578,37 @@ def test_build_http_handler_requires_valid_file_node_for_open_file(tmp_path) -> 
         "status": "error",
         "message": "File node not found or unavailable: requests",
     }
+
+
+def test_open_endpoints_forbidden_for_remote_clients(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    state = StubState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    # Simulate a non-local client by patching _is_local_request on the class
+    handler._is_local_request = lambda self: False  # type: ignore[method-assign]
+
+    with run_handler_server(handler) as base_url:
+        status_open, payload_open = request_json(f"{base_url}/api/open", method="POST")
+        status_file, payload_file = request_json(f"{base_url}/api/open-file", method="POST")
+
+    assert status_open == 403
+    assert payload_open == {"status": "error", "message": "only available on localhost"}
+    assert status_file == 403
+    assert payload_file == {"status": "error", "message": "only available on localhost"}
+
+
+def test_is_local_request_allows_loopback_addresses(tmp_path) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    state = StubState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    for addr in ("127.0.0.1", "::1", "localhost"):
+        instance = handler.__new__(handler)
+        instance.client_address = (addr, 12345)
+        assert instance._is_local_request() is True
+
+    instance.client_address = ("192.168.1.10", 12345)
+    assert instance._is_local_request() is False

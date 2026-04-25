@@ -13,15 +13,16 @@ class ParserPlugin(Protocol):
     extensions: list[str]
     language: str
 
-    def parse(self, source_code: str) -> list[Any]: ...
+    def parse(self, source_code: str) -> list[Any]:
+        ...
 
     def resolve(
         self,
         import_entries: list[Any],
         file_id: str,
         file_ids: set[str],
-        **kwargs: Any,
-    ) -> list[Dependency]: ...
+    ) -> list[Dependency]:
+        ...
 
 
 class LanguageRegistry:

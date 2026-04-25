@@ -11,7 +11,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from archmap import __version__
-from archmap.cli.defaults import DEFAULT_TOP_ITEMS
+from archmap.cli.defaults import DEFAULT_SARIF_OUTPUT_PATH, DEFAULT_TOP_ITEMS
 from archmap.cli.reporting import (
     evaluate_quality_gates,
     export_outputs,
@@ -45,6 +45,16 @@ from archmap.core.analyzer import (
 )
 from archmap.utils.file_utils import normalize_file_id
 
+
+def _resolve_sarif_path(args: argparse.Namespace) -> str | None:
+    sarif_path = getattr(args, "out_sarif", None)
+    if sarif_path:
+        return sarif_path
+    if getattr(args, "sarif", False):
+        return DEFAULT_SARIF_OUTPUT_PATH
+    return None
+
+
 KNOWN_INIT_IGNORE_DIRS = {
     ".eggs",
     ".mypy_cache",
@@ -70,24 +80,21 @@ KNOWN_INIT_IGNORE_DIRS = {
 
 def run_analyze(args: argparse.Namespace) -> int:
     quiet = getattr(args, "quiet", False)
-    no_cache = getattr(args, "no_cache", False)
-    sarif_path = _resolve_sarif_output(args)
-
-    report = analyze_project(
-        args.path, parallel=getattr(args, "parallel", None), use_cache=not no_cache
-    )
+    report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
     export_kwargs = {
         "report": report,
         "output_format": args.format,
         "json_output": args.out,
         "mermaid_output": args.out_mermaid,
         "cytoscape_output": args.out_cytoscape,
-        "sarif_output": sarif_path,
         "include_cytoscape": args.include_cytoscape,
         "no_subgraphs": getattr(args, "no_subgraphs", False),
+        "sarif_output": _resolve_sarif_path(args),
     }
 
-    export_result = export_outputs(**export_kwargs)
+    export_result = export_outputs(
+        **export_kwargs,
+    )
 
     if not quiet:
         top_count = max(0, int(args.top))
@@ -113,32 +120,17 @@ def run_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
-def _resolve_sarif_output(args: argparse.Namespace) -> str | None:
-    from archmap.cli.defaults import DEFAULT_SARIF_OUTPUT_PATH
-
-    out_sarif = getattr(args, "out_sarif", None)
-    include_sarif = getattr(args, "sarif", False)
-    if out_sarif:
-        return out_sarif
-    if include_sarif:
-        return DEFAULT_SARIF_OUTPUT_PATH
-    return None
-
-
 def run_serve(args: argparse.Namespace) -> int:
-    no_cache = getattr(args, "no_cache", False)
-    state = ReportState.from_path(
-        args.path, parallel=getattr(args, "parallel", None), use_cache=not no_cache
-    )
+    state = ReportState.from_path(args.path, parallel=getattr(args, "parallel", None))
     export_kwargs = {
         "report": state.report,
         "output_format": args.format,
         "json_output": args.out,
         "mermaid_output": args.out_mermaid,
         "cytoscape_output": args.out_cytoscape,
-        "sarif_output": _resolve_sarif_output(args),
         "include_cytoscape": args.include_cytoscape,
         "no_subgraphs": getattr(args, "no_subgraphs", False),
+        "sarif_output": _resolve_sarif_path(args),
     }
 
     export_result = export_outputs(**export_kwargs)
@@ -161,9 +153,8 @@ def run_serve(args: argparse.Namespace) -> int:
     browser_url = f"http://{host_for_browser}:{args.port}"
     bind_url = f"http://{args.host}:{args.port}"
 
-    browser_opened = False
     if not args.no_open and can_open_browser(args.host):
-        browser_opened = webbrowser.open(browser_url, new=2, autoraise=False)
+        webbrowser.open(browser_url, new=2, autoraise=False)
 
     if getattr(args, "watch", False):
         watcher_thread = threading.Thread(
@@ -178,8 +169,6 @@ def run_serve(args: argparse.Namespace) -> int:
     print(f"[info] Web UI available at {browser_url}")
     if bind_url != browser_url:
         print(f"[info] Listening on {bind_url}")
-    if not browser_opened:
-        print(f"[hint] Open {browser_url} in your browser to view the interactive graph.")
     print("[info] Press Ctrl+C to stop.")
     try:
         server.serve_forever()
