@@ -11,7 +11,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from archmap import __version__
-from archmap.cli.defaults import DEFAULT_TOP_ITEMS
+from archmap.cli.defaults import DEFAULT_SARIF_OUTPUT_PATH, DEFAULT_TOP_ITEMS
 from archmap.cli.reporting import (
     evaluate_quality_gates,
     export_outputs,
@@ -36,20 +36,24 @@ from archmap.cli.server import (
     resolve_static_dir,
 )
 from archmap.core import analyze_project
-from archmap.core.analyzer import analyze_git_ref, diff_reports
+from archmap.core.analyzer import (
+    analyze_git_history,
+    analyze_git_ref,
+    diff_reports,
+    generate_refactor_script,
+    suggest_architecture,
+)
 from archmap.utils.file_utils import normalize_file_id
 
 
-def analyze_git_history(*_args, **_kwargs) -> dict:
-    raise NotImplementedError("git history analysis was removed in v0.7.0")
+def _resolve_sarif_path(args: argparse.Namespace) -> str | None:
+    sarif_path = getattr(args, "out_sarif", None)
+    if sarif_path:
+        return sarif_path
+    if getattr(args, "sarif", False):
+        return DEFAULT_SARIF_OUTPUT_PATH
+    return None
 
-
-def generate_refactor_script(*_args, **_kwargs) -> str:
-    raise NotImplementedError("refactor script generation was removed in v0.7.0")
-
-
-def suggest_architecture(*_args, **_kwargs) -> dict:
-    raise NotImplementedError("architecture suggestion was removed in v0.7.0")
 
 KNOWN_INIT_IGNORE_DIRS = {
     ".eggs",
@@ -86,7 +90,7 @@ def run_analyze(args: argparse.Namespace) -> int:
         "cytoscape_output": args.out_cytoscape,
         "include_cytoscape": args.include_cytoscape,
         "no_subgraphs": getattr(args, "no_subgraphs", False),
-        "sarif_output": getattr(args, "sarif", None),
+        "sarif_output": _resolve_sarif_path(args),
     }
 
     export_result = export_outputs(
@@ -127,7 +131,7 @@ def run_serve(args: argparse.Namespace) -> int:
         "cytoscape_output": args.out_cytoscape,
         "include_cytoscape": args.include_cytoscape,
         "no_subgraphs": getattr(args, "no_subgraphs", False),
-        "sarif_output": getattr(args, "sarif", None),
+        "sarif_output": _resolve_sarif_path(args),
     }
 
     export_result = export_outputs(**export_kwargs)
