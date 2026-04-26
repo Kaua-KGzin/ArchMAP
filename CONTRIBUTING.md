@@ -1,6 +1,6 @@
 # Contributing to ArchMAP
 
-Thanks for contributing! Please read our [Code of Conduct](./CODE_OF_CONDUCT.md) first.
+Thanks for contributing! Please read our [Code of Conduct](./code-of-conduct.md) first.
 
 ## Prerequisites
 
