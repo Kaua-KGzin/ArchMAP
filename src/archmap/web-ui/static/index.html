@@ -1,113 +1,261 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ArchMAP</title>
+  <title>ArchMAP — Service Map</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
-    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
-
 <body>
   <div class="workspace">
+
+    <!-- NAV RAIL -->
     <nav class="nav-rail" aria-label="Main">
       <div class="rail-logo">AM</div>
-      <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">G</button>
-      <button class="rail-btn" id="openProjectBtn" title="Open Project (Folder)">
-        📁
+
+      <button class="rail-btn rail-btn-active" type="button" aria-label="Graph view">
+        <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 7.5l3 9M16.5 7.5l-3 9M8 6h8"/></svg>
+        <span class="rail-tooltip">Graph view</span>
       </button>
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">🌓</button>
+
+      <button class="rail-btn" type="button" aria-label="Insights">
+        <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9-6-18-3 9H2"/></svg>
+        <span class="rail-tooltip">Insights</span>
+      </button>
+
+      <button class="rail-btn" type="button" aria-label="Rules">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        <span class="rail-tooltip">Rules</span>
+      </button>
+
+      <div class="rail-divider"></div>
+
+      <button class="rail-btn" id="openProjectBtn" type="button" aria-label="Open project">
+        <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <span class="rail-tooltip">Open project</span>
+      </button>
+
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="rail-tooltip">Toggle theme</span>
+      </button>
     </nav>
 
+    <!-- LEFT PANEL -->
     <aside class="left-panel">
-      <header class="panel-header card">
-        <p class="eyebrow">ArchMAP</p>
-        <h1>Service Map</h1>
-        <p class="subtitle">Dependency topology and architectural risk hotspots.</p>
+
+      <header class="card panel-header">
+        <div class="card-body">
+          <p class="eyebrow">ArchMAP</p>
+          <h1 class="title">Service Map</h1>
+          <p class="subtitle">Dependency topology and architectural risk hotspots.</p>
+          <div class="project-row">
+            <span class="project-chip" id="projectChip">
+              <span class="dot-ok"></span>
+              <span id="projectPath">Loading…</span>
+            </span>
+          </div>
+        </div>
       </header>
 
+      <!-- Architecture Health -->
       <section class="card">
-        <h2>Risks & Anomalies</h2>
-        <div id="risksSummary" class="selection-muted">No high-risk architectural smells detected.</div>
-      </section>
-
-      <section class="card">
-        <h2>Flows</h2>
-        <label class="field">
-          <span>Filter by folder</span>
-          <select id="folderFilter"></select>
-        </label>
-
-        <label class="switch">
-          <input id="cyclesOnly" type="checkbox" />
-          <span>Highlight only circular dependencies</span>
-        </label>
-
-        <label class="switch">
-          <input id="heatmapMode" type="checkbox" />
-          <span>Heatmap mode (complexity)</span>
-        </label>
-
-        <div class="actions">
-          <button id="zoomInBtn" type="button">Zoom +</button>
-          <button id="zoomOutBtn" type="button">Zoom -</button>
-          <button id="fitBtn" type="button">Fit</button>
-          <button id="layoutBtn" type="button">Relayout</button>
-          <button id="resetBtn" type="button">Clear highlight</button>
+        <div class="card-head">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9-6-18-3 9H2"/></svg></span>
+          <h2>Architecture Health</h2>
+          <span class="count-pill" id="healthPill">—</span>
+        </div>
+        <div class="card-body">
+          <div class="health-row">
+            <div class="health-gauge" aria-label="Health score">
+              <svg viewBox="0 0 36 36">
+                <circle class="gauge-track" cx="18" cy="18" r="15.5" stroke-width="3" fill="none"/>
+                <circle class="gauge-bar" cx="18" cy="18" r="15.5" stroke-width="3" fill="none"
+                        stroke-linecap="round" stroke-dasharray="97.4 97.4"
+                        stroke-dashoffset="97.4" transform="rotate(-90 18 18)"/>
+              </svg>
+              <span class="label" id="gaugeLabel">—</span>
+            </div>
+            <div class="health-meta">
+              <span class="status" id="healthStatus"><span class="pulse"></span>Loading…</span>
+              <p class="desc" id="healthDesc"></p>
+            </div>
+          </div>
+          <div class="bar-rows">
+            <div class="bar-row"><span class="lbl">Cycles</span><div class="bar-track"><span class="bar-fill warn" id="barCycles" style="width:0%"></span></div><span class="val" id="valCycles">—</span></div>
+            <div class="bar-row"><span class="lbl">Layer viol.</span><div class="bar-track"><span class="bar-fill ok" id="barViols" style="width:0%"></span></div><span class="val" id="valViols">—</span></div>
+            <div class="bar-row"><span class="lbl">God files</span><div class="bar-track"><span class="bar-fill warn" id="barGods" style="width:0%"></span></div><span class="val" id="valGods">—</span></div>
+            <div class="bar-row"><span class="lbl">Avg complex.</span><div class="bar-track"><span class="bar-fill ok" id="barComplex" style="width:0%"></span></div><span class="val" id="valComplex">—</span></div>
+          </div>
         </div>
       </section>
 
+      <!-- Risks -->
       <section class="card">
-        <h2>Critical files</h2>
-        <ol id="criticalList"></ol>
+        <div class="card-head">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>
+          <h2>Risks & Anomalies</h2>
+          <span class="count-pill" id="risksPill">0</span>
+        </div>
+        <div id="risksSummary" class="card-body--list"></div>
+      </section>
+
+      <!-- Graph Controls -->
+      <section class="card">
+        <div class="card-head">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg></span>
+          <h2>Graph Controls</h2>
+        </div>
+        <div class="card-body">
+          <label class="field">
+            <span>Filter by folder</span>
+            <select id="folderFilter"></select>
+          </label>
+          <label class="switch">
+            <input id="cyclesOnly" type="checkbox" />
+            <span>Only circular dependencies</span>
+          </label>
+          <label class="switch">
+            <input id="heatmapMode" type="checkbox" />
+            <span>Heatmap (complexity)</span>
+          </label>
+          <div class="actions">
+            <button id="zoomInBtn" type="button">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M11 8v6M8 11h6M21 21l-4.35-4.35"/></svg>
+              Zoom +
+            </button>
+            <button id="zoomOutBtn" type="button">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M21 21l-4.35-4.35"/></svg>
+              Zoom −
+            </button>
+            <button id="fitBtn" type="button">
+              <svg viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
+              Fit
+            </button>
+            <button id="layoutBtn" type="button">
+              <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.4L21 3v6h-6"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 21v-6h6"/></svg>
+              Relayout
+            </button>
+            <button id="resetBtn" type="button" class="ghost" style="grid-column:1/-1">
+              <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              Clear highlight
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Critical files -->
+      <section class="card">
+        <div class="card-head">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+          <h2>Critical files</h2>
+          <span class="count-pill" id="criticalPill">0</span>
+        </div>
+        <ol id="criticalList" class="list"></ol>
       </section>
     </aside>
 
+    <!-- CANVAS -->
     <main class="canvas-panel">
       <header class="canvas-toolbar">
         <div class="toolbar-title-group">
-          <p class="toolbar-kicker">Production</p>
-          <div style="display: flex; align-items: center;">
-            <h2 class="toolbar-title">Dependency Graph</h2>
-            <button id="refreshBtn" class="refresh-btn">Refresh</button>
-          </div>
+          <span class="breadcrumb">
+            <span id="breadcrumbProject">—</span>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-now">Dependency Graph</span>
+          </span>
+          <h2 class="toolbar-title">Dependency Graph</h2>
         </div>
-        <input id="searchInput" type="search" placeholder="Search files or packages"
-          aria-label="Search files or packages" />
+
+        <div class="toolbar-tabs" role="tablist">
+          <button class="active" type="button">Graph</button>
+          <button type="button">Layers</button>
+          <button type="button">Matrix</button>
+        </div>
+
+        <div class="toolbar-spacer"></div>
+
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input id="searchInput" type="search" placeholder="Search files or packages" aria-label="Search" />
+        </div>
+
+        <button id="refreshBtn" class="primary" type="button">
+          <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.4L21 3v6h-6"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 21v-6h6"/></svg>
+          Refresh
+        </button>
       </header>
-      <div id="graph"></div>
+
+      <div id="graph">
+        <aside class="mini-map" aria-label="Mini map">
+          <div class="mini-map-head"><span>Mini map</span><span class="mono" id="zoomPct">100%</span></div>
+          <div class="mini-map-body">
+            <div class="viewport"></div>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="canvas-statusbar">
+        <span class="legend-pill"><span class="swatch file"></span>File</span>
+        <span class="sep"></span>
+        <span class="legend-pill"><span class="swatch pkg"></span>Package</span>
+        <span class="sep"></span>
+        <span class="legend-pill"><span class="swatch cycle"></span>Cycle</span>
+        <span class="sep"></span>
+        <span id="statusCounts"><span class="mono">0</span> nodes · <span class="mono">0</span> edges · <span class="mono">0</span> cycles</span>
+        <span class="zoom-readout">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+          <span class="mono" id="zoomReadout">100%</span>
+        </span>
+      </footer>
     </main>
 
+    <!-- RIGHT PANEL -->
     <aside class="right-panel">
+
       <section class="card">
-        <h2>Summary</h2>
-        <div id="summary"></div>
+        <div class="card-head">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-7"/></svg></span>
+          <h2>Summary</h2>
+        </div>
+        <div class="card-body">
+          <div id="summary" class="kpi-grid"></div>
+        </div>
       </section>
 
       <section class="card">
-        <h2>Selection</h2>
-        <div id="selectionInfo" class="selection-muted">Click a node to inspect dependencies.</div>
+        <div class="card-head">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51z"/><path d="M13 13l6 6"/></svg></span>
+          <h2>Selection</h2>
+        </div>
+        <div id="selectionInfo" class="card-body">
+          <p class="selection-muted">Click a node to inspect dependencies.</p>
+        </div>
       </section>
 
       <section class="card">
-        <h2>Circular deps</h2>
-        <ol id="cyclesList"></ol>
+        <div class="card-head">
+          <span class="ico" style="background:var(--danger-soft);color:var(--danger)"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 12V8M3 12h4"/></svg></span>
+          <h2>Circular deps</h2>
+          <span class="count-pill" id="cyclesPill" style="color:var(--danger)">0</span>
+        </div>
+        <ol id="cyclesList" class="list" style="padding:0"></ol>
       </section>
 
       <section class="card">
-        <h2>Heatmap legend</h2>
-        <div id="heatmapLegend" class="legend legend-hidden">
-          <div class="legend-bar"></div>
-          <div class="legend-labels">
-            <span>Low</span>
-            <span>Medium</span>
-            <span>High</span>
+        <div class="card-head">
+          <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
+          <h2>Heatmap legend</h2>
+        </div>
+        <div class="card-body">
+          <div id="heatmapLegend" class="legend legend-hidden">
+            <div class="legend-bar"></div>
+            <div class="legend-labels"><span>Low</span><span>Medium</span><span>High</span></div>
           </div>
+          <p class="subtitle" style="margin-top:8px;font-size:11.5px">Toggle "Heatmap mode" to color nodes by import complexity.</p>
         </div>
       </section>
     </aside>
@@ -116,5 +264,4 @@
   <script src="/cytoscape.min.js"></script>
   <script src="/app.js" type="module"></script>
 </body>
-
 </html>
