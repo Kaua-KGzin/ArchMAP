@@ -28,7 +28,9 @@ const el = {
 };
 
 let cy = null;
+let cyLayers = null;
 let controlsBound = false;
+let reportData = null;
 
 const savedTheme = localStorage.getItem("archmap-theme") || "light";
 document.documentElement.setAttribute("data-theme", savedTheme);
@@ -43,6 +45,7 @@ async function init() {
     const res = await fetch("/api/graph");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const report = await res.json();
+    reportData = report;
     fillSidebar(report);
     if (cy) { cy.destroy(); cy = null; }
     initGraph(report);
@@ -418,6 +421,16 @@ function bindControls() {
     } catch { /* ignored */ }
     finally { el.openProjectBtn.classList.remove("loading"); }
   });
+
+  // Nav rail — left panel view switching
+  document.getElementById("navBtnGraph")?.addEventListener("click",    () => switchLeftView("graph"));
+  document.getElementById("navBtnInsights")?.addEventListener("click", () => switchLeftView("insights"));
+  document.getElementById("navBtnRules")?.addEventListener("click",    () => switchLeftView("rules"));
+
+  // Canvas tab switching
+  document.getElementById("canvasTabGraph")?.addEventListener("click",   () => switchCanvasTab("graph"));
+  document.getElementById("canvasTabLayers")?.addEventListener("click",  () => switchCanvasTab("layers"));
+  document.getElementById("canvasTabMatrix")?.addEventListener("click",  () => switchCanvasTab("matrix"));
 }
 
 /* ============================================================
@@ -506,6 +519,184 @@ function renderSelection(node) {
     ${outgoing.length ? `<div class="sel-section-title">Depends on (${outTotal})</div>${depsHtml(outgoing, outTotal, "→")}` : ""}
     ${incoming.length ? `<div class="sel-section-title">Used by (${inTotal})</div>${depsHtml(incoming, inTotal, "←")}` : ""}
   `;
+}
+
+/* ============================================================
+   Navigation — left panel views
+   ============================================================ */
+
+const LP_NAV = { graph: ["lpGraph","navBtnGraph"], insights: ["lpInsights","navBtnInsights"], rules: ["lpRules","navBtnRules"] };
+
+function switchLeftView(key) {
+  for (const [k, [viewId, btnId]] of Object.entries(LP_NAV)) {
+    document.getElementById(viewId)?.classList.toggle("lp-hidden", k !== key);
+    document.getElementById(btnId)?.classList.toggle("rail-btn-active", k === key);
+  }
+  if (key === "insights" && reportData) renderInsights(reportData);
+  if (key === "rules"    && reportData) renderRules(reportData);
+}
+
+/* ============================================================
+   Navigation — canvas tabs
+   ============================================================ */
+
+const CV_TABS = {
+  graph:  { btn: "canvasTabGraph",  view: "graph",      title: "Dependency Graph" },
+  layers: { btn: "canvasTabLayers", view: "layersView",  title: "Layer Diagram"    },
+  matrix: { btn: "canvasTabMatrix", view: "matrixView",  title: "Dependency Matrix"},
+};
+
+function switchCanvasTab(key) {
+  for (const [k, cfg] of Object.entries(CV_TABS)) {
+    document.getElementById(cfg.view)?.classList.toggle("canvas-view-hidden", k !== key);
+    document.getElementById(cfg.btn)?.classList.toggle("active", k === key);
+  }
+  const title = CV_TABS[key]?.title ?? key;
+  const breadEl = document.getElementById("breadcrumbView");
+  const titleEl = document.getElementById("canvasTitle");
+  if (breadEl) breadEl.textContent = title;
+  if (titleEl) titleEl.textContent = title;
+
+  if (key === "layers" && reportData) initLayersView(reportData);
+  if (key === "matrix" && reportData) renderMatrix(reportData);
+}
+
+/* ============================================================
+   Layers view
+   ============================================================ */
+
+function initLayersView(report) {
+  if (cyLayers) { cyLayers.destroy(); cyLayers = null; }
+  const container = document.getElementById("layersCy");
+  if (!container) return;
+
+  cyLayers = cytoscape({
+    container,
+    elements: [
+      ...report.nodes.map(n => ({ data: { id: n.id, label: n.label, type: n.type, isCircular: Boolean(n.isCircular) } })),
+      ...report.edges.map(e => ({ data: { id: e.id, source: e.source, target: e.target, isCircular: Boolean(e.isCircular) } })),
+    ],
+    wheelSensitivity: 0.2,
+    style: buildStylesheet(),
+    layout: { name: "breadthfirst", directed: true, animate: true, fit: true, padding: 48, spacingFactor: 1.3, maximal: true },
+  });
+
+  const legend = document.getElementById("layersLegend");
+  if (legend) {
+    legend.innerHTML = `
+      <div class="layers-legend-title">Legend</div>
+      <div class="layers-legend-row"><span class="swatch" style="background:var(--file-node)"></span>File module</div>
+      <div class="layers-legend-row"><span class="swatch" style="background:var(--pkg-node)"></span>Package</div>
+      <div class="layers-legend-row"><span class="swatch" style="background:var(--cycle)"></span>In cycle</div>
+    `;
+  }
+}
+
+/* ============================================================
+   Matrix view
+   ============================================================ */
+
+function renderMatrix(report) {
+  const scroll = document.getElementById("matrixScroll");
+  if (!scroll) return;
+
+  const fileNodes = report.nodes
+    .filter(n => n.type === "file")
+    .sort((a, b) => ((b.outgoing ?? 0) + (b.incoming ?? 0)) - ((a.outgoing ?? 0) + (a.incoming ?? 0)))
+    .slice(0, 25);
+
+  if (fileNodes.length === 0) {
+    scroll.innerHTML = `<p style="color:var(--muted);font-size:12px;padding:12px 0">No file nodes to display.</p>`;
+    return;
+  }
+
+  const nodeIds = new Set(fileNodes.map(n => n.id));
+  const edgeMap = new Map();
+  for (const e of report.edges) {
+    if (nodeIds.has(e.source) && nodeIds.has(e.target))
+      edgeMap.set(`${e.source}\x00${e.target}`, e.isCircular ? "circular" : "dep");
+  }
+
+  const short = id => id.replace(/\\/g, "/").split("/").pop() || id;
+
+  const hdr = `<tr><th></th>${fileNodes.map(n => `<th title="${escHtml(n.id)}"><span>${escHtml(short(n.id))}</span></th>`).join("")}</tr>`;
+  const body = fileNodes.map(row => {
+    const cells = fileNodes.map(col => {
+      if (row.id === col.id) return `<td class="mx-cell self-dep" title="self"></td>`;
+      const t = edgeMap.get(`${row.id}\x00${col.id}`);
+      return t
+        ? `<td class="mx-cell ${t}" title="${escHtml(short(row.id))} → ${escHtml(short(col.id))}"></td>`
+        : `<td class="mx-cell"></td>`;
+    }).join("");
+    return `<tr><th title="${escHtml(row.id)}">${escHtml(short(row.id))}</th>${cells}</tr>`;
+  }).join("");
+
+  scroll.innerHTML = `<table class="mx-table"><thead>${hdr}</thead><tbody>${body}</tbody></table>`;
+}
+
+/* ============================================================
+   Insights view
+   ============================================================ */
+
+function renderInsights(report) {
+  const container = document.getElementById("insightsContent");
+  if (!container) return;
+  const m = report.metrics ?? {};
+  const score = Math.round(m.architectureHealthScore ?? 100);
+  const items = [
+    { label: "Health score",         val: `${score}/100` },
+    { label: "Files analysed",       val: m.filesAnalyzed ?? 0 },
+    { label: "Total dependencies",   val: m.totalDependencies ?? 0 },
+    { label: "Circular dependencies",val: m.circularDependencyCount ?? 0 },
+    { label: "External packages",    val: m.externalDependencies ?? 0 },
+    { label: "Rule violations",      val: m.architectureRuleViolations ?? 0 },
+    { label: "Avg complexity",       val: `${((m.complexity?.avgComplexityScore ?? 0) * 100).toFixed(1)}%` },
+    { label: "Critical files",       val: (m.criticalFiles ?? []).length },
+  ];
+  container.innerHTML = `<div class="insights-summary">${items.map(i =>
+    `<div class="insight-item"><p class="ins-label">${escHtml(i.label)}</p><p class="ins-val">${escHtml(String(i.val))}</p></div>`
+  ).join("")}</div>`;
+}
+
+/* ============================================================
+   Rules view
+   ============================================================ */
+
+function renderRules(report) {
+  const container = document.getElementById("rulesContent");
+  if (!container) return;
+  const viols = report.metrics?.architectureRuleViolations ?? 0;
+  const layers = report.layers ?? [];
+
+  if (layers.length === 0) {
+    container.innerHTML = `
+      <div class="rule-card">
+        <div class="rule-card-head">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          Architecture layers
+        </div>
+        <div class="rule-card-body">No layer rules configured. Add an <code>.archmap.toml</code> file to define your architecture layers and dependency rules.</div>
+      </div>
+      <div class="rule-card" style="margin-top:0">
+        <div class="rule-card-head">
+          <svg viewBox="0 0 24 24"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+          Violations
+        </div>
+        <div class="rule-card-body">${viols > 0 ? `${viols} rule violation${viols !== 1 ? "s" : ""} detected.` : "No violations detected."}</div>
+      </div>`;
+    return;
+  }
+
+  const cards = layers.map(layer =>
+    `<div class="rule-card">
+      <div class="rule-card-head">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        ${escHtml(layer.name ?? "Layer")}
+      </div>
+      <div class="rule-card-body">${escHtml(layer.description ?? "")}</div>
+    </div>`
+  ).join("");
+  container.innerHTML = cards;
 }
 
 /* ============================================================
