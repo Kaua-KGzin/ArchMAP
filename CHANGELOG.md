@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-04-27
+
+### Added
+- **Web UI — multi-view navigation**: nav rail now switches between three independent left-panel views (Graph, Insights, Rules & Layers).
+- **Web UI — Layer Diagram tab**: new canvas tab renders the dependency graph with a hierarchical breadth-first layout and a floating legend.
+- **Web UI — Dependency Matrix tab**: new canvas tab renders the top-25 most-connected files as a colour-coded dependency matrix (dependency, circular, self-reference).
+- **Web UI — Insights panel**: architecture metrics summary cards populated live from report data (health score, files, cycles, complexity, etc.).
+- **Web UI — Rules & Layers panel**: displays layer rule cards from `.archmap.toml`; shows a "no rules configured" placeholder when absent.
+- Breadcrumb and canvas title update dynamically when switching canvas tabs.
+
 ## [0.7.1] - 2026-04-27
 
 ### Fixed
