@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     name: Build distribution
+    if: vars.PYPI_ENABLED == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -33,6 +34,7 @@ jobs:
   publish:
     name: Publish to PyPI
     needs: build
+    if: vars.PYPI_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
