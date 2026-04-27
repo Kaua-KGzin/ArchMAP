@@ -11,8 +11,8 @@ Thanks for contributing! Please read our [Code of Conduct](./code-of-conduct.md)
 ## Setup
 
 ```bash
-git clone https://github.com/Kaua-KGzin/code-arch-visualizer
-cd code-arch-visualizer
+git clone https://github.com/Kaua-KGzin/ArchMAP
+cd ArchMAP
 python -m pip install -e ".[dev]"
 ```
 
