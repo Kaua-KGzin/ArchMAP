@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-04-27
+
+### Fixed
+- **Web UI**: bundle Cytoscape 3.30.2 locally — eliminates CDN dependency and fixes broken graph (CSP was blocking `unpkg.com`).
+- **Web UI**: correct Content-Security-Policy to allow Google Fonts while keeping scripts same-origin.
+- **CI (windows-exe)**: add `pillow` to PyInstaller deps so `icon.png` → `.ico` conversion works on the runner.
+- **PyPI publish**: align package name with PyPI project (`KG-ARCHMAP`) so OIDC trusted publisher accepts uploads.
+- **PyPI publish**: add `skip-existing: true` to avoid 400 errors on re-runs of the same tag.
+
+### Changed
+- **Web UI**: complete visual refresh — Inter + JetBrains Mono fonts, indigo design system, architecture health gauge, KPI tiles, ranked critical files list, selection grid, status bar, mini-map overlay.
+
 ## [0.7.0] - 2026-04-24
 
 ### Added
