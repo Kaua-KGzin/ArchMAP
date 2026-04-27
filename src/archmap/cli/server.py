@@ -327,8 +327,12 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             self.send_header("X-Frame-Options", "SAMEORIGIN")
             self.send_header(
                 "Content-Security-Policy",
-                "default-src 'self'; script-src 'self' 'unsafe-inline';"
-                " style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'",
+                "default-src 'self';"
+                " script-src 'self';"
+                " style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;"
+                " font-src 'self' https://fonts.gstatic.com;"
+                " img-src 'self' data:;"
+                " connect-src 'self'",
             )
             super().end_headers()
 
