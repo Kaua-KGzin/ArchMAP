@@ -7,8 +7,12 @@ build/
 site/
 *.log
 .codeatlas/
+.archmap/
 .venv/
 venv/
+
+# Local dev artifacts
+imgs/
 
 # Python bytecode
 __pycache__/

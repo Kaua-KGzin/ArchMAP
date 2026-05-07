@@ -1,11 +1,15 @@
 # archmap diff
 
-Compares the architecture between two git refs and prints a delta report.
+Compares architecture between two git refs **or two saved JSON snapshots** and prints a delta report.
 
 ## Usage
 
 ```bash
+# Git refs
 archmap diff <base_ref> <head_ref> [options]
+
+# JSON snapshots (no git required)
+archmap diff --snapshot-a <file> --snapshot-b <file> [options]
 ```
 
 ## Arguments
@@ -19,7 +23,9 @@ archmap diff <base_ref> <head_ref> [options]
 
 | Option | Default | Description |
 |---|---|---|
-| `--repo` | `.` | Path to the git repository |
+| `--repo` | `.` | Path to the git repository (git-ref mode only) |
+| `--snapshot-a` | — | Path to the baseline JSON snapshot file |
+| `--snapshot-b` | — | Path to the comparison JSON snapshot file |
 | `--json` | off | Output full diff as JSON instead of a summary |
 
 ## Examples
@@ -36,6 +42,10 @@ archmap diff v0.1.0 v0.2.0
 
 # Use JSON output for CI integration
 archmap diff HEAD~1 HEAD --json
+
+# Compare two saved snapshots (cross-machine or cross-deploy)
+archmap diff --snapshot-a before.json --snapshot-b after.json
+archmap diff --snapshot-a before.json --snapshot-b after.json --json
 ```
 
 ## Output

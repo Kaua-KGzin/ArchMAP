@@ -18,7 +18,7 @@ inputs:
     default: "3.13"
 
   archmap-version:
-    description: "ArchMAP version to install (e.g. '0.7.0'). Defaults to latest."
+    description: "ArchMAP version to install (e.g. '0.8.0'). Defaults to latest."
     required: false
     default: ""
 

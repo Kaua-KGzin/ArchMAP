@@ -3,7 +3,7 @@
 [![CI](https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml/badge.svg)](https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.7.0-orange)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8.0-orange)](./CHANGELOG.md)
 
 Static architecture analysis for software repositories.
 
@@ -22,7 +22,7 @@ Supported languages:
 
 ## Status
 
-- Current release: `v0.7.0`
+- Current release: `v0.8.0`
 - Primary runtime: Python `>=3.11`
 - Interactive UI: built-in static UI + Node dev server option
 - Distribution: PyPI package + Windows executable
@@ -114,8 +114,40 @@ archmap serve <path> --host 0.0.0.0 --port 3000
 ### Diff
 
 ```bash
+# Compare two git refs
 archmap diff HEAD~5 HEAD
+
+# Compare two saved JSON snapshots (no git required)
+archmap diff --snapshot-a before.json --snapshot-b after.json
+
 archmap history --repo . --limit 12
+```
+
+### Trace
+
+```bash
+archmap trace src/main.py .
+archmap trace src/main.py . --unreachable --max-depth 3
+```
+
+Shows every file reachable from an entrypoint through the dependency graph,
+grouped by depth, with coverage percentage.
+
+### Init (blueprint from real graph)
+
+```bash
+archmap init                       # scan directory names
+archmap init --from-analysis       # derive layer rules from actual dependency graph
+archmap init --from-analysis --dry-run
+```
+
+### Advise (LLM architectural advisor)
+
+```bash
+archmap advise .                                          # Claude (ANTHROPIC_API_KEY)
+archmap advise . --provider openai                        # OpenAI (OPENAI_API_KEY)
+archmap advise . --provider ollama                        # local Ollama
+archmap advise . --provider custom --base-url http://localhost:1234  # any OpenAI-compat API
 ```
 
 ## Git workflow (professional flow)
@@ -151,6 +183,7 @@ ArchMAP/
 +-- scripts/                  # automation helpers (smoke, benchmark, exe build)
 +-- src/archmap/              # Python source code
 +-- tests/                    # automated test suite
++-- vscode-extension/         # VS Code extension (inline diagnostics, trace view)
 +-- web-ui/                   # Node dev server + static assets
 +-- archmap.spec              # PyInstaller spec
 +-- NOTICE.md                 # original distribution notice

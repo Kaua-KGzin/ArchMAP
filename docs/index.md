@@ -7,14 +7,14 @@ It parses code, builds dependency graphs, detects circular dependencies, compute
 ## Highlights
 
 - Multi-language parsing (Python, JS/TS, Rust, Go, PHP, Java, C#, C/C++)
-- Circular dependency detection
-- Architecture risk scoring:
-  - god modules
-  - layer violations
-  - dependency explosions
-- Git ref diff (`archmap diff`)
-- Exporters: JSON, Mermaid, Cytoscape
-- Interactive service map (`archmap serve`)
+- Circular dependency detection (Tarjan SCC)
+- Architecture risk scoring: god modules, layer violations, dependency explosions
+- Git ref diff and JSON snapshot diff (`archmap diff`)
+- BFS reachability from any entrypoint (`archmap trace`)
+- LLM-powered architectural advisor — Claude, OpenAI, Ollama, or any local model (`archmap advise`)
+- Exporters: JSON, Mermaid, Cytoscape, SARIF
+- Interactive service map with Trace and Advisor views (`archmap serve`)
+- VS Code extension with inline diagnostics and health score
 
 ## Recommended path
 
@@ -24,6 +24,8 @@ It parses code, builds dependency graphs, detects circular dependencies, compute
 4. [CLI analyze](cli/analyze.md)
 5. [CLI serve](cli/serve.md)
 6. [CLI diff](cli/diff.md)
+7. [CLI trace](cli/trace.md)
+8. [CLI advise](cli/advise.md)
 
 ## Governance and release
 

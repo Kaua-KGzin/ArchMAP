@@ -2,12 +2,17 @@
 
 ## Released
 
-### v0.7.2 (current)
-- **Web UI multi-view navigation**: nav rail switches between Graph, Insights, and Rules & Layers panels.
-- **Layer Diagram tab**: hierarchical BFS layout of the dependency graph.
-- **Dependency Matrix tab**: top-25 files rendered as a colour-coded matrix (dependency, circular, self).
-- **Insights panel**: live architecture metrics summary.
-- **Rules & Layers panel**: layer rule cards from `.archmap.toml`.
+### v0.8.0 (current)
+- **`archmap trace <entrypoint>`** — BFS reachability from any file: dependency tree by depth, coverage %, `--unreachable`, `--max-depth`.
+- **`archmap advise`** — LLM-powered architectural advisor supporting Claude, OpenAI, Ollama, and any OpenAI-compatible local endpoint (LM Studio, etc.) — zero new runtime deps.
+- **`archmap init --from-analysis`** — derives `.archmap.toml` layer rules from the actual dependency graph (not just directory names).
+- **`archmap diff --snapshot-a/--snapshot-b`** — compare two saved JSON snapshots without git refs.
+- **VS Code extension** (`vscode-extension/`) — inline diagnostics, health score status bar, trace webview, web UI launcher.
+- **Web UI — Trace view**: BFS client-side with depth-colored graph highlight and coverage stats.
+- **Web UI — AI Advisor view**: top issue cards and CLI command reference per provider.
+
+### v0.7.2
+- Web UI multi-view navigation: nav rail (Graph/Insights/Rules & Layers), Layer Diagram tab, Dependency Matrix tab.
 
 ### v0.7.1
 - Web UI complete visual refresh (Inter + JetBrains Mono, indigo design system, health gauge, KPI tiles).
@@ -25,15 +30,6 @@
 - Security hardening: subprocess timeouts, path traversal guards, CSP headers.
 - Windows-safe CLI output and broader parser stability.
 - Professional open-source governance (SECURITY.md, CODEOWNERS, py.typed).
-
----
-
-### v0.8.0 (current dev)
-- **`archmap trace <entrypoint>`** — BFS reachability from any file: shows dependency tree by depth, coverage %, and optionally unreachable files.
-- **`archmap advise`** — LLM-powered architectural advisor: supports Claude, OpenAI, Ollama, and any OpenAI-compatible local endpoint (LM Studio, etc.).
-- **`archmap init --from-analysis`** — generates `.archmap.toml` layer rules from the actual dependency graph instead of directory names.
-- **`archmap diff --snapshot-a <file> --snapshot-b <file>`** — compare any two JSON snapshot files, not just git refs.
-- **VS Code extension** (`vscode-extension/`) — inline diagnostics (cycles, layer violations, god modules), status bar health score, trace panel, and web UI launcher.
 
 ---
 
