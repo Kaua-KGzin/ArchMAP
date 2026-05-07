@@ -79,11 +79,9 @@ body {
   align-items:center; gap:6px; padding:12px 10px; position:relative;
 }
 .rail-logo {
-  width:38px; height:38px; border-radius:11px; display:grid; place-items:center;
-  font-weight:700; font-size:12px; letter-spacing:0.04em; color:#fff;
-  background:linear-gradient(150deg,oklch(0.62 0.20 265),oklch(0.42 0.18 265));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),0 4px 12px -4px oklch(0.50 0.20 265/0.4);
-  margin-bottom:8px;
+  width:38px; height:38px; border-radius:11px; object-fit:cover; display:block;
+  box-shadow:0 4px 12px -4px rgba(0,0,0,0.4);
+  margin-bottom:8px; flex-shrink:0;
 }
 .rail-divider{width:24px;height:1px;background:var(--rail-line);margin:4px 0}
 .rail-btn,.theme-toggle {

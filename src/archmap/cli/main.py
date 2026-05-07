@@ -26,8 +26,7 @@ def _print_banner() -> None:
   | (_) | '_/ __| ' \  | |\/| |/ _ \|  _/
    \___/|_| \___|_||_| |_|  |_/_/ \_\_|
 
-   ArchMAP Architectural Visualizer v{__version__}
-   by Kaua-KGzin — Professional Analysis for Modern Codebases
+   ArchMAP v{__version__} — Map Your Architecture. Control Your Future.
     """
     print(banner)
 
