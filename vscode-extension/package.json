@@ -19,6 +19,7 @@
     "onCommand:archmap.openUI",
     "onCommand:archmap.trace"
   ],
+  "icon": "icon.png",
   "main": "./extension.js",
   "contributes": {
     "commands": [

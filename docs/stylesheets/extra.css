@@ -1,0 +1,27 @@
+/* ArchMAP brand colors — navy #0d1b2e + orange #e87230 */
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color:              #0d1b2e;
+  --md-primary-fg-color--light:       #1e3a5f;
+  --md-primary-fg-color--dark:        #060d17;
+  --md-primary-bg-color:              #ffffff;
+  --md-primary-bg-color--light:       rgba(255,255,255,0.7);
+  --md-accent-fg-color:               #e87230;
+  --md-accent-fg-color--transparent:  rgba(232,114,48,0.1);
+  --md-accent-bg-color:               #ffffff;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:              #e87230;
+  --md-primary-fg-color--light:       #f09050;
+  --md-primary-fg-color--dark:        #c05818;
+  --md-primary-bg-color:              #0d1b2e;
+  --md-accent-fg-color:               #e87230;
+  --md-accent-fg-color--transparent:  rgba(232,114,48,0.1);
+}
+
+/* Nav logo sizing */
+.md-header__button.md-logo img {
+  height: 2rem;
+  width: auto;
+}

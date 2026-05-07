@@ -1,22 +1,24 @@
 site_name: ArchMAP
-site_description: Static architecture analysis and visualization for any codebase
-site_url: https://kaua-kgzin.github.io/code-arch-visualizer/
-repo_url: https://github.com/Kaua-KGzin/code-arch-visualizer
-repo_name: Kaua-KGzin/code-arch-visualizer
+site_description: Static architecture analysis and visualization for any codebase — dependency graphs, cycle detection, risk scoring, LLM advisor.
+site_url: https://kaua-kgzin.github.io/ArchMAP/
+repo_url: https://github.com/Kaua-KGzin/ArchMAP
+repo_name: Kaua-KGzin/ArchMAP
 edit_uri: edit/main/docs/
 
 theme:
   name: material
+  logo: assets/logo-nav.png
+  favicon: assets/favicon.png
   palette:
     - scheme: default
-      primary: indigo
-      accent: cyan
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
-      primary: indigo
-      accent: cyan
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -24,11 +26,16 @@ theme:
     - navigation.tabs
     - navigation.sections
     - navigation.top
+    - navigation.indexes
     - search.highlight
     - search.suggest
     - content.code.copy
+    - content.code.annotate
   icon:
     repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -43,6 +50,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.inlinehilite
+  - attr_list
+  - md_in_html
   - toc:
       permalink: true
 
@@ -54,8 +63,15 @@ nav:
       - Live Demo: getting-started/demo.md
   - CLI Reference:
       - analyze: cli/analyze.md
+      - explain: cli/explain.md
+      - risk: cli/risk.md
+      - improve: cli/improve.md
       - serve: cli/serve.md
       - diff: cli/diff.md
+      - trace: cli/trace.md
+      - init: cli/init.md
+      - advise: cli/advise.md
+      - watch: cli/watch.md
   - Internals:
       - Architecture: architecture.md
       - API Reference: api.md
@@ -75,6 +91,12 @@ plugins:
   - search
 
 extra:
+  version:
+    provider: mike
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/Kaua-KGzin/code-arch-visualizer
+      link: https://github.com/Kaua-KGzin/ArchMAP
+      name: ArchMAP on GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/KG-ARCHMAP/
+      name: ArchMAP on PyPI
