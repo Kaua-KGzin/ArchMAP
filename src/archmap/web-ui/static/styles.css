@@ -362,3 +362,22 @@ button svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.7
 .rule-card-head{padding:9px 13px;background:var(--surface-2);border-bottom:1px solid var(--line-2);font-size:11.5px;font-weight:600;color:var(--ink-2);display:flex;align-items:center;gap:6px}
 .rule-card-head svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.7;color:var(--accent-ink)}
 .rule-card-body{padding:10px 13px;font-size:12px;color:var(--muted);line-height:1.5}
+
+/* ── Trace view ── */
+.trace-input-row{display:flex;gap:6px;margin-top:10px}
+.trace-input-row input{flex:1;min-width:0;padding:6px 10px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--surface-2);color:var(--ink);font-size:12.5px;font-family:inherit;outline:none}
+.trace-input-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.trace-stats{display:flex;gap:8px;justify-content:space-between;margin-top:6px}
+.trace-stat{flex:1;text-align:center;background:var(--surface-3);border-radius:var(--r-sm);padding:7px 6px;display:flex;flex-direction:column;gap:2px}
+.trace-stat b{font-size:17px;font-weight:700;color:var(--accent);line-height:1}
+.trace-stat small{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em}
+.trace-list{max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;padding-top:2px}
+.trace-item{display:flex;align-items:center;gap:7px;padding:3px 0}
+.trace-depth{font-size:9.5px;font-weight:700;color:#fff;border-radius:4px;padding:1px 5px;flex-shrink:0;min-width:24px;text-align:center;letter-spacing:0.02em}
+.trace-file{font-size:11.5px;font-family:"JetBrains Mono",monospace;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trace-from-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--surface-2);color:var(--ink-2);font-size:11.5px;font-weight:500;cursor:pointer;width:100%;justify-content:center;transition:background .15s,border-color .15s}
+.trace-from-btn:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+
+/* ── Advisor view ── */
+.advisor-cmds{display:flex;flex-direction:column;gap:4px}
+.advisor-cmd{display:block;font-family:"JetBrains Mono",monospace;font-size:11px;background:var(--surface-3);border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 9px;color:var(--ink-2);word-break:break-all;cursor:text;user-select:all}

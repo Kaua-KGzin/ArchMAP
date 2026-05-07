@@ -1,7 +1,8 @@
-const FILE_COLOR  = "#6173e0";
-const PKG_COLOR   = "#62b386";
-const CYCLE_COLOR = "#d35266";
-const EDGE_COLOR  = "#c4cad5";
+const FILE_COLOR   = "#6173e0";
+const PKG_COLOR    = "#62b386";
+const CYCLE_COLOR  = "#d35266";
+const EDGE_COLOR   = "#c4cad5";
+const TRACE_COLORS = ["#5667d8", "#7e8de6", "#a8b0ee", "#c8cef4", "#dde0f8"];
 
 const state = { folder: "all", cyclesOnly: false, search: "", heatmap: false };
 
@@ -426,6 +427,20 @@ function bindControls() {
   document.getElementById("navBtnGraph")?.addEventListener("click",    () => switchLeftView("graph"));
   document.getElementById("navBtnInsights")?.addEventListener("click", () => switchLeftView("insights"));
   document.getElementById("navBtnRules")?.addEventListener("click",    () => switchLeftView("rules"));
+  document.getElementById("navBtnTrace")?.addEventListener("click",    () => switchLeftView("trace"));
+  document.getElementById("navBtnAdvisor")?.addEventListener("click",  () => switchLeftView("advisor"));
+
+  // Trace panel controls
+  document.getElementById("traceRunBtn")?.addEventListener("click", () => {
+    const input = document.getElementById("traceInput");
+    if (input?.value.trim()) traceFromQuery(input.value.trim());
+  });
+  document.getElementById("traceInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const v = e.target.value.trim();
+      if (v) traceFromQuery(v);
+    }
+  });
 
   // Canvas tab switching
   document.getElementById("canvasTabGraph")?.addEventListener("click",   () => switchCanvasTab("graph"));
@@ -506,6 +521,7 @@ function renderSelection(node) {
     </ul>`;
   };
 
+  const nodeId = node.id();
   el.selectionInfo.innerHTML = `
     <div class="selection-grid">
       <div class="sel-cell"><div class="lbl">Type</div><div class="val">${escHtml(node.data("type"))}</div></div>
@@ -518,14 +534,27 @@ function renderSelection(node) {
     <div class="sel-row"><span class="k">In cycle</span><span class="v">${node.data("isCircular") ? "yes" : "no"}</span></div>
     ${outgoing.length ? `<div class="sel-section-title">Depends on (${outTotal})</div>${depsHtml(outgoing, outTotal, "→")}` : ""}
     ${incoming.length ? `<div class="sel-section-title">Used by (${inTotal})</div>${depsHtml(incoming, inTotal, "←")}` : ""}
+    <div style="margin-top:10px">
+      <button class="trace-from-btn" id="traceFromHereBtn">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 12h4m0 0V7m0 5v5"/></svg>
+        Trace from here
+      </button>
+    </div>
   `;
+  document.getElementById("traceFromHereBtn")?.addEventListener("click", () => traceFromNodeId(nodeId));
 }
 
 /* ============================================================
    Navigation — left panel views
    ============================================================ */
 
-const LP_NAV = { graph: ["lpGraph","navBtnGraph"], insights: ["lpInsights","navBtnInsights"], rules: ["lpRules","navBtnRules"] };
+const LP_NAV = {
+  graph:   ["lpGraph",   "navBtnGraph"],
+  insights:["lpInsights","navBtnInsights"],
+  rules:   ["lpRules",   "navBtnRules"],
+  trace:   ["lpTrace",   "navBtnTrace"],
+  advisor: ["lpAdvisor", "navBtnAdvisor"],
+};
 
 function switchLeftView(key) {
   for (const [k, [viewId, btnId]] of Object.entries(LP_NAV)) {
@@ -534,6 +563,7 @@ function switchLeftView(key) {
   }
   if (key === "insights" && reportData) renderInsights(reportData);
   if (key === "rules"    && reportData) renderRules(reportData);
+  if (key === "advisor"  && reportData) renderAdvisorView(reportData);
 }
 
 /* ============================================================
@@ -697,6 +727,214 @@ function renderRules(report) {
     </div>`
   ).join("");
   container.innerHTML = cards;
+}
+
+/* ============================================================
+   Trace view
+   ============================================================ */
+
+function traceFromQuery(query) {
+  if (!reportData) return;
+  const nodes = reportData.nodes ?? [];
+  const q = query.replace(/\\/g, "/").toLowerCase();
+  const match = nodes.find(n => n.type === "file" && (
+    n.id === q ||
+    n.id.toLowerCase() === q ||
+    n.id.toLowerCase().endsWith("/" + q) ||
+    (n.label ?? "").toLowerCase() === q
+  ));
+  if (!match) {
+    const container = document.getElementById("traceContent");
+    if (container) container.innerHTML = `<p style="padding:14px 18px;color:var(--danger);font-size:12.5px">File not found: <b>${escHtml(query)}</b></p>`;
+    return;
+  }
+  traceFromNodeId(match.id);
+}
+
+function traceFromNodeId(nodeId) {
+  if (!reportData) return;
+
+  const edges = reportData.edges ?? [];
+  const outgoing = {};
+  for (const e of edges) {
+    if (!outgoing[e.source]) outgoing[e.source] = [];
+    outgoing[e.source].push(e.target);
+  }
+
+  const visited = new Map();
+  const queue = [[nodeId, 0]];
+  while (queue.length) {
+    const [current, depth] = queue.shift();
+    if (visited.has(current)) continue;
+    visited.set(current, depth);
+    for (const neighbor of (outgoing[current] ?? [])) {
+      if (!visited.has(neighbor)) queue.push([neighbor, depth + 1]);
+    }
+  }
+
+  const totalFiles = (reportData.nodes ?? []).filter(n => n.type === "file").length;
+  const coveragePct = totalFiles > 0 ? Math.round(visited.size / totalFiles * 100) : 0;
+
+  if (cy) {
+    cy.elements().removeClass("selected dimmed highlighted");
+    cy.elements(":visible").addClass("dimmed");
+    cy.nodes('[type="file"]').forEach(n => n.style("background-color", FILE_COLOR));
+    for (const [fid, depth] of visited.entries()) {
+      const node = cy.getElementById(fid);
+      if (node.length) {
+        node.removeClass("dimmed").addClass("highlighted");
+        node.style("background-color", TRACE_COLORS[Math.min(depth, TRACE_COLORS.length - 1)]);
+      }
+    }
+  }
+
+  const input = document.getElementById("traceInput");
+  if (input) input.value = nodeId;
+
+  switchLeftView("trace");
+  _renderTracePanel(nodeId, visited, totalFiles, coveragePct);
+}
+
+function _renderTracePanel(entryId, visited, totalFiles, coveragePct) {
+  const container = document.getElementById("traceContent");
+  if (!container) return;
+
+  const short = id => id.replace(/\\/g, "/").split("/").pop() || id;
+
+  const byDepth = new Map();
+  for (const [fid, depth] of visited.entries()) {
+    if (!byDepth.has(depth)) byDepth.set(depth, []);
+    byDepth.get(depth).push(fid);
+  }
+
+  const rows = [...byDepth.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .flatMap(([depth, files]) => {
+      const color = TRACE_COLORS[Math.min(depth, TRACE_COLORS.length - 1)];
+      return files.sort().map(f => `
+        <div class="trace-item">
+          <span class="trace-depth" style="background:${color}">d${depth}</span>
+          <span class="trace-file" title="${escHtml(f)}">${escHtml(short(f))}</span>
+        </div>`);
+    }).join("");
+
+  const unreachable = totalFiles - visited.size;
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-body">
+        <div class="trace-stats">
+          <div class="trace-stat"><b>${visited.size}</b><small>reachable</small></div>
+          <div class="trace-stat"><b>${unreachable}</b><small>unreachable</small></div>
+          <div class="trace-stat"><b>${coveragePct}%</b><small>coverage</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:0">
+      <div class="card-head">
+        <span class="ico"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 12h4m0 0V7m0 5v5"/></svg></span>
+        <h2>From: ${escHtml(short(entryId))}</h2>
+      </div>
+      <div class="card-body trace-list">${rows || '<p style="color:var(--muted);font-size:12px">No files reachable.</p>'}</div>
+    </div>`;
+
+  const clearBtn = document.getElementById("traceClearBtn");
+  if (clearBtn) {
+    clearBtn.style.display = "inline-flex";
+    clearBtn.onclick = () => {
+      if (cy) {
+        cy.elements().removeClass("selected dimmed highlighted");
+        cy.nodes('[type="file"]').forEach(n => n.style("background-color", state.heatmap ? n.data("heatColor") : FILE_COLOR));
+      }
+      container.innerHTML = `<p class="selection-muted" style="padding:16px 18px">Select a node on the graph and click <b>Trace from here</b>, or type a file name above.</p>`;
+      clearBtn.style.display = "none";
+      const input = document.getElementById("traceInput");
+      if (input) input.value = "";
+    };
+  }
+}
+
+/* ============================================================
+   Advisor view
+   ============================================================ */
+
+function renderAdvisorView(report) {
+  const container = document.getElementById("advisorContent");
+  if (!container) return;
+
+  const metrics   = report.metrics    ?? {};
+  const risks     = report.risks      ?? {};
+  const arch      = report.architecture ?? {};
+  const cycles    = report.cycles     ?? [];
+  const health    = arch.health       ?? {};
+
+  const score = health.score ?? Math.round(metrics.architectureHealthScore ?? 100);
+  const grade = health.grade ?? "?";
+
+  const issues = [];
+
+  if (cycles.length > 0) {
+    issues.push({ level: "high", title: `${cycles.length} circular dependenc${cycles.length !== 1 ? "ies" : "y"}`,
+      detail: "Cycles prevent modular refactoring and increase coupling. Break them via interface extraction or dependency inversion." });
+  }
+  const godMods = risks.god_modules ?? [];
+  if (godMods.length > 0) {
+    const names = godMods.slice(0, 3).map(g => (g.file ?? "").split("/").pop()).join(", ");
+    issues.push({ level: "medium", title: `${godMods.length} god module${godMods.length !== 1 ? "s" : ""}`,
+      detail: `Files with excessive dependents: ${names}. Consider splitting into smaller focused modules.` });
+  }
+  const layerViols = risks.layer_violations ?? [];
+  if (layerViols.length > 0) {
+    issues.push({ level: "medium", title: `${layerViols.length} layer violation${layerViols.length !== 1 ? "s" : ""}`,
+      detail: "Dependencies cross layer boundaries in forbidden directions. Check your .archmap.toml." });
+  }
+  const ruleViols = arch.ruleViolations ?? [];
+  if (ruleViols.length > 0) {
+    issues.push({ level: "medium", title: `${ruleViols.length} custom rule violation${ruleViols.length !== 1 ? "s" : ""}`,
+      detail: "One or more architecture rules defined in .archmap.toml are being violated." });
+  }
+  if (issues.length === 0) {
+    issues.push({ level: "ok", title: "No architectural issues detected",
+      detail: "Architecture looks clean. Keep monitoring as the project grows." });
+  }
+
+  const badge = lvl => lvl === "high" ? "!" : lvl === "ok" ? "✓" : "·";
+  const issueCards = issues.map(i => `
+    <div class="risk-item risk-${i.level}">
+      <div class="risk-badge">${badge(i.level)}</div>
+      <div class="risk-body">
+        <p class="risk-msg">${escHtml(i.title)}</p>
+        <p class="risk-tip">${escHtml(i.detail)}</p>
+      </div>
+    </div>`).join("");
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-head">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9-6-18-3 9H2"/></svg></span>
+        <h2>Health ${score}/100 (${escHtml(grade)})</h2>
+      </div>
+      <div class="card-body--list">${issueCards}</div>
+    </div>
+    <div class="card" style="margin-top:0">
+      <div class="card-head">
+        <span class="ico" style="background:var(--accent-soft);color:var(--accent)"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+        <h2>AI Advisor</h2>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Get concrete refactoring advice from your LLM of choice — Claude, OpenAI, Ollama, or any local model.</p>
+        <div class="advisor-cmds">
+          <code class="advisor-cmd">archmap advise .</code>
+          <code class="advisor-cmd">archmap advise . --provider ollama</code>
+          <code class="advisor-cmd">archmap advise . --provider openai</code>
+          <code class="advisor-cmd">archmap advise . --provider custom --base-url http://localhost:1234</code>
+        </div>
+        <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+          <p style="font-size:11.5px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Generate blueprint from real graph</p>
+          <code class="advisor-cmd">archmap init --from-analysis</code>
+        </div>
+      </div>
+    </div>`;
 }
 
 /* ============================================================

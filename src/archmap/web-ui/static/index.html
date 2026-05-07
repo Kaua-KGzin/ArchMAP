@@ -27,6 +27,14 @@
         <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
         <span class="rail-tooltip">Rules &amp; Layers</span>
       </button>
+      <button class="rail-btn" id="navBtnTrace" type="button" aria-label="Trace">
+        <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 12h4m0 0V7m0 5v5"/></svg>
+        <span class="rail-tooltip">Trace reachability</span>
+      </button>
+      <button class="rail-btn" id="navBtnAdvisor" type="button" aria-label="Advisor">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span class="rail-tooltip">AI Advisor</span>
+      </button>
       <div class="rail-divider"></div>
       <button class="rail-btn" id="openProjectBtn" type="button" aria-label="Open project">
         <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
@@ -143,6 +151,37 @@
           </div>
         </header>
         <div id="rulesContent" style="display:contents"></div>
+      </div>
+
+      <!-- VIEW: Trace -->
+      <div class="lp-view lp-hidden" id="lpTrace">
+        <header class="card panel-header">
+          <div class="card-body">
+            <p class="eyebrow">Trace</p>
+            <h1 class="title">Reachability</h1>
+            <p class="subtitle">BFS from an entrypoint through all dependency edges.</p>
+            <div class="trace-input-row">
+              <input id="traceInput" type="search" placeholder="File path or name…" aria-label="Entrypoint" />
+              <button id="traceRunBtn" type="button" class="primary" style="flex-shrink:0">Trace</button>
+            </div>
+            <button id="traceClearBtn" type="button" class="ghost" style="display:none;margin-top:6px;width:100%">Clear highlight</button>
+          </div>
+        </header>
+        <div id="traceContent" style="display:contents">
+          <p class="selection-muted" style="padding:16px 18px">Select a node on the graph and click <b>Trace from here</b>, or type a file name above.</p>
+        </div>
+      </div>
+
+      <!-- VIEW: Advisor -->
+      <div class="lp-view lp-hidden" id="lpAdvisor">
+        <header class="card panel-header">
+          <div class="card-body">
+            <p class="eyebrow">AI Advisor</p>
+            <h1 class="title">Advice</h1>
+            <p class="subtitle">Top issues and commands for LLM-powered architectural advice.</p>
+          </div>
+        </header>
+        <div id="advisorContent" style="display:contents"></div>
       </div>
 
     </aside>
