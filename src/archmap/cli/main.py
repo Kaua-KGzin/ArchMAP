@@ -27,6 +27,7 @@ def _print_banner() -> None:
    \___/|_| \___|_||_| |_|  |_/_/ \_\_|
 
    ArchMAP v{__version__} — Map Your Architecture. Control Your Future.
+   by Kaua-KGzin
     """
     print(banner)
 
