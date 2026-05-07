@@ -1,38 +1,50 @@
-# ArchMAP
+<p align="center">
+  <img src="resources/logo.png" alt="ArchMAP — Map Your Architecture. Control Your Future." width="480"/>
+</p>
 
-[![CI](https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml/badge.svg)](https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.8.0-orange)](./CHANGELOG.md)
+<p align="center">
+  <a href="https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml">
+    <img src="https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml/badge.svg" alt="CI"/>
+  </a>
+  <a href="https://www.python.org/">
+    <img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue" alt="Python"/>
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/>
+  </a>
+  <a href="./CHANGELOG.md">
+    <img src="https://img.shields.io/badge/version-0.8.0-orange" alt="Version"/>
+  </a>
+  <a href="https://pypi.org/project/KG-ARCHMAP/">
+    <img src="https://img.shields.io/badge/PyPI-KG--ARCHMAP-orange?logo=pypi&logoColor=white" alt="PyPI"/>
+  </a>
+</p>
 
-Static architecture analysis for software repositories.
+<p align="center">
+  Static architecture analysis for software repositories.
+</p>
+
+---
 
 ArchMAP scans source code, builds dependency graphs, detects cycles, reports architectural risks, and serves an interactive web UI.
 
-Supported languages:
-- Python
-- JavaScript
-- TypeScript
-- Rust
-- Go
-- PHP
-- Java
-- C#
-- C/C++
+**Supported languages:** Python · JavaScript · TypeScript · Rust · Go · PHP · Java · C# · C/C++
 
 ## Status
 
-- Current release: `v0.8.0`
-- Primary runtime: Python `>=3.11`
-- Interactive UI: built-in static UI + Node dev server option
-- Distribution: PyPI package + Windows executable
+| | |
+|---|---|
+| Release | `v0.8.0` |
+| Runtime | Python `>=3.11` |
+| UI | built-in static UI + Node dev server |
+| Distribution | PyPI (`KG-ARCHMAP`) + Windows `.exe` |
 
 ## Installation
 
 ### From PyPI
 
 ```bash
-pip install archmap
+pip install KG-ARCHMAP
 ```
 
 ### For local development
@@ -45,8 +57,6 @@ python -m pip install -e ".[dev]"
 
 ## Quick demo
 
-Run the bundled sample project:
-
 ```bash
 archmap analyze examples/sample-project --format both --include-cytoscape
 archmap serve examples/sample-project
@@ -54,12 +64,18 @@ archmap serve examples/sample-project
 
 Useful API endpoints while `serve` is running:
 
-- `GET /api/graph`
-- `GET /api/health`
-- `GET /api/project`
-- `POST /api/reanalyze`
+| Endpoint | Description |
+|---|---|
+| `GET /api/graph` | Full dependency graph JSON |
+| `GET /api/health` | Health score + grade |
+| `GET /api/project` | Project metadata |
+| `POST /api/reanalyze` | Trigger a fresh analysis |
 
 ## CLI overview
+
+<p align="center">
+  <img src="docs/assets/banner-cli.png" alt="archmap CLI" width="560"/>
+</p>
 
 ### Analyze
 
@@ -73,15 +89,13 @@ Quality gates for CI:
 archmap analyze . --fail-on-risks --top 10
 ```
 
-Use `analyze` for the full report, quality gates, Mermaid, JSON, and Cytoscape exports.
-
 ### Explain
 
 ```bash
 archmap explain <path>
 ```
 
-Prints a simple architecture summary for tired humans:
+Prints a simple architecture summary:
 
 ```text
 auth -> users, payments
@@ -102,8 +116,7 @@ Shows blast radius, incoming/outgoing dependencies, and the file risk score.
 archmap improve [path] --out-script .codeatlas/refactor.ps1
 ```
 
-Suggests a cleaner project structure, such as `/auth`, `/payments`, `/users`,
-and can generate a helper refactor script.
+Suggests a cleaner project structure and can generate a helper refactor script.
 
 ### Serve
 
@@ -130,8 +143,7 @@ archmap trace src/main.py .
 archmap trace src/main.py . --unreachable --max-depth 3
 ```
 
-Shows every file reachable from an entrypoint through the dependency graph,
-grouped by depth, with coverage percentage.
+Shows every file reachable from an entrypoint through the dependency graph, grouped by depth, with coverage percentage.
 
 ### Init (blueprint from real graph)
 
@@ -150,82 +162,74 @@ archmap advise . --provider ollama                        # local Ollama
 archmap advise . --provider custom --base-url http://localhost:1234  # any OpenAI-compat API
 ```
 
-## Git workflow (professional flow)
+## VS Code Extension
 
-Branch promotion model:
+<p align="center">
+  <img src="vscode-extension/icon.png" alt="ArchMAP VS Code Extension" width="80"/>
+</p>
 
-`feat/* -> dev -> release/* -> main`
+The bundled VS Code extension provides zero-config IDE integration:
 
-Also supported:
-- `feature/*` (legacy alias)
-- `fix/*`
-- `docs/*`
+- Inline diagnostics (cycles, layer violations, god modules) in the Problems panel
+- Status bar health score + grade
+- `ArchMAP: Analyze Project` command
+- `ArchMAP: Open Web UI` command
+- `ArchMAP: Trace File Reachability` webview
+- `archmap.analyzeOnSave` for CI-style continuous feedback
+
+## Git workflow
+
+Branch promotion model: `feat/* → dev → release/* → main`
 
 Rules:
-
 1. No direct feature merge into `main`.
 2. `release/*` accepts only stabilization changes.
 3. CI must pass before merge.
 4. Update docs/changelog when behavior changes.
 
-See:
-- [CONTRIBUTING.md](./CONTRIBUTING.md)
-- [docs/BRANCHING.md](./docs/BRANCHING.md)
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/BRANCHING.md](./docs/BRANCHING.md).
 
 ## Repository layout
 
 ```text
 ArchMAP/
-+-- .github/                  # CI/release workflows and PR template
-+-- docs/                     # MkDocs documentation
-+-- examples/                 # sample project for demos
-+-- logs/                     # runtime/archive log organization
-+-- scripts/                  # automation helpers (smoke, benchmark, exe build)
-+-- src/archmap/              # Python source code
-+-- tests/                    # automated test suite
-+-- vscode-extension/         # VS Code extension (inline diagnostics, trace view)
-+-- web-ui/                   # Node dev server + static assets
-+-- archmap.spec              # PyInstaller spec
-+-- NOTICE.md                 # original distribution notice
-`-- README.md
+├── .github/          # CI/release workflows and PR template
+├── docs/             # MkDocs documentation + assets
+├── examples/         # sample project for demos
+├── logs/             # runtime/archive log organization
+├── resources/        # brand assets (logos, icons)
+├── scripts/          # automation helpers (smoke, benchmark, exe build)
+├── src/archmap/      # Python source code
+├── tests/            # automated test suite
+├── vscode-extension/ # VS Code extension (inline diagnostics, trace view)
+├── web-ui/           # Node dev server + static assets
+├── archmap.spec      # PyInstaller spec
+└── README.md
 ```
 
 ## Logs and artifacts
 
 - Runtime logs: `logs/runtime/` (git-ignored)
 - Historical logs: `logs/archive/`
-- Build artifacts: generated locally (`build/`, `dist/`) and should not be committed as source changes
+- Build artifacts: generated locally (`build/`, `dist/`) — not committed
 
 ## Windows executable
-
-Build locally:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-exe.ps1 -Clean
 ```
 
-This script:
-- Builds `dist/archmap.exe`
-- Creates a versioned binary copy
-- Writes `dist/archmap-build-info.json` with SHA256
-- Runs executable smoke test (`archmap.exe version`)
+Builds `dist/archmap.exe`, creates a versioned binary copy, writes `dist/archmap-build-info.json` with SHA256, and runs a smoke test.
 
-## Node development server utilities
-
-For frontend/API exploration with dynamic Python analysis:
+## Node development server
 
 ```bash
 npm run serve:web -- --path .
 ```
 
-## Original distributor rights
-
-Original distributor and primary author: **Kaua Gabriel / Kauã Gabriel** (Kaua-KGzin).
-
-Redistributions must preserve:
-- [LICENSE](./LICENSE)
-- [NOTICE.md](./NOTICE.md)
-
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE).
+
+Original distributor and primary author: **Kaua Gabriel / Kauã Gabriel** (Kaua-KGzin).  
+Redistributions must preserve [LICENSE](./LICENSE) and [NOTICE.md](./NOTICE.md).
