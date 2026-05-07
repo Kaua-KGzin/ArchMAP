@@ -218,11 +218,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="enable parallel file parsing for speedup",
     )
 
-    diff_parser = subparsers.add_parser("diff", help="compare architecture between two git refs")
-    diff_parser.add_argument("base_ref")
-    diff_parser.add_argument("head_ref")
+    diff_parser = subparsers.add_parser(
+        "diff",
+        help="compare architecture between two git refs or two JSON snapshots",
+    )
+    diff_parser.add_argument("base_ref", nargs="?", default=None)
+    diff_parser.add_argument("head_ref", nargs="?", default=None)
     diff_parser.add_argument("--repo", default=".")
     diff_parser.add_argument("--json", action="store_true")
+    diff_parser.add_argument(
+        "--snapshot-a",
+        metavar="PATH",
+        help="compare two JSON snapshot files instead of git refs",
+    )
+    diff_parser.add_argument(
+        "--snapshot-b",
+        metavar="PATH",
+        help="compare two JSON snapshot files instead of git refs",
+    )
 
     history_parser = subparsers.add_parser(
         "history",
@@ -252,6 +265,81 @@ def build_parser() -> argparse.ArgumentParser:
         "--force",
         action="store_true",
         help="overwrite an existing .archmap.toml without prompting",
+    )
+    init_parser.add_argument(
+        "--from-analysis",
+        action="store_true",
+        help="analyze the project first and generate layer rules from the actual dependency graph",
+    )
+
+    trace_parser = subparsers.add_parser(
+        "trace",
+        help="trace all files reachable from an entrypoint through the dependency graph",
+    )
+    trace_parser.add_argument("entrypoint", help="entry file to trace from (relative path)")
+    trace_parser.add_argument("path", nargs="?", default=".")
+    trace_parser.add_argument("--json", action="store_true")
+    trace_parser.add_argument(
+        "--out", metavar="PATH", default=None, help="write JSON output to file"
+    )
+    trace_parser.add_argument(
+        "--unreachable", action="store_true", help="also list unreachable files"
+    )
+    trace_parser.add_argument(
+        "--max-depth",
+        type=int,
+        default=None,
+        metavar="N",
+        help="only include files reachable within N hops",
+    )
+    trace_parser.add_argument(
+        "--parallel",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="enable parallel file parsing for speedup",
+    )
+
+    advise_parser = subparsers.add_parser(
+        "advise",
+        help="get AI-powered architectural advice from an LLM",
+    )
+    advise_parser.add_argument("path", nargs="?", default=".")
+    advise_parser.add_argument(
+        "--provider",
+        default="claude",
+        choices=["claude", "openai", "ollama", "custom"],
+        help="LLM provider (default: claude)",
+    )
+    advise_parser.add_argument(
+        "--model",
+        default=None,
+        help="model name (e.g. claude-opus-4-7, gpt-4o, llama3)",
+    )
+    advise_parser.add_argument(
+        "--api-key",
+        default=None,
+        metavar="KEY",
+        help="API key (overrides ANTHROPIC_API_KEY / OPENAI_API_KEY env vars)",
+    )
+    advise_parser.add_argument(
+        "--base-url",
+        default=None,
+        metavar="URL",
+        help="custom base URL for OpenAI-compatible endpoints (e.g. Ollama, LM Studio)",
+    )
+    advise_parser.add_argument(
+        "--timeout",
+        type=int,
+        default=90,
+        metavar="SECS",
+        help="HTTP timeout in seconds (default: 90)",
+    )
+    advise_parser.add_argument("--json", action="store_true")
+    advise_parser.add_argument(
+        "--parallel",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="enable parallel file parsing for speedup",
     )
 
     subparsers.add_parser("version", help="print tool version")

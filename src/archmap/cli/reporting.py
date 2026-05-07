@@ -425,6 +425,50 @@ def print_history_output(history: dict, as_json: bool = False) -> None:
                 )
 
 
+def print_trace_report(result: dict, show_unreachable: bool = False) -> None:
+    if "error" in result:
+        print(f"[error] {result['error']}")
+        return
+
+    entry = result.get("entrypoint", "")
+    reachable_count = int(result.get("reachableCount", 0))
+    unreachable_count = int(result.get("unreachableCount", 0))
+    total = int(result.get("totalFiles", 0))
+    coverage = float(result.get("coveragePercent", 0.0))
+
+    print(f"[trace] From: {entry}")
+    print(f"Reachable: {reachable_count}/{total} files ({coverage:.1f}% coverage)")
+
+    reachable = result.get("reachable", [])
+    if reachable:
+        print("Dependency tree:")
+        for item in reachable:
+            indent = "  " * int(item.get("depth", 0))
+            depth_marker = "" if item["depth"] == 0 else "- "
+            print(f"{indent}{depth_marker}{item['file']}")
+
+    if show_unreachable and unreachable_count > 0:
+        print(f"\nUnreachable ({unreachable_count}):")
+        for file_path in result.get("unreachable", []):
+            print(f"  - {file_path}")
+
+
+def print_advise_report(result: dict) -> None:
+    provider = result.get("provider", "?")
+    model = result.get("model", "?")
+    advice = result.get("advice", "No advice returned.")
+    usage = result.get("usage", {})
+
+    print(f"\n[advise] Architectural advice from {provider}/{model}")
+    print(advice)
+
+    if usage:
+        in_tokens = usage.get("input_tokens", usage.get("prompt_tokens", 0))
+        out_tokens = usage.get("output_tokens", usage.get("completion_tokens", 0))
+        if in_tokens or out_tokens:
+            print(f"\n[info] Tokens used: {in_tokens} in / {out_tokens} out")
+
+
 def signed(value: int) -> str:
     return f"{value:+d}"
 

@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-05-07
+
+### Added
+- **`archmap trace <entrypoint>`** — BFS reachability analysis from any source file: shows the full dependency tree by depth level, coverage percentage, and optionally lists unreachable files (`--unreachable`). Supports `--max-depth`, `--json`, and `--out`.
+- **`archmap advise`** — LLM-powered architectural advisor. Sends a compact report summary to an LLM and returns concrete refactoring advice. Supports multiple providers with zero new runtime dependencies (pure `urllib`):
+  - `--provider claude` — Anthropic API (reads `ANTHROPIC_API_KEY`)
+  - `--provider openai` — OpenAI API (reads `OPENAI_API_KEY`)
+  - `--provider ollama` — local Ollama instance (default `http://localhost:11434`)
+  - `--provider custom --base-url <url>` — any OpenAI-compatible endpoint (LM Studio, etc.)
+  - `--model`, `--api-key`, `--timeout` flags for full control.
+- **`archmap init --from-analysis`** — analyzes the project first and derives `.archmap.toml` layer rules from actual dependency direction (files with higher fan-in rank as more foundational), including detected `forbid` rules from live violations.
+- **`archmap diff --snapshot-a <file> --snapshot-b <file>`** — compare two exported JSON snapshots directly, without requiring git refs. Useful for cross-machine or cross-deploy comparisons.
+- **VS Code extension** (`vscode-extension/`) — zero-config IDE integration:
+  - Inline diagnostics in the Problems panel for cycles, layer violations, god modules, and custom rule violations.
+  - Status bar item with live health score and grade.
+  - `ArchMAP: Analyze Project` command.
+  - `ArchMAP: Open Web UI` command (launches `archmap serve` and opens browser).
+  - `ArchMAP: Trace File Reachability` command — opens a webview with the BFS depth tree.
+  - `archmap.analyzeOnSave` setting for CI-style continuous feedback.
+
 ## [0.7.2] - 2026-04-27
 
 ### Added

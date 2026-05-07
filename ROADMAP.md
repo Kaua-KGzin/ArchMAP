@@ -28,7 +28,16 @@
 
 ---
 
-## Next up (v0.7.x / v0.8.0)
+### v0.8.0 (current dev)
+- **`archmap trace <entrypoint>`** — BFS reachability from any file: shows dependency tree by depth, coverage %, and optionally unreachable files.
+- **`archmap advise`** — LLM-powered architectural advisor: supports Claude, OpenAI, Ollama, and any OpenAI-compatible local endpoint (LM Studio, etc.).
+- **`archmap init --from-analysis`** — generates `.archmap.toml` layer rules from the actual dependency graph instead of directory names.
+- **`archmap diff --snapshot-a <file> --snapshot-b <file>`** — compare any two JSON snapshot files, not just git refs.
+- **VS Code extension** (`vscode-extension/`) — inline diagnostics (cycles, layer violations, god modules), status bar health score, trace panel, and web UI launcher.
+
+---
+
+## Next up (v0.8.x / v0.9.0)
 
 - **CLI coverage** — `tests/test_args.py`, `tests/test_commands.py`, `tests/test_reporting.py` to bring coverage ≥ 85%.
 - **Server security** — `/api/project` path validation (`allowed_roots`), rate limit on `/api/reanalyze`.

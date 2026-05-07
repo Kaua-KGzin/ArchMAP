@@ -5,6 +5,7 @@ import sys
 from archmap import __version__
 from archmap.cli.args import apply_default_command as _apply_default_command
 from archmap.cli.args import build_parser as _build_parser
+from archmap.cli.commands import run_advise as _run_advise
 from archmap.cli.commands import run_analyze as _run_analyze
 from archmap.cli.commands import run_diff as _run_diff
 from archmap.cli.commands import run_explain as _run_explain
@@ -13,6 +14,7 @@ from archmap.cli.commands import run_improve as _run_improve
 from archmap.cli.commands import run_init as _run_init
 from archmap.cli.commands import run_risk as _run_risk
 from archmap.cli.commands import run_serve as _run_serve
+from archmap.cli.commands import run_trace as _run_trace
 from archmap.cli.commands import run_watch as _run_watch
 from archmap.cli.defaults import DEFAULT_HOST, DEFAULT_PORT  # noqa: F401
 
@@ -50,6 +52,8 @@ def _resolve_command_handler(command: str | None):
         "history": _run_history,
         "init": _run_init,
         "watch": _run_watch,
+        "trace": _run_trace,
+        "advise": _run_advise,
     }
     return handlers.get(command)
 

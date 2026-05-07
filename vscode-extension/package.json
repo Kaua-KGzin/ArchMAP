@@ -1,0 +1,62 @@
+{
+  "name": "archmap",
+  "displayName": "ArchMAP",
+  "description": "Real-time architectural dependency analysis — cycles, layer violations, health score",
+  "version": "0.1.0",
+  "publisher": "KGzin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kaua-KGzin/ArchMAP"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Linters", "Visualization"],
+  "activationEvents": [
+    "workspaceContains:.archmap.toml",
+    "onCommand:archmap.analyze",
+    "onCommand:archmap.openUI",
+    "onCommand:archmap.trace"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "archmap.analyze",
+        "title": "ArchMAP: Analyze Project"
+      },
+      {
+        "command": "archmap.openUI",
+        "title": "ArchMAP: Open Web UI"
+      },
+      {
+        "command": "archmap.trace",
+        "title": "ArchMAP: Trace File Reachability"
+      }
+    ],
+    "configuration": {
+      "title": "ArchMAP",
+      "properties": {
+        "archmap.executablePath": {
+          "type": "string",
+          "default": "archmap",
+          "description": "Path to the archmap executable (defaults to 'archmap' on PATH)"
+        },
+        "archmap.analyzeOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Re-analyze the project every time a source file is saved"
+        },
+        "archmap.port": {
+          "type": "number",
+          "default": 3000,
+          "description": "Port used when launching the ArchMAP web UI"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "package": "npx @vscode/vsce package"
+  }
+}
