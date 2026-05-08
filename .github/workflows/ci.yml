@@ -36,9 +36,22 @@ jobs:
         run: python -m ruff check .
         if: matrix.python-version == '3.13'
 
+      - name: Type check (mypy)
+        run: python -m mypy src/archmap/
+        if: matrix.python-version == '3.13'
+        continue-on-error: true
+
+      - name: Audit dependencies (pip-audit)
+        run: pip-audit --skip-editable -q
+        if: matrix.python-version == '3.13'
+
       - name: Run tests with coverage
         run: python -m pytest
 
       - name: Run smoke analysis
         run: python -m archmap.cli.main analyze . --format both --out .codeatlas/ci-graph.json --out-mermaid .codeatlas/ci-graph.mmd --include-cytoscape --out-sarif .codeatlas/ci-archmap.sarif
+        if: matrix.python-version == '3.13'
+
+      - name: Architectural self-check (dogfooding)
+        run: python -m archmap.cli.main analyze src/archmap/ --fail-on-cycles --quiet --format json --out .codeatlas/self-check.json
         if: matrix.python-version == '3.13'
