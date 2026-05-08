@@ -42,7 +42,7 @@ jobs:
         continue-on-error: true
 
       - name: Audit dependencies (pip-audit)
-        run: pip-audit --skip-editable -q
+        run: pip-audit --progress-spinner off .
         if: matrix.python-version == '3.13'
 
       - name: Run tests with coverage
