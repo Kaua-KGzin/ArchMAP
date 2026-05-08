@@ -51,7 +51,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body_path: release_notes.txt
           files: dist/*
@@ -88,7 +88,7 @@ jobs:
         run: ./scripts/build-exe.ps1 -Clean
 
       - name: Upload EXE to existing release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/archmap.exe
