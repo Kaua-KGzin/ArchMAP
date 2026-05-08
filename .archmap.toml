@@ -4,4 +4,16 @@ forbid = [
   "parser -> cli",
   "analyzer -> cli",
   "graph -> cli",
+  "exporter -> cli",
+  "advisor -> cli",
+  "utils -> cli",
 ]
+
+[risks.layer_order]
+cli      = 1
+analyzer = 2
+advisor  = 3
+exporter = 4
+graph    = 5
+parser   = 6
+utils    = 7
