@@ -80,7 +80,9 @@ def load_project_config(
     risks_section = parsed.get("risks", {})
     rules_section = architecture_section.get("rules", {})
     layer_section = risks_section.get("layer_order", risk_section.get("layer_order", {}))
-    budgets_section = analysis_section.get("budgets", {}) if isinstance(analysis_section, dict) else {}
+    budgets_section = (
+        analysis_section.get("budgets", {}) if isinstance(analysis_section, dict) else {}
+    )
 
     return {
         "analysis": {

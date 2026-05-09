@@ -7,7 +7,10 @@ from archmap.config import load_project_config
 
 
 def _file_node(file_id: str, *, outgoing: int = 0, incoming: int = 0) -> dict:
-    return {"id": file_id, "label": file_id, "type": "file", "outgoing": outgoing, "incoming": incoming}
+    return {
+        "id": file_id, "label": file_id, "type": "file",
+        "outgoing": outgoing, "incoming": incoming,
+    }
 
 
 def _make_report(nodes: list[dict], *, config_budgets: dict | None = None) -> dict:

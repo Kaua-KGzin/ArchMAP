@@ -65,7 +65,7 @@ def test_print_summary_table_has_header(capsys) -> None:
 def test_print_summary_markdown_is_table(capsys) -> None:
     reporting.print_summary(_base_report(), summary_format="markdown")
     out = capsys.readouterr().out
-    lines = [l for l in out.splitlines() if l.startswith("|")]
+    lines = [ln for ln in out.splitlines() if ln.startswith("|")]
     assert len(lines) >= 3
     assert "Metric" in lines[0]
     assert "Value" in lines[0]
@@ -82,7 +82,7 @@ def test_print_summary_markdown_contains_values(capsys) -> None:
 def test_print_summary_markdown_separator_row(capsys) -> None:
     reporting.print_summary(_base_report(), summary_format="markdown")
     out = capsys.readouterr().out
-    lines = [l for l in out.splitlines() if l.startswith("|")]
+    lines = [ln for ln in out.splitlines() if ln.startswith("|")]
     separator = lines[1]
     assert "---" in separator or "─" in separator or "-" in separator
 
