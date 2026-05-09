@@ -2,11 +2,20 @@
 
 ## Released
 
-### v0.9.0 (current)
+### post-v0.9.0 (main — unreleased)
+- **Per-import unresolved tracking** — `importsTotal`, `importsResolved`, `unresolvedImports` per file; `metrics.unresolvedImports` in graph report.
+- **`--show-unresolved[=N]`** — list imports that failed to resolve (file + specifier).
+- **Coupling budgets** — `[analysis.budgets]` in `.archmap.toml` + `--fail-on-budget-violations` CI gate + `--max-outgoing-per-file` / `--max-incoming-per-file` CLI overrides.
+- **`--ignore-external`** — strip external package nodes and their edges; metrics recomputed on the filtered graph.
+- **`--summary-format {text,table,markdown}`** — flexible terminal summary output.
+- **SVG XSS fix** — health grade XML-escaped in `/api/badge` response.
+- **Web UI** — dedicated gear-icon Config button; logo restored to Graph view navigation.
+
+### v0.9.0
 - **Parser resolution rate** — `resolutionRate` metric in all reports. CLI warns when < 70%. `--min-resolution-rate PCT` gate for CI.
 - **Shell completion** — `archmap --print-completion bash|zsh|fish`. Install: `pip install archmap[completion]`.
-- **Web UI PNG export** — Download button in canvas toolbar, 2× scale, zero deps.
-- **Docker image** — `ghcr.io/kaua-kgzin/archmap:latest` published automatically on each release via GitHub Actions.
+- **Web UI PNG export** — Download button in canvas toolbar, 2× scale, zero deps. ✅
+- **Docker image** — `ghcr.io/kaua-kgzin/archmap:latest` published automatically on each release via GitHub Actions. ✅
 - **i18n — 6 languages** — English, Português (Brasil), Español, Français, Deutsch, 中文 (简体). Instant switch, persisted.
 - **Config panel** — Interface/General/Graph/LLM Advisor/Scan Languages. All persisted in localStorage.
 - **LLM config persistence** — Provider, model, base URL, API key saved; auto-save mode.
@@ -59,29 +68,26 @@
 
 ## Medium-term (v0.9.x)
 
-- **Shell completion** — ✅ Done in v0.9.0.
-- **Docker image** — ✅ Done in v0.8.2.
-- **Parser resolution rate** — ✅ Done in v0.9.0.
 - **Public Python API** — Define and document a stable programmatic surface (`from archmap import analyze_project, ArchMapConfig, AnalysisResult`). Add `__all__` to public modules, document with MkDocs examples, establish a deprecation policy (`DeprecationWarning` + semver). Unlocks IDE plugins, pytest integrations, and custom CI tooling beyond the CLI.
 - **mypy enforcement (blocking)** — Graduate mypy from non-blocking (infrastructure only, v0.8.x) to a hard CI gate. Expand typed coverage module by module until `--strict` is feasible on the full `src/archmap/` tree.
+- **Version bump to v1.0.0** — Finalize the public API contract, write a migration guide from 0.x, and tag the first stable release.
 
 ---
 
-## Longer-term (v0.9.0+)
+## Longer-term
 
 - Plugin SDK for custom parsers and analyzers via entry points.
 - Change coupling detector via `git log` analysis.
-- Complexity budget enforcement per module.
 - Multi-repo topology support.
 - WebSocket-based live UI refresh.
 - GraphML and Graphviz DOT export formats.
-- **Tree-sitter based parsers** — Replace regex-based parsers for JS, TS, Java, PHP, C#, and C++ with `tree-sitter` bindings (Python: `tree-sitter`, `tree-sitter-javascript`, etc.). The Python parser already uses the native AST; applying the same rigor to all languages is the most impactful quality improvement possible. Regex parsers silently misclassify multiline imports, template literals, decorators, and comment-embedded patterns — contaminating every downstream analysis (cycles, risk, trace, LLM advisor).
-- **Property-based testing (Hypothesis)** — Add `hypothesis` to dev deps and use it on all language parsers. Principle: the parser must never crash on any valid unicode input. Finds edge cases that fixed-example tests miss, particularly important for parsers processing untrusted user code.
-- **Mutation testing (mutmut)** — Apply mutation testing to the core analysis modules (`cycle_detector.py`, `risk_analyzer.py`, `complexity_analyzer.py`). Exposes tests that pass accidentally and enforces that the test suite would actually detect bugs in the logic it covers.
-- **Homebrew formula** — Distribute ArchMAP as a Homebrew tap for macOS users (`brew install kaua-kgzin/tap/archmap`). Complements the existing PyPI + Windows EXE distribution and removes the Python-install barrier for macOS developers.
-- **Web UI accessibility (a11y)** — Audit and fix WCAG 2.1 AA compliance in the Web UI: color contrast, keyboard navigation, focus management, ARIA labels for the Cytoscape.js graph. Add `axe-core` to the CI test suite for regression detection.
-- **Web UI graph export** — Add a "Download PNG" and "Download SVG" button to the Web UI using Cytoscape.js's native `cy.png()` and `cy.svg()` APIs. Zero new dependencies; high user value for documentation and presentations.
-- **API stability policy** — Publish a formal versioning contract: which modules are public API (stable across minor versions), which are internal (may break), and what the deprecation timeline is. Correlate with the `__all__` work from the medium-term public API item.
+- **Tree-sitter based parsers** — Replace regex-based parsers for JS, TS, Java, PHP, C#, and C++ with `tree-sitter` bindings. The Python parser already uses the native AST; applying the same rigor to all languages eliminates silent misclassification of multiline imports, template literals, decorators, and comment-embedded patterns.
+- **Property-based testing (Hypothesis)** — Add `hypothesis` to dev deps and use it on all language parsers. The parser must never crash on any valid unicode input.
+- **Mutation testing (mutmut)** — Apply mutation testing to core analysis modules (`cycle_detector.py`, `risk_analyzer.py`, `complexity_analyzer.py`).
+- **Homebrew formula** — Distribute as a Homebrew tap for macOS users (`brew install kaua-kgzin/tap/archmap`).
+- **Web UI accessibility (a11y)** — Audit and fix WCAG 2.1 AA compliance: color contrast, keyboard navigation, focus management, ARIA labels for the Cytoscape.js graph.
+- **SVG export** — Add a "Download SVG" button using Cytoscape.js's `cy.svg()` API.
+- **API stability policy** — Publish a formal versioning contract: public vs. internal modules, deprecation timeline.
 
 ---
 
