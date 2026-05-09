@@ -78,7 +78,8 @@ def test_ollama_returns_advice_text():
 
 
 def test_custom_gemini_returns_advice():
-    with patch("urllib.request.urlopen", return_value=_mock_openai_response("Split the god module.")):
+    advice = _mock_openai_response("Split the god module.")
+    with patch("urllib.request.urlopen", return_value=advice):
         result = advise_architecture(
             {},
             provider="custom",

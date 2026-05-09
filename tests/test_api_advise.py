@@ -11,7 +11,6 @@ from urllib.request import Request, urlopen
 
 from archmap.cli import server as cli_server
 
-
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 class StubState:

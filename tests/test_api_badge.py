@@ -9,7 +9,6 @@ from urllib.request import urlopen
 from archmap.cli import server as cli_server
 from archmap.cli.server import _build_badge_svg
 
-
 # ── helpers ─────────────────────────────────────────────────────────────────
 
 class StubState:

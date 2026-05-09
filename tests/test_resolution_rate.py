@@ -2,12 +2,9 @@ from __future__ import annotations
 
 import argparse
 
-import pytest
-
 from archmap.core.analyzer.dependency_graph import analyze_graph
 from archmap.core.graph.graph_builder import build_graph
 from archmap.core.parser import parse_project
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
