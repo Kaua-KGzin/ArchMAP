@@ -162,7 +162,60 @@ def print_improve_report(suggestions: dict) -> None:
             print(f"  - ... and {len(moves) - 12} more moves")
 
 
-def print_summary(report: dict) -> None:
+def print_summary(report: dict, summary_format: str = "text") -> None:
+    if summary_format == "table":
+        _print_summary_table(report)
+    elif summary_format == "markdown":
+        _print_summary_markdown(report)
+    else:
+        _print_summary_text(report)
+
+
+def _build_summary_rows(report: dict) -> list[tuple[str, str]]:
+    """Return (metric, value) pairs for all applicable summary fields."""
+    metrics = report["metrics"]
+    rows: list[tuple[str, str]] = [
+        ("Files analyzed", str(metrics["filesAnalyzed"])),
+        ("Dependencies", str(metrics["totalDependencies"])),
+        ("Circular dependencies", str(metrics["circularDependencyCount"])),
+    ]
+
+    coupling = metrics.get("coupling", {})
+    if coupling:
+        instability_pct = round(float(coupling.get("averageInstability", 0.0)) * 100)
+        rows.append(("Average instability", f"{instability_pct}%"))
+
+    resolution_rate = float(metrics.get("resolutionRate", 1.0))
+    rate_pct = round(resolution_rate * 100)
+    unresolved_total = int(metrics.get("unresolvedImportsTotal", 0))
+    res_suffix = f" ({unresolved_total} unresolved)" if unresolved_total else ""
+    rows.append(("Import resolution", f"{rate_pct}%{res_suffix}"))
+
+    architecture = report.get("architecture", {})
+    health = architecture.get("health", {})
+    style = architecture.get("detectedStyle", {})
+    rule_violations = architecture.get("ruleViolations", [])
+    active_rules = architecture.get("activeRules", {})
+
+    if health:
+        rows.append((
+            "Architecture health",
+            f"{health.get('score', 0)}/100 ({health.get('grade', '?')})",
+        ))
+    if style:
+        confidence = round(float(style.get("confidence", 0.0)) * 100)
+        rows.append(("Detected style", f"{style.get('name', 'unknown')} ({confidence}%)"))
+
+    configured_rules = len(active_rules.get("forbid", [])) + len(active_rules.get("allow", []))
+    if configured_rules:
+        rows.append(("Custom rules configured", str(configured_rules)))
+    if rule_violations:
+        rows.append(("Rule violations", str(len(rule_violations))))
+
+    return rows
+
+
+def _print_summary_text(report: dict) -> None:
     metrics = report["metrics"]
     print(f"[ok] {metrics['filesAnalyzed']} files analyzed")
     print(f"[ok] {metrics['totalDependencies']} dependencies detected")
@@ -175,10 +228,15 @@ def print_summary(report: dict) -> None:
         )
     resolution_rate = float(metrics.get("resolutionRate", 1.0))
     rate_pct = round(resolution_rate * 100)
+    unresolved_total = int(metrics.get("unresolvedImportsTotal", 0))
     if rate_pct < 70:
-        print(f"[warn] Import resolution rate {rate_pct}% — some imports could not be resolved")
+        print(
+            f"[warn] Import resolution rate {rate_pct}% "
+            f"— {unresolved_total} import(s) could not be resolved"
+        )
     else:
-        print(f"[ok] Import resolution rate {rate_pct}%")
+        suffix = f" ({unresolved_total} unresolved)" if unresolved_total else ""
+        print(f"[ok] Import resolution rate {rate_pct}%{suffix}")
 
     architecture = report.get("architecture", {})
     health = architecture.get("health", {})
@@ -198,6 +256,29 @@ def print_summary(report: dict) -> None:
         print(f"[ok] {configured_rules} custom architecture rules configured")
     if rule_violations:
         print(f"[warn] {len(rule_violations)} custom architecture rule violations detected")
+
+
+def _print_summary_table(report: dict) -> None:
+    rows = _build_summary_rows(report)
+    col1 = max(len(r[0]) for r in rows)
+    col2 = max(len(r[1]) for r in rows)
+    sep = f"{'─' * (col1 + 2)}{'─' * (col2 + 2)}"
+    print(sep)
+    print(f"{'Metric':<{col1}}  {'Value':<{col2}}")
+    print(sep)
+    for metric, value in rows:
+        print(f"{metric:<{col1}}  {value:<{col2}}")
+    print(sep)
+
+
+def _print_summary_markdown(report: dict) -> None:
+    rows = _build_summary_rows(report)
+    col1 = max(len("Metric"), max(len(r[0]) for r in rows))
+    col2 = max(len("Value"), max(len(r[1]) for r in rows))
+    print(f"| {'Metric':<{col1}} | {'Value':<{col2}} |")
+    print(f"| {'-' * col1} | {'-' * col2} |")
+    for metric, value in rows:
+        print(f"| {metric:<{col1}} | {value:<{col2}} |")
 
 
 def print_top_complexity(report: dict, limit: int) -> None:
@@ -233,6 +314,21 @@ def print_top_risks(report: dict, limit: int) -> None:
     for item in top_risks:
         signals = ", ".join(item.get("signals", [])) or "none"
         print(f"  - {item['file']}: score {item['riskScore']} ({signals})")
+
+
+def print_unresolved_imports(report: dict, limit: int = 20) -> None:
+    metrics = report.get("metrics", {})
+    unresolved = metrics.get("unresolvedImports", [])
+    total = int(metrics.get("unresolvedImportsTotal", len(unresolved)))
+    if not unresolved:
+        return
+
+    shown = unresolved[:max(0, limit)]
+    print(f"\n[unresolved] {total} import(s) could not be resolved:")
+    for item in shown:
+        print(f"  {item['file']}  →  {item['import']}")
+    if total > limit:
+        print(f"  … and {total - limit} more (use --show-unresolved=all to see all)")
 
 
 def print_export_summary(export_result: dict) -> None:
@@ -301,6 +397,49 @@ def evaluate_quality_gates(report: dict, args: argparse.Namespace) -> list[str]:
                 f"import resolution {rate_pct}% is below {int(min_rate)}%"
             )
 
+    if getattr(args, "fail_on_budget_violations", False):
+        budget_failures = _evaluate_budget_violations(report, args)
+        failures.extend(budget_failures)
+
+    return failures
+
+
+def _evaluate_budget_violations(report: dict, args: argparse.Namespace) -> list[str]:
+    """Check per-file coupling budgets from args (CLI overrides) or from the config."""
+    nodes = report.get("nodes", [])
+    failures: list[str] = []
+
+    max_out = getattr(args, "max_outgoing_per_file", None)
+    max_in = getattr(args, "max_incoming_per_file", None)
+
+    # Fall back to budgets stored in the report if args don't carry them.
+    config_budgets = report.get("_configBudgets", {})
+    if max_out is None:
+        max_out = config_budgets.get("max_outgoing_per_file")
+    if max_in is None:
+        max_in = config_budgets.get("max_incoming_per_file")
+
+    violators: list[str] = []
+    for node in nodes:
+        if node.get("type") != "file":
+            continue
+        outgoing = int(node.get("outgoing", 0))
+        incoming = int(node.get("incoming", 0))
+        if max_out is not None and outgoing > int(max_out):
+            violators.append(
+                f"  {node['id']}: {outgoing} outgoing (limit {max_out})"
+            )
+        elif max_in is not None and incoming > int(max_in):
+            violators.append(
+                f"  {node['id']}: {incoming} incoming (limit {max_in})"
+            )
+
+    if violators:
+        failures.append(
+            f"budget gate failed: {len(violators)} file(s) exceed coupling limits\n"
+            + "\n".join(violators[:10])
+            + ("\n  … and more" if len(violators) > 10 else "")
+        )
     return failures
 
 

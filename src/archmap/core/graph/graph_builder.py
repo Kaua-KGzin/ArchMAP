@@ -61,11 +61,20 @@ def build_graph(parsed_project: dict) -> dict:
     total_imports = sum(int(f.get("importsTotal", 0)) for f in parsed_project["parsedFiles"])
     resolved_imports = sum(int(f.get("importsResolved", 0)) for f in parsed_project["parsedFiles"])
 
+    unresolved_list: list[dict] = []
+    for f in parsed_project["parsedFiles"]:
+        for specifier in f.get("unresolvedImports", []):
+            unresolved_list.append({"file": f["id"], "import": specifier})
+
     return {
         "projectRoot": parsed_project["projectRoot"],
         "nodes": nodes,
         "edges": edges,
-        "importStats": {"total": total_imports, "resolved": resolved_imports},
+        "importStats": {
+            "total": total_imports,
+            "resolved": resolved_imports,
+            "unresolved": unresolved_list,
+        },
     }
 
 

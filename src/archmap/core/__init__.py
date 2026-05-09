@@ -38,6 +38,13 @@ def analyze_project(
         "edges": [[edge["source"], edge["target"]] for edge in report["edges"]],
     }
 
+    # Embed budget config in report so CLI gate can access it without re-loading config.
+    budgets = config["analysis"].get("budgets", {})
+    if budgets:
+        report["_configBudgets"] = {
+            k: v for k, v in budgets.items() if v is not None
+        }
+
     if use_cache:
         save_cached_report(project_root, fingerprint, report)
 

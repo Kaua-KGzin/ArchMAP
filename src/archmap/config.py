@@ -2,11 +2,18 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from archmap.utils.file_utils import normalize_file_id
 
 CONFIG_FILENAMES = (".archmap.toml", "archmap.toml")
+
+_ABSOLUTE_MAX_COUPLING = 10_000  # sanity ceiling for budget values
+
+
+class BudgetsConfig(TypedDict):
+    max_outgoing_per_file: NotRequired[int | None]
+    max_incoming_per_file: NotRequired[int | None]
 
 
 class AnalysisConfig(TypedDict):
@@ -14,6 +21,7 @@ class AnalysisConfig(TypedDict):
     max_file_size_bytes: int
     parallel: bool
     cache: bool
+    budgets: BudgetsConfig
 
 
 class ArchitectureRulesConfig(TypedDict):
@@ -46,6 +54,7 @@ def default_project_config() -> ProjectConfig:
             "max_file_size_bytes": DEFAULT_MAX_FILE_SIZE_BYTES,
             "parallel": True,
             "cache": True,
+            "budgets": {},
         },
         "architecture": {"rules": {"forbid": [], "allow": []}},
         "risks": {"layer_order": {}},
@@ -71,6 +80,9 @@ def load_project_config(
     risks_section = parsed.get("risks", {})
     rules_section = architecture_section.get("rules", {})
     layer_section = risks_section.get("layer_order", risk_section.get("layer_order", {}))
+    budgets_section = (
+        analysis_section.get("budgets", {}) if isinstance(analysis_section, dict) else {}
+    )
 
     return {
         "analysis": {
@@ -78,6 +90,7 @@ def load_project_config(
             "max_file_size_bytes": _normalize_max_file_size(analysis_section),
             "parallel": _normalize_parallel(analysis_section),
             "cache": _normalize_bool_field(analysis_section, "cache", default=True),
+            "budgets": _normalize_budgets(budgets_section),
         },
         "architecture": {
             "rules": {
@@ -196,3 +209,21 @@ def _normalize_rule_list(section: object, key: str) -> list[str]:
             normalized.append(f"{source_tag} -> {target_tag}")
 
     return normalized
+
+
+def _normalize_budgets(section: object) -> BudgetsConfig:
+    if not isinstance(section, dict):
+        return {}
+
+    def _parse_budget_value(key: str) -> int | None:
+        val = section.get(key)
+        if val is None:
+            return None
+        if isinstance(val, bool) or not isinstance(val, int):
+            return None
+        return max(0, min(val, _ABSOLUTE_MAX_COUPLING))
+
+    return {
+        "max_outgoing_per_file": _parse_budget_value("max_outgoing_per_file"),
+        "max_incoming_per_file": _parse_budget_value("max_incoming_per_file"),
+    }

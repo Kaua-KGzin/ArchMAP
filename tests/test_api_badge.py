@@ -81,6 +81,12 @@ def test_badge_svg_is_valid_xml():
     assert svg.endswith("</svg>")
 
 
+def test_badge_svg_escapes_xml_in_grade():
+    svg = _build_badge_svg(50, "<script>alert(1)</script>").decode()
+    assert "<script>" not in svg
+    assert "&lt;script&gt;" in svg
+
+
 # ── /api/badge endpoint tests ────────────────────────────────────────────────
 
 def test_badge_endpoint_returns_svg(tmp_path):

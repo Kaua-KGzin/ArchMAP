@@ -12,6 +12,7 @@ from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
+from xml.sax.saxutils import escape as _xml_escape
 
 from archmap.core import analyze_project
 from archmap.core.advisor import advise_architecture
@@ -403,11 +404,10 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             self.wfile.write(svg)
 
         def _handle_advise(self) -> None:
-            _VALID_PROVIDERS = {"claude", "openai", "ollama", "custom"}
             payload = self._read_json_body()
             provider = str(payload.get("provider", "ollama")).strip().lower()
-            if provider not in _VALID_PROVIDERS:
-                valid = ", ".join(sorted(_VALID_PROVIDERS))
+            if provider not in _VALID_LLM_PROVIDERS:
+                valid = ", ".join(sorted(_VALID_LLM_PROVIDERS))
                 self._write_json(
                     HTTPStatus.BAD_REQUEST,
                     {"status": "error", "message": f"provider must be one of: {valid}"},
@@ -558,6 +558,8 @@ def _parse_history_limit(raw_value: object) -> int:
     return max(1, min(50, parsed))
 
 
+_VALID_LLM_PROVIDERS: frozenset[str] = frozenset({"claude", "openai", "ollama", "custom"})
+
 _BADGE_COLORS: dict[str, str] = {
     "A": "#4c1",
     "B": "#a3c51c",
@@ -568,9 +570,10 @@ _BADGE_COLORS: dict[str, str] = {
 
 
 def _build_badge_svg(score: int, grade: str) -> bytes:
+    safe_grade = _xml_escape(str(grade))
     color = _BADGE_COLORS.get(grade, "#9f9f9f")
     label = "ArchMAP"
-    value = f"{score} {grade}"
+    value = f"{score} {safe_grade}"
     label_w = 62
     value_w = max(36, len(value) * 7 + 10)
     total_w = label_w + value_w
