@@ -317,7 +317,7 @@ function initGraph(report) {
   cy.on("tap", (e) => {
     if (e.target === cy) {
       cy.elements().removeClass("selected dimmed highlighted");
-      el.selectionInfo.innerHTML = `<p class="selection-muted">Click a node to inspect dependencies.</p>`;
+      el.selectionInfo.innerHTML = `<p class="selection-muted">${escHtml(t("selectionHint"))}</p>`;
     }
   });
   cy.on("zoom", () => {
@@ -396,7 +396,11 @@ function bindControls() {
   el.zoomInBtn.addEventListener("click", () => cy.zoom({ level: cy.zoom() * 1.2, renderedPosition: { x: el.graph.clientWidth / 2, y: el.graph.clientHeight / 2 } }));
   el.zoomOutBtn.addEventListener("click", () => cy.zoom({ level: cy.zoom() / 1.2, renderedPosition: { x: el.graph.clientWidth / 2, y: el.graph.clientHeight / 2 } }));
   el.fitBtn.addEventListener("click", () => cy.fit(cy.elements(":visible"), 60));
-  el.layoutBtn.addEventListener("click", () => cy.layout({ name: "cose", animate: true, fit: true, padding: 60, idealEdgeLength: 110, nodeRepulsion: 9000 }).run());
+  el.layoutBtn.addEventListener("click", () => {
+    let uiCfg = { layout: "cose" };
+    try { uiCfg = { ...uiCfg, ...(JSON.parse(localStorage.getItem("archmap.config.ui")) ?? {}) }; } catch (_) {}
+    cy.layout({ name: uiCfg.layout, animate: !document.body.classList.contains("no-animations"), fit: true, padding: 60, idealEdgeLength: 110, nodeRepulsion: 9000 }).run();
+  });
   el.resetBtn.addEventListener("click", () => {
     cy.elements().removeClass("selected dimmed highlighted");
     el.selectionInfo.innerHTML = `<p class="selection-muted">Click a node to inspect dependencies.</p>`;
@@ -424,11 +428,16 @@ function bindControls() {
   });
 
   // Nav rail — left panel view switching
+  document.getElementById("exportBtn")?.addEventListener("click", exportGraphPng);
+
   document.getElementById("navBtnGraph")?.addEventListener("click",    () => switchLeftView("graph"));
   document.getElementById("navBtnInsights")?.addEventListener("click", () => switchLeftView("insights"));
   document.getElementById("navBtnRules")?.addEventListener("click",    () => switchLeftView("rules"));
   document.getElementById("navBtnTrace")?.addEventListener("click",    () => switchLeftView("trace"));
   document.getElementById("navBtnAdvisor")?.addEventListener("click",  () => switchLeftView("advisor"));
+  const _railLogo = document.getElementById("railLogo");
+  _railLogo?.addEventListener("click", () => switchLeftView("config"));
+  _railLogo?.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") switchLeftView("config"); });
 
   // Trace panel controls
   document.getElementById("traceRunBtn")?.addEventListener("click", () => {
@@ -537,7 +546,7 @@ function renderSelection(node) {
     <div style="margin-top:10px">
       <button class="trace-from-btn" id="traceFromHereBtn">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 12h4m0 0V7m0 5v5"/></svg>
-        Trace from here
+        ${escHtml(t("navTrace"))}
       </button>
     </div>
   `;
@@ -549,17 +558,18 @@ function renderSelection(node) {
    ============================================================ */
 
 const LP_NAV = {
-  graph:   ["lpGraph",   "navBtnGraph"],
-  insights:["lpInsights","navBtnInsights"],
-  rules:   ["lpRules",   "navBtnRules"],
-  trace:   ["lpTrace",   "navBtnTrace"],
-  advisor: ["lpAdvisor", "navBtnAdvisor"],
+  graph:   ["lpGraph",    "navBtnGraph",    "rail-btn-active"],
+  insights:["lpInsights", "navBtnInsights", "rail-btn-active"],
+  rules:   ["lpRules",    "navBtnRules",    "rail-btn-active"],
+  trace:   ["lpTrace",    "navBtnTrace",    "rail-btn-active"],
+  advisor: ["lpAdvisor",  "navBtnAdvisor",  "rail-btn-active"],
+  config:  ["lpConfig",   "railLogo",       "rail-logo-active"],
 };
 
 function switchLeftView(key) {
-  for (const [k, [viewId, btnId]] of Object.entries(LP_NAV)) {
+  for (const [k, [viewId, btnId, activeClass]] of Object.entries(LP_NAV)) {
     document.getElementById(viewId)?.classList.toggle("lp-hidden", k !== key);
-    document.getElementById(btnId)?.classList.toggle("rail-btn-active", k === key);
+    document.getElementById(btnId)?.classList.toggle(activeClass, k === key);
   }
   if (key === "insights" && reportData) renderInsights(reportData);
   if (key === "rules"    && reportData) renderRules(reportData);
@@ -674,14 +684,15 @@ function renderInsights(report) {
   const m = report.metrics ?? {};
   const score = Math.round(m.architectureHealthScore ?? 100);
   const items = [
-    { label: "Health score",         val: `${score}/100` },
-    { label: "Files analysed",       val: m.filesAnalyzed ?? 0 },
-    { label: "Total dependencies",   val: m.totalDependencies ?? 0 },
-    { label: "Circular dependencies",val: m.circularDependencyCount ?? 0 },
-    { label: "External packages",    val: m.externalDependencies ?? 0 },
-    { label: "Rule violations",      val: m.architectureRuleViolations ?? 0 },
-    { label: "Avg complexity",       val: `${((m.complexity?.avgComplexityScore ?? 0) * 100).toFixed(1)}%` },
-    { label: "Critical files",       val: (m.criticalFiles ?? []).length },
+    { label: t("insHealthScore"),    val: `${score}/100` },
+    { label: t("insFilesAnalyzed"),  val: m.filesAnalyzed ?? 0 },
+    { label: t("insTotalDeps"),      val: m.totalDependencies ?? 0 },
+    { label: t("insCircularDeps"),   val: m.circularDependencyCount ?? 0 },
+    { label: t("insExternalPkgs"),   val: m.externalDependencies ?? 0 },
+    { label: t("insRuleViols"),      val: m.architectureRuleViolations ?? 0 },
+    { label: t("insAvgComplex"),     val: `${((m.complexity?.avgComplexityScore ?? 0) * 100).toFixed(1)}%` },
+    { label: t("insCriticalFiles"),  val: (m.criticalFiles ?? []).length },
+    { label: t("insResolutionRate"), val: `${Math.round((m.resolutionRate ?? 1) * 100)}%` },
   ];
   container.innerHTML = `<div class="insights-summary">${items.map(i =>
     `<div class="insight-item"><p class="ins-label">${escHtml(i.label)}</p><p class="ins-val">${escHtml(String(i.val))}</p></div>`
@@ -703,16 +714,16 @@ function renderRules(report) {
       <div class="rule-card">
         <div class="rule-card-head">
           <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-          Architecture layers
+          ${escHtml(t("ruleArchLayers"))}
         </div>
-        <div class="rule-card-body">No layer rules configured. Add an <code>.archmap.toml</code> file to define your architecture layers and dependency rules.</div>
+        <div class="rule-card-body">${t("ruleNoLayers")}</div>
       </div>
       <div class="rule-card" style="margin-top:0">
         <div class="rule-card-head">
           <svg viewBox="0 0 24 24"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
-          Violations
+          ${escHtml(t("ruleViolations"))}
         </div>
-        <div class="rule-card-body">${viols > 0 ? `${viols} rule violation${viols !== 1 ? "s" : ""} detected.` : "No violations detected."}</div>
+        <div class="rule-card-body">${viols > 0 ? `${viols} — ${escHtml(t("ruleViolations"))}` : escHtml(t("ruleNoViols"))}</div>
       </div>`;
     return;
   }
@@ -745,7 +756,7 @@ function traceFromQuery(query) {
   ));
   if (!match) {
     const container = document.getElementById("traceContent");
-    if (container) container.innerHTML = `<p style="padding:14px 18px;color:var(--danger);font-size:12.5px">File not found: <b>${escHtml(query)}</b></p>`;
+    if (container) container.innerHTML = `<p style="padding:14px 18px;color:var(--danger);font-size:12.5px"><b>${escHtml(query)}</b> — not found</p>`;
     return;
   }
   traceFromNodeId(match.id);
@@ -824,18 +835,18 @@ function _renderTracePanel(entryId, visited, totalFiles, coveragePct) {
     <div class="card">
       <div class="card-body">
         <div class="trace-stats">
-          <div class="trace-stat"><b>${visited.size}</b><small>reachable</small></div>
-          <div class="trace-stat"><b>${unreachable}</b><small>unreachable</small></div>
-          <div class="trace-stat"><b>${coveragePct}%</b><small>coverage</small></div>
+          <div class="trace-stat"><b>${visited.size}</b><small>${escHtml(t("traceReachable"))}</small></div>
+          <div class="trace-stat"><b>${unreachable}</b><small>${escHtml(t("traceUnreachable"))}</small></div>
+          <div class="trace-stat"><b>${coveragePct}%</b><small>${escHtml(t("traceCoverage"))}</small></div>
         </div>
       </div>
     </div>
     <div class="card" style="margin-top:0">
       <div class="card-head">
         <span class="ico"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 12h4m0 0V7m0 5v5"/></svg></span>
-        <h2>From: ${escHtml(short(entryId))}</h2>
+        <h2>${escHtml(t("traceFrom"))} ${escHtml(short(entryId))}</h2>
       </div>
-      <div class="card-body trace-list">${rows || '<p style="color:var(--muted);font-size:12px">No files reachable.</p>'}</div>
+      <div class="card-body trace-list">${rows || `<p style="color:var(--muted);font-size:12px">${escHtml(t("traceNoFiles"))}</p>`}</div>
     </div>`;
 
   const clearBtn = document.getElementById("traceClearBtn");
@@ -846,7 +857,7 @@ function _renderTracePanel(entryId, visited, totalFiles, coveragePct) {
         cy.elements().removeClass("selected dimmed highlighted");
         cy.nodes('[type="file"]').forEach(n => n.style("background-color", state.heatmap ? n.data("heatColor") : FILE_COLOR));
       }
-      container.innerHTML = `<p class="selection-muted" style="padding:16px 18px">Select a node on the graph and click <b>Trace from here</b>, or type a file name above.</p>`;
+      container.innerHTML = `<p class="selection-muted" style="padding:16px 18px" data-i18n-html="traceHint">${t("traceHint")}</p>`;
       clearBtn.style.display = "none";
       const input = document.getElementById("traceInput");
       if (input) input.value = "";
@@ -875,27 +886,26 @@ function renderAdvisorView(report) {
 
   if (cycles.length > 0) {
     issues.push({ level: "high", title: `${cycles.length} circular dependenc${cycles.length !== 1 ? "ies" : "y"}`,
-      detail: "Cycles prevent modular refactoring and increase coupling. Break them via interface extraction or dependency inversion." });
+      detail: t("advCyclesDetail") });
   }
   const godMods = risks.god_modules ?? [];
   if (godMods.length > 0) {
     const names = godMods.slice(0, 3).map(g => (g.file ?? "").split("/").pop()).join(", ");
     issues.push({ level: "medium", title: `${godMods.length} god module${godMods.length !== 1 ? "s" : ""}`,
-      detail: `Files with excessive dependents: ${names}. Consider splitting into smaller focused modules.` });
+      detail: t("advGodModsDetail").replace("{names}", names) });
   }
   const layerViols = risks.layer_violations ?? [];
   if (layerViols.length > 0) {
     issues.push({ level: "medium", title: `${layerViols.length} layer violation${layerViols.length !== 1 ? "s" : ""}`,
-      detail: "Dependencies cross layer boundaries in forbidden directions. Check your .archmap.toml." });
+      detail: t("advLayerViolsDetail") });
   }
   const ruleViols = arch.ruleViolations ?? [];
   if (ruleViols.length > 0) {
     issues.push({ level: "medium", title: `${ruleViols.length} custom rule violation${ruleViols.length !== 1 ? "s" : ""}`,
-      detail: "One or more architecture rules defined in .archmap.toml are being violated." });
+      detail: t("advRuleViolsDetail") });
   }
   if (issues.length === 0) {
-    issues.push({ level: "ok", title: "No architectural issues detected",
-      detail: "Architecture looks clean. Keep monitoring as the project grows." });
+    issues.push({ level: "ok", title: t("advNoIssues"), detail: t("advNoIssuesDetail") });
   }
 
   const badge = lvl => lvl === "high" ? "!" : lvl === "ok" ? "✓" : "·";
@@ -912,30 +922,555 @@ function renderAdvisorView(report) {
     <div class="card">
       <div class="card-head">
         <span class="ico"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9-6-18-3 9H2"/></svg></span>
-        <h2>Health ${score}/100 (${escHtml(grade)})</h2>
+        <h2>${escHtml(t("advHealthTitle"))} ${score}/100 (${escHtml(grade)})</h2>
       </div>
       <div class="card-body--list">${issueCards}</div>
     </div>
     <div class="card" style="margin-top:0">
       <div class="card-head">
         <span class="ico" style="background:var(--accent-soft);color:var(--accent)"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-        <h2>AI Advisor</h2>
+        <h2>${escHtml(t("navAdvisor"))}</h2>
       </div>
       <div class="card-body">
-        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Get concrete refactoring advice from your LLM of choice — Claude, OpenAI, Ollama, or any local model.</p>
-        <div class="advisor-cmds">
-          <code class="advisor-cmd">archmap advise .</code>
-          <code class="advisor-cmd">archmap advise . --provider ollama</code>
-          <code class="advisor-cmd">archmap advise . --provider openai</code>
-          <code class="advisor-cmd">archmap advise . --provider custom --base-url http://localhost:1234</code>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">${escHtml(t("advGetAdviceDesc"))}</p>
+        <div class="advisor-form" id="advisorForm">
+          <div class="advisor-field">
+            <label class="advisor-label">${escHtml(t("advisorProvider"))}</label>
+            <select class="advisor-select" id="advisorProvider">
+              <option value="ollama" selected>Ollama (local)</option>
+              <option value="claude">Claude</option>
+              <option value="openai">OpenAI</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="advisor-field">
+            <label class="advisor-label">${escHtml(t("advisorModel"))}</label>
+            <input class="advisor-input" id="advisorModel" type="text" value="llama3" placeholder="e.g. llama3, claude-opus-4-7"/>
+          </div>
+          <div class="advisor-field" id="advisorBaseUrlRow">
+            <label class="advisor-label">${escHtml(t("advisorBaseUrl"))}</label>
+            <input class="advisor-input" id="advisorBaseUrl" type="text" value="http://localhost:11434" placeholder="e.g. http://localhost:11434 or .../v1beta/openai"/>
+          </div>
+          <div class="advisor-field" id="advisorApiKeyRow" style="display:none">
+            <label class="advisor-label">${escHtml(t("advisorApiKey"))}</label>
+            <input class="advisor-input" id="advisorApiKey" type="password" placeholder="sk-… (optional for custom)"/>
+          </div>
+          <button class="advisor-btn" id="advisorRunBtn" type="button">${escHtml(t("advisorGetAdvice"))}</button>
         </div>
-        <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
-          <p style="font-size:11.5px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Generate blueprint from real graph</p>
-          <code class="advisor-cmd">archmap init --from-analysis</code>
-        </div>
+        <div id="advisorResult" style="margin-top:12px"></div>
+        <details style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+          <summary style="font-size:11.5px;font-weight:600;color:var(--ink-2);cursor:pointer">${escHtml(t("advisorCli"))}</summary>
+          <div class="advisor-cmds" style="margin-top:8px">
+            <code class="advisor-cmd">archmap advise .</code>
+            <code class="advisor-cmd">archmap advise . --provider ollama</code>
+            <code class="advisor-cmd">archmap advise . --provider openai</code>
+            <code class="advisor-cmd">archmap advise . --provider custom --base-url http://localhost:1234</code>
+          </div>
+          <div style="margin-top:8px">
+            <p style="font-size:11.5px;font-weight:600;color:var(--ink-2);margin-bottom:4px">Generate blueprint from real graph</p>
+            <code class="advisor-cmd">archmap init --from-analysis</code>
+          </div>
+        </details>
       </div>
     </div>`;
+
+  _initAdvisorForm();
 }
+
+/* ============================================================
+   Graph export
+   ============================================================ */
+
+function exportGraphPng() {
+  if (!cy) return;
+  const uri = cy.png({ scale: 2, full: true, output: "base64uri" });
+  const a = document.createElement("a");
+  a.href = uri;
+  a.download = "archmap-graph.png";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+/* ============================================================
+   i18n — translations & engine
+   ============================================================ */
+
+const _TRANSLATIONS = {
+  en: {
+    navGraph:"Graph view",navInsights:"Insights",navRules:"Rules & Layers",navTrace:"Trace reachability",navAdvisor:"AI Advisor",navOpenProject:"Open project",navToggleTheme:"Toggle theme",navSettings:"Settings",
+    serviceMap:"Service Map",serviceMapSub:"Dependency topology and architectural risk hotspots.",
+    archHealth:"Architecture Health",cycles:"Cycles",layerViol:"Layer viol.",godFiles:"God files",avgComplex:"Avg complex.",
+    risksAnomalies:"Risks & Anomalies",graphControls:"Graph Controls",filterByFolder:"Filter by folder",onlyCircular:"Only circular dependencies",heatmapMode:"Heatmap (complexity)",
+    zoomIn:"Zoom +",zoomOut:"Zoom −",fit:"Fit",relayout:"Relayout",clearHighlight:"Clear highlight",criticalFiles:"Critical files",
+    insightsTitle:"Architecture Report",insightsSub:"AI-generated analysis of your codebase structure.",
+    insHealthScore:"Health score",insFilesAnalyzed:"Files analysed",insTotalDeps:"Total dependencies",insCircularDeps:"Circular dependencies",insExternalPkgs:"External packages",insRuleViols:"Rule violations",insAvgComplex:"Avg complexity",insCriticalFiles:"Critical files",
+    rulesTitle:"Architecture Rules",rulesSub:"Layer hierarchy, violations, and structural constraints.",
+    ruleArchLayers:"Architecture layers",ruleNoLayers:"No layer rules configured. Add an <code>.archmap.toml</code> file to define your architecture layers and dependency rules.",ruleViolations:"Violations",ruleNoViols:"No violations detected.",
+    traceTitle:"Reachability",traceSub:"BFS from an entrypoint through all dependency edges.",tracePlaceholder:"File path or name…",traceBtn:"Trace",traceClear:"Clear highlight",
+    traceHint:"Select a node on the graph and click <b>Trace from here</b>, or type a file name above.",
+    traceReachable:"reachable",traceUnreachable:"unreachable",traceCoverage:"coverage",traceNoFiles:"No files reachable.",traceFrom:"From:",
+    advisorTitle:"Advice",advisorSub:"Top issues and commands for LLM-powered architectural advice.",
+    advisorProvider:"Provider",advisorModel:"Model",advisorBaseUrl:"Base URL",advisorApiKey:"API Key",advisorGetAdvice:"Get Advice",advisorRequesting:"Requesting…",advisorWaiting:"⏳ Waiting for LLM response…",advisorCli:"CLI commands",
+    advHealthTitle:"Health",advGetAdviceDesc:"Get concrete refactoring advice from your LLM of choice — runs directly from the browser.",
+    advNoIssues:"No architectural issues detected",advNoIssuesDetail:"Architecture looks clean. Keep monitoring as the project grows.",
+    advCyclesDetail:"Cycles prevent modular refactoring and increase coupling. Break them via interface extraction or dependency inversion.",
+    advGodModsDetail:"Files with excessive dependents: {names}. Consider splitting into smaller focused modules.",
+    advLayerViolsDetail:"Dependencies cross layer boundaries in forbidden directions. Check your .archmap.toml.",
+    advRuleViolsDetail:"One or more architecture rules defined in .archmap.toml are being violated.",
+    cfgTitle:"Configuration",cfgSub:"LLM provider, languages, and preferences.",cfgInterface:"Interface",cfgLangLabel:"Language",
+    cfgGeneral:"General",cfgAutoSaveLabel:"Auto-save config",cfgAutoSaveDesc:"Save LLM settings automatically as you type.",cfgAnimations:"Enable animations",
+    cfgGraph:"Graph",cfgDefaultLayout:"Default layout",cfgLlmAdvisor:"LLM Advisor",cfgScanLangs:"Scan Languages",cfgScanLangsDesc:"Languages included in the architectural analysis.",cfgSave:"Save",cfgSaved:"Saved ✓",
+    canvasGraph:"Graph",canvasLayers:"Layers",canvasMatrix:"Matrix",dependencyGraph:"Dependency Graph",layerDiagram:"Layer Diagram",dependencyMatrix:"Dependency Matrix",
+    searchPlaceholder:"Search files or packages",refresh:"Refresh",miniMap:"Mini map",
+    matrixTitle:"Dependency Matrix",matrixSub:"Top files by connectivity · rows = source · columns = target",matrixDep:"Dependency",matrixCircular:"Circular",matrixSelf:"Self",
+    summary:"Summary",selection:"Selection",selectionHint:"Click a node to inspect dependencies.",circularDeps:"Circular deps",
+    heatmapLegend:"Heatmap legend",heatmapDesc:'Toggle "Heatmap mode" to color nodes by import complexity.',heatLow:"Low",heatMid:"Medium",heatHigh:"High",
+    statusFile:"File",statusPkg:"Package",statusCycle:"Cycle",loading:"Loading…",
+    insResolutionRate:"Resolution rate",exportPng:"PNG",
+  },
+  pt: {
+    navGraph:"Grafo",navInsights:"Insights",navRules:"Regras & Camadas",navTrace:"Rastrear dependências",navAdvisor:"Consultor IA",navOpenProject:"Abrir projeto",navToggleTheme:"Alternar tema",navSettings:"Configurações",
+    serviceMap:"Mapa de Serviços",serviceMapSub:"Topologia de dependências e hotspots de risco arquitetural.",
+    archHealth:"Saúde da Arquitetura",cycles:"Ciclos",layerViol:"Viol. de camada",godFiles:"Arquivos deus",avgComplex:"Complex. média",
+    risksAnomalies:"Riscos & Anomalias",graphControls:"Controles do Grafo",filterByFolder:"Filtrar por pasta",onlyCircular:"Apenas dependências circulares",heatmapMode:"Mapa de calor (complexidade)",
+    zoomIn:"Zoom +",zoomOut:"Zoom −",fit:"Ajustar",relayout:"Reorganizar",clearHighlight:"Limpar destaque",criticalFiles:"Arquivos críticos",
+    insightsTitle:"Relatório de Arquitetura",insightsSub:"Análise gerada por IA da estrutura do código.",
+    insHealthScore:"Pontuação de saúde",insFilesAnalyzed:"Arquivos analisados",insTotalDeps:"Total de dependências",insCircularDeps:"Dependências circulares",insExternalPkgs:"Pacotes externos",insRuleViols:"Violações de regra",insAvgComplex:"Complexidade média",insCriticalFiles:"Arquivos críticos",
+    rulesTitle:"Regras de Arquitetura",rulesSub:"Hierarquia de camadas, violações e restrições estruturais.",
+    ruleArchLayers:"Camadas de arquitetura",ruleNoLayers:"Nenhuma regra de camada configurada. Adicione um arquivo <code>.archmap.toml</code> para definir suas camadas e regras de dependência.",ruleViolations:"Violações",ruleNoViols:"Nenhuma violação detectada.",
+    traceTitle:"Alcançabilidade",traceSub:"BFS a partir de um ponto de entrada por todas as arestas de dependência.",tracePlaceholder:"Caminho ou nome do arquivo…",traceBtn:"Rastrear",traceClear:"Limpar destaque",
+    traceHint:"Selecione um nó no grafo e clique em <b>Rastrear a partir daqui</b>, ou digite um nome de arquivo acima.",
+    traceReachable:"alcançável",traceUnreachable:"inacessível",traceCoverage:"cobertura",traceNoFiles:"Nenhum arquivo alcançável.",traceFrom:"De:",
+    advisorTitle:"Conselho",advisorSub:"Principais problemas e comandos para conselho arquitetural com LLM.",
+    advisorProvider:"Provedor",advisorModel:"Modelo",advisorBaseUrl:"URL Base",advisorApiKey:"Chave de API",advisorGetAdvice:"Obter Conselho",advisorRequesting:"Solicitando…",advisorWaiting:"⏳ Aguardando resposta do LLM…",advisorCli:"Comandos CLI",
+    advHealthTitle:"Saúde",advGetAdviceDesc:"Obtenha conselhos concretos de refatoração do seu LLM — direto do navegador.",
+    advNoIssues:"Nenhum problema arquitetural detectado",advNoIssuesDetail:"A arquitetura parece limpa. Continue monitorando conforme o projeto cresce.",
+    advCyclesDetail:"Ciclos impedem refatoração modular e aumentam o acoplamento. Quebre-os via extração de interface ou inversão de dependência.",
+    advGodModsDetail:"Arquivos com dependentes excessivos: {names}. Considere dividir em módulos menores.",
+    advLayerViolsDetail:"Dependências cruzam limites de camadas em direções proibidas. Verifique seu .archmap.toml.",
+    advRuleViolsDetail:"Uma ou mais regras de arquitetura definidas no .archmap.toml estão sendo violadas.",
+    cfgTitle:"Configuração",cfgSub:"Provedor LLM, linguagens e preferências.",cfgInterface:"Interface",cfgLangLabel:"Idioma",
+    cfgGeneral:"Geral",cfgAutoSaveLabel:"Salvar automaticamente",cfgAutoSaveDesc:"Salva as configurações do LLM automaticamente ao digitar.",cfgAnimations:"Ativar animações",
+    cfgGraph:"Grafo",cfgDefaultLayout:"Layout padrão",cfgLlmAdvisor:"Consultor LLM",cfgScanLangs:"Linguagens para Análise",cfgScanLangsDesc:"Linguagens incluídas na análise arquitetural.",cfgSave:"Salvar",cfgSaved:"Salvo ✓",
+    canvasGraph:"Grafo",canvasLayers:"Camadas",canvasMatrix:"Matriz",dependencyGraph:"Grafo de Dependências",layerDiagram:"Diagrama de Camadas",dependencyMatrix:"Matriz de Dependências",
+    searchPlaceholder:"Buscar arquivos ou pacotes",refresh:"Atualizar",miniMap:"Minimapa",
+    matrixTitle:"Matriz de Dependências",matrixSub:"Top arquivos por conectividade · linhas = origem · colunas = destino",matrixDep:"Dependência",matrixCircular:"Circular",matrixSelf:"Auto",
+    summary:"Resumo",selection:"Seleção",selectionHint:"Clique em um nó para inspecionar dependências.",circularDeps:"Deps. circulares",
+    heatmapLegend:"Legenda do mapa de calor",heatmapDesc:'Ative o "Modo mapa de calor" para colorir nós por complexidade.',heatLow:"Baixo",heatMid:"Médio",heatHigh:"Alto",
+    statusFile:"Arquivo",statusPkg:"Pacote",statusCycle:"Ciclo",loading:"Carregando…",
+    insResolutionRate:"Taxa de resolução",exportPng:"PNG",
+  },
+  es: {
+    navGraph:"Vista de grafo",navInsights:"Perspectivas",navRules:"Reglas y Capas",navTrace:"Rastrear dependencias",navAdvisor:"Asesor IA",navOpenProject:"Abrir proyecto",navToggleTheme:"Cambiar tema",navSettings:"Configuración",
+    serviceMap:"Mapa de Servicios",serviceMapSub:"Topología de dependencias y puntos críticos de riesgo arquitectónico.",
+    archHealth:"Salud de la Arquitectura",cycles:"Ciclos",layerViol:"Viol. de capa",godFiles:"Archivos dios",avgComplex:"Compl. promedio",
+    risksAnomalies:"Riesgos y Anomalías",graphControls:"Controles del Grafo",filterByFolder:"Filtrar por carpeta",onlyCircular:"Solo dependencias circulares",heatmapMode:"Mapa de calor (complejidad)",
+    zoomIn:"Zoom +",zoomOut:"Zoom −",fit:"Ajustar",relayout:"Reorganizar",clearHighlight:"Limpiar resaltado",criticalFiles:"Archivos críticos",
+    insightsTitle:"Informe de Arquitectura",insightsSub:"Análisis generado por IA de la estructura del código.",
+    insHealthScore:"Puntuación de salud",insFilesAnalyzed:"Archivos analizados",insTotalDeps:"Total de dependencias",insCircularDeps:"Dependencias circulares",insExternalPkgs:"Paquetes externos",insRuleViols:"Violaciones de regla",insAvgComplex:"Complejidad media",insCriticalFiles:"Archivos críticos",
+    rulesTitle:"Reglas de Arquitectura",rulesSub:"Jerarquía de capas, violaciones y restricciones estructurales.",
+    ruleArchLayers:"Capas de arquitectura",ruleNoLayers:"No hay reglas de capa configuradas. Agregue un archivo <code>.archmap.toml</code> para definir sus capas y reglas de dependencia.",ruleViolations:"Violaciones",ruleNoViols:"No se detectaron violaciones.",
+    traceTitle:"Alcanzabilidad",traceSub:"BFS desde un punto de entrada a través de todas las aristas de dependencia.",tracePlaceholder:"Ruta o nombre del archivo…",traceBtn:"Rastrear",traceClear:"Limpiar resaltado",
+    traceHint:"Selecciona un nodo en el grafo y haz clic en <b>Rastrear desde aquí</b>, o escribe un nombre de archivo arriba.",
+    traceReachable:"alcanzable",traceUnreachable:"inalcanzable",traceCoverage:"cobertura",traceNoFiles:"No hay archivos alcanzables.",traceFrom:"Desde:",
+    advisorTitle:"Consejo",advisorSub:"Problemas principales y comandos para consejos arquitectónicos con LLM.",
+    advisorProvider:"Proveedor",advisorModel:"Modelo",advisorBaseUrl:"URL Base",advisorApiKey:"Clave de API",advisorGetAdvice:"Obtener Consejo",advisorRequesting:"Solicitando…",advisorWaiting:"⏳ Esperando respuesta del LLM…",advisorCli:"Comandos CLI",
+    advHealthTitle:"Salud",advGetAdviceDesc:"Obtén consejos concretos de refactorización de tu LLM — directamente desde el navegador.",
+    advNoIssues:"No se detectaron problemas arquitectónicos",advNoIssuesDetail:"La arquitectura parece limpia. Sigue monitoreando conforme crece el proyecto.",
+    advCyclesDetail:"Los ciclos impiden la refactorización modular y aumentan el acoplamiento. Rómpelos mediante extracción de interfaces o inversión de dependencias.",
+    advGodModsDetail:"Archivos con dependientes excesivos: {names}. Considera dividirlos en módulos más pequeños.",
+    advLayerViolsDetail:"Las dependencias cruzan límites de capas en direcciones prohibidas. Revisa tu .archmap.toml.",
+    advRuleViolsDetail:"Una o más reglas de arquitectura definidas en .archmap.toml están siendo violadas.",
+    cfgTitle:"Configuración",cfgSub:"Proveedor LLM, idiomas y preferencias.",cfgInterface:"Interfaz",cfgLangLabel:"Idioma",
+    cfgGeneral:"General",cfgAutoSaveLabel:"Guardado automático",cfgAutoSaveDesc:"Guarda la configuración del LLM automáticamente al escribir.",cfgAnimations:"Activar animaciones",
+    cfgGraph:"Grafo",cfgDefaultLayout:"Diseño predeterminado",cfgLlmAdvisor:"Asesor LLM",cfgScanLangs:"Lenguajes de Análisis",cfgScanLangsDesc:"Lenguajes incluidos en el análisis arquitectónico.",cfgSave:"Guardar",cfgSaved:"Guardado ✓",
+    canvasGraph:"Grafo",canvasLayers:"Capas",canvasMatrix:"Matriz",dependencyGraph:"Grafo de Dependencias",layerDiagram:"Diagrama de Capas",dependencyMatrix:"Matriz de Dependencias",
+    searchPlaceholder:"Buscar archivos o paquetes",refresh:"Actualizar",miniMap:"Minimapa",
+    matrixTitle:"Matriz de Dependencias",matrixSub:"Top archivos por conectividad · filas = origen · columnas = destino",matrixDep:"Dependencia",matrixCircular:"Circular",matrixSelf:"Auto",
+    summary:"Resumen",selection:"Selección",selectionHint:"Haz clic en un nodo para inspeccionar dependencias.",circularDeps:"Deps. circulares",
+    heatmapLegend:"Leyenda del mapa de calor",heatmapDesc:'Activa el "Modo mapa de calor" para colorear nodos por complejidad.',heatLow:"Bajo",heatMid:"Medio",heatHigh:"Alto",
+    statusFile:"Archivo",statusPkg:"Paquete",statusCycle:"Ciclo",loading:"Cargando…",
+    insResolutionRate:"Tasa de resolución",exportPng:"PNG",
+  },
+  fr: {
+    navGraph:"Vue graphe",navInsights:"Insights",navRules:"Règles & Couches",navTrace:"Tracer les dépendances",navAdvisor:"Conseiller IA",navOpenProject:"Ouvrir le projet",navToggleTheme:"Changer le thème",navSettings:"Paramètres",
+    serviceMap:"Carte des Services",serviceMapSub:"Topologie des dépendances et points chauds de risque architectural.",
+    archHealth:"Santé de l'Architecture",cycles:"Cycles",layerViol:"Viol. de couche",godFiles:"Fichiers dieu",avgComplex:"Complex. moy.",
+    risksAnomalies:"Risques & Anomalies",graphControls:"Contrôles du Graphe",filterByFolder:"Filtrer par dossier",onlyCircular:"Uniquement dépendances circulaires",heatmapMode:"Carte de chaleur (complexité)",
+    zoomIn:"Zoom +",zoomOut:"Zoom −",fit:"Ajuster",relayout:"Réorganiser",clearHighlight:"Effacer le surlignage",criticalFiles:"Fichiers critiques",
+    insightsTitle:"Rapport d'Architecture",insightsSub:"Analyse générée par IA de la structure du code.",
+    insHealthScore:"Score de santé",insFilesAnalyzed:"Fichiers analysés",insTotalDeps:"Total des dépendances",insCircularDeps:"Dépendances circulaires",insExternalPkgs:"Paquets externes",insRuleViols:"Violations de règle",insAvgComplex:"Complexité moyenne",insCriticalFiles:"Fichiers critiques",
+    rulesTitle:"Règles d'Architecture",rulesSub:"Hiérarchie des couches, violations et contraintes structurelles.",
+    ruleArchLayers:"Couches d'architecture",ruleNoLayers:"Aucune règle de couche configurée. Ajoutez un fichier <code>.archmap.toml</code> pour définir vos couches et règles de dépendance.",ruleViolations:"Violations",ruleNoViols:"Aucune violation détectée.",
+    traceTitle:"Atteignabilité",traceSub:"BFS depuis un point d'entrée à travers toutes les arêtes de dépendance.",tracePlaceholder:"Chemin ou nom du fichier…",traceBtn:"Tracer",traceClear:"Effacer le surlignage",
+    traceHint:"Sélectionnez un nœud sur le graphe et cliquez sur <b>Tracer depuis ici</b>, ou tapez un nom de fichier ci-dessus.",
+    traceReachable:"atteignable",traceUnreachable:"inaccessible",traceCoverage:"couverture",traceNoFiles:"Aucun fichier atteignable.",traceFrom:"De :",
+    advisorTitle:"Conseils",advisorSub:"Principaux problèmes et commandes pour des conseils architecturaux avec LLM.",
+    advisorProvider:"Fournisseur",advisorModel:"Modèle",advisorBaseUrl:"URL de base",advisorApiKey:"Clé API",advisorGetAdvice:"Obtenir des Conseils",advisorRequesting:"Requête en cours…",advisorWaiting:"⏳ En attente de la réponse du LLM…",advisorCli:"Commandes CLI",
+    advHealthTitle:"Santé",advGetAdviceDesc:"Obtenez des conseils de refactorisation concrets de votre LLM — directement depuis le navigateur.",
+    advNoIssues:"Aucun problème architectural détecté",advNoIssuesDetail:"L'architecture semble propre. Continuez à surveiller la croissance du projet.",
+    advCyclesDetail:"Les cycles empêchent la refactorisation modulaire et augmentent le couplage. Brisez-les via l'extraction d'interface ou l'inversion de dépendance.",
+    advGodModsDetail:"Fichiers avec des dépendants excessifs : {names}. Envisagez de les diviser en modules plus petits.",
+    advLayerViolsDetail:"Les dépendances traversent les limites de couches dans des directions interdites. Vérifiez votre .archmap.toml.",
+    advRuleViolsDetail:"Une ou plusieurs règles d'architecture définies dans .archmap.toml sont violées.",
+    cfgTitle:"Configuration",cfgSub:"Fournisseur LLM, langages et préférences.",cfgInterface:"Interface",cfgLangLabel:"Langue",
+    cfgGeneral:"Général",cfgAutoSaveLabel:"Sauvegarde automatique",cfgAutoSaveDesc:"Sauvegarde les paramètres LLM automatiquement lors de la saisie.",cfgAnimations:"Activer les animations",
+    cfgGraph:"Graphe",cfgDefaultLayout:"Disposition par défaut",cfgLlmAdvisor:"Conseiller LLM",cfgScanLangs:"Langages d'Analyse",cfgScanLangsDesc:"Langages inclus dans l'analyse architecturale.",cfgSave:"Enregistrer",cfgSaved:"Enregistré ✓",
+    canvasGraph:"Graphe",canvasLayers:"Couches",canvasMatrix:"Matrice",dependencyGraph:"Graphe de Dépendances",layerDiagram:"Diagramme de Couches",dependencyMatrix:"Matrice de Dépendances",
+    searchPlaceholder:"Rechercher des fichiers ou paquets",refresh:"Actualiser",miniMap:"Mini carte",
+    matrixTitle:"Matrice de Dépendances",matrixSub:"Top fichiers par connectivité · lignes = source · colonnes = cible",matrixDep:"Dépendance",matrixCircular:"Circulaire",matrixSelf:"Auto",
+    summary:"Résumé",selection:"Sélection",selectionHint:"Cliquez sur un nœud pour inspecter les dépendances.",circularDeps:"Dép. circulaires",
+    heatmapLegend:"Légende de la carte de chaleur",heatmapDesc:"Activez le mode carte de chaleur pour colorier les nœuds par complexité.",heatLow:"Bas",heatMid:"Moyen",heatHigh:"Élevé",
+    statusFile:"Fichier",statusPkg:"Paquet",statusCycle:"Cycle",loading:"Chargement…",
+    insResolutionRate:"Taux de résolution",exportPng:"PNG",
+  },
+  de: {
+    navGraph:"Graphansicht",navInsights:"Einblicke",navRules:"Regeln & Schichten",navTrace:"Abhängigkeiten verfolgen",navAdvisor:"KI-Berater",navOpenProject:"Projekt öffnen",navToggleTheme:"Design wechseln",navSettings:"Einstellungen",
+    serviceMap:"Service-Karte",serviceMapSub:"Abhängigkeitstopologie und architektonische Risikohotspots.",
+    archHealth:"Architektur-Gesundheit",cycles:"Zyklen",layerViol:"Schichtverstöße",godFiles:"Gotdateien",avgComplex:"Ø Komplexität",
+    risksAnomalies:"Risiken & Anomalien",graphControls:"Graphsteuerung",filterByFolder:"Nach Ordner filtern",onlyCircular:"Nur zirkuläre Abhängigkeiten",heatmapMode:"Heatmap (Komplexität)",
+    zoomIn:"Zoom +",zoomOut:"Zoom −",fit:"Anpassen",relayout:"Neu anordnen",clearHighlight:"Hervorhebung löschen",criticalFiles:"Kritische Dateien",
+    insightsTitle:"Architekturbericht",insightsSub:"KI-generierte Analyse der Codebase-Struktur.",
+    insHealthScore:"Gesundheitspunktzahl",insFilesAnalyzed:"Analysierte Dateien",insTotalDeps:"Gesamtabhängigkeiten",insCircularDeps:"Zirkuläre Abhängigkeiten",insExternalPkgs:"Externe Pakete",insRuleViols:"Regelverstöße",insAvgComplex:"Ø Komplexität",insCriticalFiles:"Kritische Dateien",
+    rulesTitle:"Architekturregeln",rulesSub:"Schichthierarchie, Verstöße und strukturelle Einschränkungen.",
+    ruleArchLayers:"Architekturschichten",ruleNoLayers:"Keine Schichtregeln konfiguriert. Fügen Sie eine <code>.archmap.toml</code>-Datei hinzu, um Ihre Schichten und Abhängigkeitsregeln zu definieren.",ruleViolations:"Verstöße",ruleNoViols:"Keine Verstöße erkannt.",
+    traceTitle:"Erreichbarkeit",traceSub:"BFS von einem Einstiegspunkt durch alle Abhängigkeitskanten.",tracePlaceholder:"Dateipfad oder Name…",traceBtn:"Verfolgen",traceClear:"Hervorhebung löschen",
+    traceHint:"Wählen Sie einen Knoten im Graphen und klicken Sie auf <b>Von hier verfolgen</b>, oder geben Sie oben einen Dateinamen ein.",
+    traceReachable:"erreichbar",traceUnreachable:"nicht erreichbar",traceCoverage:"Abdeckung",traceNoFiles:"Keine Dateien erreichbar.",traceFrom:"Von:",
+    advisorTitle:"Beratung",advisorSub:"Hauptprobleme und Befehle für LLM-gestützte Architekturberatung.",
+    advisorProvider:"Anbieter",advisorModel:"Modell",advisorBaseUrl:"Basis-URL",advisorApiKey:"API-Schlüssel",advisorGetAdvice:"Beratung abrufen",advisorRequesting:"Wird angefordert…",advisorWaiting:"⏳ Warte auf LLM-Antwort…",advisorCli:"CLI-Befehle",
+    advHealthTitle:"Gesundheit",advGetAdviceDesc:"Holen Sie sich konkrete Refactoring-Ratschläge von Ihrem LLM — direkt im Browser.",
+    advNoIssues:"Keine Architekturprobleme erkannt",advNoIssuesDetail:"Die Architektur sieht sauber aus. Überwachen Sie weiterhin das Projektwachstum.",
+    advCyclesDetail:"Zyklen verhindern modulares Refactoring und erhöhen die Kopplung. Brechen Sie sie durch Interface-Extraktion oder Dependency Inversion.",
+    advGodModsDetail:"Dateien mit übermäßigen Abhängigen: {names}. Erwägen Sie, sie in kleinere Module aufzuteilen.",
+    advLayerViolsDetail:"Abhängigkeiten überschreiten Schichtgrenzen in verbotenen Richtungen. Prüfen Sie Ihre .archmap.toml.",
+    advRuleViolsDetail:"Eine oder mehrere Architekturregeln in .archmap.toml werden verletzt.",
+    cfgTitle:"Konfiguration",cfgSub:"LLM-Anbieter, Sprachen und Einstellungen.",cfgInterface:"Oberfläche",cfgLangLabel:"Sprache",
+    cfgGeneral:"Allgemein",cfgAutoSaveLabel:"Automatisch speichern",cfgAutoSaveDesc:"LLM-Einstellungen beim Tippen automatisch speichern.",cfgAnimations:"Animationen aktivieren",
+    cfgGraph:"Graph",cfgDefaultLayout:"Standardlayout",cfgLlmAdvisor:"LLM-Berater",cfgScanLangs:"Analysesprachen",cfgScanLangsDesc:"Sprachen, die in der Architekturanalyse enthalten sind.",cfgSave:"Speichern",cfgSaved:"Gespeichert ✓",
+    canvasGraph:"Graph",canvasLayers:"Schichten",canvasMatrix:"Matrix",dependencyGraph:"Abhängigkeitsgraph",layerDiagram:"Schichtdiagramm",dependencyMatrix:"Abhängigkeitsmatrix",
+    searchPlaceholder:"Dateien oder Pakete suchen",refresh:"Aktualisieren",miniMap:"Minikarte",
+    matrixTitle:"Abhängigkeitsmatrix",matrixSub:"Top-Dateien nach Konnektivität · Zeilen = Quelle · Spalten = Ziel",matrixDep:"Abhängigkeit",matrixCircular:"Zirkulär",matrixSelf:"Selbst",
+    summary:"Zusammenfassung",selection:"Auswahl",selectionHint:"Klicken Sie auf einen Knoten, um Abhängigkeiten zu prüfen.",circularDeps:"Zirk. Abhängigkeiten",
+    heatmapLegend:"Heatmap-Legende",heatmapDesc:'Aktivieren Sie den "Heatmap-Modus" um Knoten nach Importkomplexität zu färben.',heatLow:"Niedrig",heatMid:"Mittel",heatHigh:"Hoch",
+    statusFile:"Datei",statusPkg:"Paket",statusCycle:"Zyklus",loading:"Wird geladen…",
+    insResolutionRate:"Auflösungsrate",exportPng:"PNG",
+  },
+  zh: {
+    navGraph:"依赖图",navInsights:"洞察",navRules:"规则与层",navTrace:"追踪依赖",navAdvisor:"AI 顾问",navOpenProject:"打开项目",navToggleTheme:"切换主题",navSettings:"设置",
+    serviceMap:"服务地图",serviceMapSub:"依赖拓扑和架构风险热点。",
+    archHealth:"架构健康度",cycles:"循环",layerViol:"层级违规",godFiles:"上帝文件",avgComplex:"平均复杂度",
+    risksAnomalies:"风险与异常",graphControls:"图形控制",filterByFolder:"按文件夹过滤",onlyCircular:"仅循环依赖",heatmapMode:"热力图（复杂度）",
+    zoomIn:"放大",zoomOut:"缩小",fit:"适应",relayout:"重新布局",clearHighlight:"清除高亮",criticalFiles:"关键文件",
+    insightsTitle:"架构报告",insightsSub:"AI 生成的代码库结构分析。",
+    insHealthScore:"健康分数",insFilesAnalyzed:"已分析文件",insTotalDeps:"总依赖数",insCircularDeps:"循环依赖",insExternalPkgs:"外部包",insRuleViols:"规则违规",insAvgComplex:"平均复杂度",insCriticalFiles:"关键文件",
+    rulesTitle:"架构规则",rulesSub:"层级结构、违规和结构约束。",
+    ruleArchLayers:"架构层",ruleNoLayers:"未配置层规则。添加 <code>.archmap.toml</code> 文件以定义您的架构层和依赖规则。",ruleViolations:"违规",ruleNoViols:"未检测到违规。",
+    traceTitle:"可达性",traceSub:"从入口点通过所有依赖边进行广度优先搜索。",tracePlaceholder:"文件路径或名称…",traceBtn:"追踪",traceClear:"清除高亮",
+    traceHint:"在图中选择一个节点并点击<b>从这里追踪</b>，或在上方输入文件名。",
+    traceReachable:"可达",traceUnreachable:"不可达",traceCoverage:"覆盖率",traceNoFiles:"没有可达的文件。",traceFrom:"从：",
+    advisorTitle:"建议",advisorSub:"基于 LLM 的架构建议的主要问题和命令。",
+    advisorProvider:"提供商",advisorModel:"模型",advisorBaseUrl:"基础 URL",advisorApiKey:"API 密钥",advisorGetAdvice:"获取建议",advisorRequesting:"请求中…",advisorWaiting:"⏳ 等待 LLM 响应…",advisorCli:"CLI 命令",
+    advHealthTitle:"健康度",advGetAdviceDesc:"从您选择的 LLM 获取具体的重构建议——直接在浏览器中运行。",
+    advNoIssues:"未检测到架构问题",advNoIssuesDetail:"架构看起来很干净。随着项目增长继续监控。",
+    advCyclesDetail:"循环阻止模块化重构并增加耦合。通过接口提取或依赖反转来打破它们。",
+    advGodModsDetail:"具有过多依赖者的文件：{names}。考虑将其拆分为更小的模块。",
+    advLayerViolsDetail:"依赖在禁止方向上跨越层边界。检查您的 .archmap.toml。",
+    advRuleViolsDetail:".archmap.toml 中定义的一个或多个架构规则正在被违反。",
+    cfgTitle:"配置",cfgSub:"LLM 提供商、语言和偏好设置。",cfgInterface:"界面",cfgLangLabel:"语言",
+    cfgGeneral:"常规",cfgAutoSaveLabel:"自动保存",cfgAutoSaveDesc:"输入时自动保存 LLM 设置。",cfgAnimations:"启用动画",
+    cfgGraph:"图形",cfgDefaultLayout:"默认布局",cfgLlmAdvisor:"LLM 顾问",cfgScanLangs:"扫描语言",cfgScanLangsDesc:"包含在架构分析中的语言。",cfgSave:"保存",cfgSaved:"已保存 ✓",
+    canvasGraph:"图",canvasLayers:"层",canvasMatrix:"矩阵",dependencyGraph:"依赖图",layerDiagram:"层级图",dependencyMatrix:"依赖矩阵",
+    searchPlaceholder:"搜索文件或包",refresh:"刷新",miniMap:"小地图",
+    matrixTitle:"依赖矩阵",matrixSub:"按连接度排名的文件 · 行 = 源 · 列 = 目标",matrixDep:"依赖",matrixCircular:"循环",matrixSelf:"自身",
+    summary:"摘要",selection:"选择",selectionHint:"点击节点以检查依赖关系。",circularDeps:"循环依赖",
+    heatmapLegend:"热力图图例",heatmapDesc:"切换热力图模式以按导入复杂度为节点着色。",heatLow:"低",heatMid:"中",heatHigh:"高",
+    statusFile:"文件",statusPkg:"包",statusCycle:"循环",loading:"加载中…",
+    insResolutionRate:"解析率",exportPng:"PNG",
+  },
+};
+
+let _currentLang = "en";
+
+function t(key) {
+  return _TRANSLATIONS[_currentLang]?.[key] ?? _TRANSLATIONS.en[key] ?? key;
+}
+
+function applyI18n() {
+  const langMap = { en:"en", pt:"pt-BR", es:"es", fr:"fr", de:"de", zh:"zh-CN" };
+  document.getElementById("htmlRoot")?.setAttribute("lang", langMap[_currentLang] ?? "en");
+
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll("[data-i18n-html]").forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll("[data-i18n-title]").forEach(el => {
+    const v = t(el.dataset.i18nTitle);
+    el.title = v;
+    if (el.hasAttribute("aria-label")) el.setAttribute("aria-label", v);
+  });
+
+  CV_TABS.graph.title  = t("dependencyGraph");
+  CV_TABS.layers.title = t("layerDiagram");
+  CV_TABS.matrix.title = t("dependencyMatrix");
+
+  const breadcrumb = document.getElementById("breadcrumbView");
+  const canvasTitle = document.getElementById("canvasTitle");
+  const activeTab = Object.values(CV_TABS).find(c => document.getElementById(c.btn)?.classList.contains("active"));
+  if (activeTab && breadcrumb) breadcrumb.textContent = activeTab.title;
+  if (activeTab && canvasTitle) canvasTitle.textContent = activeTab.title;
+
+  if (reportData) {
+    const active = Object.entries(LP_NAV).find(([, [vid]]) => !document.getElementById(vid)?.classList.contains("lp-hidden"))?.[0];
+    if (active === "insights") renderInsights(reportData);
+    if (active === "rules")    renderRules(reportData);
+    if (active === "advisor")  renderAdvisorView(reportData);
+  }
+}
+
+const _ADVISOR_DEFAULTS = {
+  ollama:  { model: "llama3",          baseUrl: "http://localhost:11434", showKey: false, showUrl: true  },
+  claude:  { model: "claude-opus-4-7", baseUrl: "",                       showKey: true,  showUrl: false },
+  openai:  { model: "gpt-4o",          baseUrl: "",                       showKey: true,  showUrl: false },
+  custom:  { model: "gemini-1.5-flash", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", showKey: true, showUrl: true },
+};
+
+function _initAdvisorForm() {
+  const providerEl  = document.getElementById("advisorProvider");
+  const modelEl     = document.getElementById("advisorModel");
+  const baseUrlEl   = document.getElementById("advisorBaseUrl");
+  const apiKeyEl    = document.getElementById("advisorApiKey");
+  const baseUrlRow  = document.getElementById("advisorBaseUrlRow");
+  const apiKeyRow   = document.getElementById("advisorApiKeyRow");
+  const runBtn      = document.getElementById("advisorRunBtn");
+  const resultEl    = document.getElementById("advisorResult");
+  if (!providerEl || !runBtn) return;
+
+  const _STORAGE_KEY = "archmap.advisor.config";
+
+  function _saveConfig() {
+    try {
+      localStorage.setItem(_STORAGE_KEY, JSON.stringify({
+        provider: providerEl.value,
+        model:    modelEl.value.trim(),
+        baseUrl:  baseUrlEl.value.trim(),
+        apiKey:   apiKeyEl.value.trim(),
+      }));
+    } catch (_) {}
+  }
+
+  function _restoreConfig() {
+    try {
+      const raw = localStorage.getItem(_STORAGE_KEY);
+      if (!raw) return false;
+      const cfg = JSON.parse(raw);
+      if (cfg.provider && providerEl.querySelector(`option[value="${CSS.escape(cfg.provider)}"]`)) {
+        providerEl.value = cfg.provider;
+      }
+      if (cfg.model)   modelEl.value   = cfg.model;
+      if (cfg.baseUrl) baseUrlEl.value = cfg.baseUrl;
+      if (cfg.apiKey)  apiKeyEl.value  = cfg.apiKey;
+      return true;
+    } catch (_) { return false; }
+  }
+
+  function applyProviderDefaults(p) {
+    const d = _ADVISOR_DEFAULTS[p] ?? _ADVISOR_DEFAULTS.custom;
+    modelEl.value    = d.model;
+    baseUrlEl.value  = d.baseUrl;
+    baseUrlRow.style.display = d.showUrl  ? "" : "none";
+    apiKeyRow.style.display  = d.showKey  ? "" : "none";
+  }
+
+  function _applyVisibility(p) {
+    const d = _ADVISOR_DEFAULTS[p] ?? _ADVISOR_DEFAULTS.custom;
+    baseUrlRow.style.display = d.showUrl ? "" : "none";
+    apiKeyRow.style.display  = d.showKey ? "" : "none";
+  }
+
+  if (!_restoreConfig()) {
+    applyProviderDefaults(providerEl.value);
+  } else {
+    _applyVisibility(providerEl.value);
+  }
+
+  providerEl.addEventListener("change", () => applyProviderDefaults(providerEl.value));
+
+  runBtn.addEventListener("click", async () => {
+    const provider = providerEl.value;
+    const model    = modelEl.value.trim()    || null;
+    const baseUrl  = baseUrlEl.value.trim()  || null;
+    const apiKey   = apiKeyEl.value.trim()   || null;
+    _saveConfig();
+
+    runBtn.disabled   = true;
+    runBtn.textContent = t("advisorRequesting");
+    resultEl.innerHTML = `<p style="font-size:12px;color:var(--muted)">${escHtml(t("advisorWaiting"))}</p>`;
+
+    try {
+      const res = await fetch("/api/advise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, model, base_url: baseUrl, api_key: apiKey }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.status === "error") {
+        resultEl.innerHTML = `<p style="font-size:12px;color:#e05d44;white-space:pre-wrap">${escHtml(data.message ?? "Unknown error")}</p>`;
+      } else {
+        resultEl.innerHTML = `
+          <div style="border-top:1px solid var(--line);padding-top:10px">
+            <p style="font-size:11px;color:var(--muted);margin-bottom:6px">${escHtml(data.provider)} / ${escHtml(data.model)}</p>
+            <pre style="font-size:12px;white-space:pre-wrap;line-height:1.55;margin:0">${escHtml(data.advice ?? "")}</pre>
+          </div>`;
+      }
+    } catch (err) {
+      resultEl.innerHTML = `<p style="font-size:12px;color:#e05d44">Connection error: ${escHtml(String(err))}</p>`;
+    } finally {
+      runBtn.disabled   = false;
+      runBtn.textContent = t("advisorGetAdvice");
+    }
+  });
+}
+
+/* ============================================================
+   Config panel
+   ============================================================ */
+
+function _initConfigPanel() {
+  const _ADVISOR_KEY = "archmap.advisor.config";
+  const _LANG_KEY    = "archmap.config.languages";
+  const _CFG_KEY     = "archmap.config.ui";
+  const _ALL_LANGS   = ["Python","JavaScript","TypeScript","Go","Rust","Java","C#","PHP","C++"];
+
+  const providerEl   = document.getElementById("cfgProvider");
+  const modelEl      = document.getElementById("cfgModel");
+  const baseUrlEl    = document.getElementById("cfgBaseUrl");
+  const apiKeyEl     = document.getElementById("cfgApiKey");
+  const baseUrlRow   = document.getElementById("cfgBaseUrlRow");
+  const apiKeyRow    = document.getElementById("cfgApiKeyRow");
+  const saveBtn      = document.getElementById("cfgSaveBtn");
+  const savedMsg     = document.getElementById("cfgSavedMsg");
+  const langGrid     = document.getElementById("cfgLangGrid");
+  const langSelect   = document.getElementById("cfgLang");
+  const autoSaveEl   = document.getElementById("cfgAutoSave");
+  const animationsEl = document.getElementById("cfgAnimations");
+  const layoutEl     = document.getElementById("cfgLayout");
+  if (!providerEl || !saveBtn) return;
+
+  // ── Restore UI config (language, auto-save, animations, layout) ──
+  let uiCfg = { lang: "en", autoSave: false, animations: true, layout: "cose" };
+  try { uiCfg = { ...uiCfg, ...(JSON.parse(localStorage.getItem(_CFG_KEY)) ?? {}) }; } catch (_) {}
+
+  _currentLang = uiCfg.lang;
+  if (langSelect) langSelect.value = uiCfg.lang;
+  if (autoSaveEl) autoSaveEl.checked = uiCfg.autoSave;
+  if (animationsEl) animationsEl.checked = uiCfg.animations;
+  if (layoutEl) layoutEl.value = uiCfg.layout;
+  document.body.classList.toggle("no-animations", !uiCfg.animations);
+
+  function _saveUiCfg() {
+    try {
+      localStorage.setItem(_CFG_KEY, JSON.stringify({
+        lang:       _currentLang,
+        autoSave:   autoSaveEl?.checked ?? false,
+        animations: animationsEl?.checked ?? true,
+        layout:     layoutEl?.value ?? "cose",
+      }));
+    } catch (_) {}
+  }
+
+  // Language selector
+  if (langSelect) {
+    langSelect.addEventListener("change", () => {
+      _currentLang = langSelect.value;
+      _saveUiCfg();
+      applyI18n();
+    });
+  }
+
+  // Animations toggle
+  if (animationsEl) {
+    animationsEl.addEventListener("change", () => {
+      document.body.classList.toggle("no-animations", !animationsEl.checked);
+      _saveUiCfg();
+    });
+  }
+
+  // Layout selector — save immediately
+  if (layoutEl) layoutEl.addEventListener("change", _saveUiCfg);
+
+  // ── LLM provider visibility ──
+  function _applyVisibility(p) {
+    const d = _ADVISOR_DEFAULTS[p] ?? _ADVISOR_DEFAULTS.custom;
+    baseUrlRow.style.display = d.showUrl ? "" : "none";
+    apiKeyRow.style.display  = d.showKey ? "" : "none";
+  }
+
+  // Restore LLM config
+  try {
+    const raw = localStorage.getItem(_ADVISOR_KEY);
+    if (raw) {
+      const cfg = JSON.parse(raw);
+      if (cfg.provider && providerEl.querySelector(`option[value="${CSS.escape(cfg.provider)}"]`))
+        providerEl.value = cfg.provider;
+      if (cfg.model)   modelEl.value   = cfg.model;
+      if (cfg.baseUrl) baseUrlEl.value = cfg.baseUrl;
+      if (cfg.apiKey)  apiKeyEl.value  = cfg.apiKey;
+    } else {
+      const d = _ADVISOR_DEFAULTS[providerEl.value];
+      modelEl.value   = d.model;
+      baseUrlEl.value = d.baseUrl;
+    }
+  } catch (_) {}
+  _applyVisibility(providerEl.value);
+
+  providerEl.addEventListener("change", () => {
+    const d = _ADVISOR_DEFAULTS[providerEl.value] ?? _ADVISOR_DEFAULTS.custom;
+    modelEl.value   = d.model;
+    baseUrlEl.value = d.baseUrl;
+    _applyVisibility(providerEl.value);
+    if (autoSaveEl?.checked) _saveLlmCfg();
+  });
+
+  function _saveLlmCfg() {
+    try {
+      localStorage.setItem(_ADVISOR_KEY, JSON.stringify({
+        provider: providerEl.value,
+        model:    modelEl.value.trim(),
+        baseUrl:  baseUrlEl.value.trim(),
+        apiKey:   apiKeyEl.value.trim(),
+      }));
+    } catch (_) {}
+  }
+
+  // Auto-save on input when toggle is on
+  [modelEl, baseUrlEl, apiKeyEl].forEach(el => {
+    el?.addEventListener("input", () => { if (autoSaveEl?.checked) _saveLlmCfg(); });
+  });
+
+  // Render language checkboxes
+  let savedLangs = _ALL_LANGS;
+  try { savedLangs = JSON.parse(localStorage.getItem(_LANG_KEY)) ?? _ALL_LANGS; } catch (_) {}
+  langGrid.innerHTML = _ALL_LANGS.map(lang =>
+    `<label class="cfg-lang-check">
+      <input type="checkbox" value="${lang}" ${savedLangs.includes(lang) ? "checked" : ""} />
+      ${lang}
+    </label>`
+  ).join("");
+
+  // Save button — persists LLM config + scan langs + UI cfg
+  saveBtn.addEventListener("click", () => {
+    _saveLlmCfg();
+    _saveUiCfg();
+    const checked = [...langGrid.querySelectorAll("input[type=checkbox]:checked")].map(cb => cb.value);
+    try { localStorage.setItem(_LANG_KEY, JSON.stringify(checked)); } catch (_) {}
+    savedMsg.style.display = "inline";
+    setTimeout(() => { savedMsg.style.display = "none"; }, 2000);
+  });
+}
+
+_initConfigPanel();
+applyI18n();
 
 /* ============================================================
    Helpers

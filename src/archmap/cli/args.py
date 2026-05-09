@@ -37,6 +37,12 @@ def build_parser() -> argparse.ArgumentParser:
         prog="archmap",
         description="ArchMAP - visualize architecture dependencies and risks",
     )
+    parser.add_argument(
+        "--print-completion",
+        choices=["bash", "zsh", "fish"],
+        metavar="SHELL",
+        help="Print shell completion setup command for SHELL and exit.",
+    )
     subparsers = parser.add_subparsers(dest="command")
 
     analyze_parser = subparsers.add_parser("analyze", help="analyze a codebase")
@@ -118,6 +124,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="skip loading and saving cached analysis results",
+    )
+    analyze_parser.add_argument(
+        "--min-resolution-rate",
+        type=int,
+        default=None,
+        metavar="PCT",
+        help="exit with code 2 when import resolution rate is below PCT percent (0-100)",
     )
 
     serve_parser = subparsers.add_parser("serve", help="serve the interactive graph UI")

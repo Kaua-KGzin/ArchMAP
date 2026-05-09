@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from archmap.core import analyze_project
+from archmap.core.advisor import advise_architecture
 from archmap.utils.file_utils import normalize_file_id
 
 
@@ -88,6 +89,9 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             return self.client_address[0] in {"127.0.0.1", "::1", "localhost"}
 
         def do_POST(self):  # noqa: N802
+            if self.path == "/api/advise":
+                self._handle_advise()
+                return
             if self.path == "/api/open":
                 if not self._is_local_request():
                     self._write_json(
@@ -132,6 +136,10 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
 
             if request_path == "/api/health":
                 self._write_json(HTTPStatus.OK, health_payload)
+                return
+
+            if request_path == "/api/badge":
+                self._handle_badge()
                 return
 
             if request_path == "/api/events":
@@ -382,6 +390,62 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             except (ImportError, OSError, RuntimeError) as exc:
                 return None, _describe_directory_picker_error(exc)
 
+        def _handle_badge(self) -> None:
+            health = state.report.get("architecture", {}).get("health", {})
+            score = int(health.get("score", 100))
+            grade = str(health.get("grade", "A"))
+            svg = _build_badge_svg(score, grade)
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "image/svg+xml")
+            self.send_header("Content-Length", str(len(svg)))
+            self.send_header("Cache-Control", "no-cache, must-revalidate")
+            self.end_headers()
+            self.wfile.write(svg)
+
+        def _handle_advise(self) -> None:
+            _VALID_PROVIDERS = {"claude", "openai", "ollama", "custom"}
+            payload = self._read_json_body()
+            provider = str(payload.get("provider", "ollama")).strip().lower()
+            if provider not in _VALID_PROVIDERS:
+                valid = ", ".join(sorted(_VALID_PROVIDERS))
+                self._write_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"status": "error", "message": f"provider must be one of: {valid}"},
+                )
+                return
+
+            model = payload.get("model") or None
+            base_url = payload.get("base_url") or None
+            api_key = payload.get("api_key") or None
+            try:
+                timeout = int(payload.get("timeout") or 90)
+            except (ValueError, TypeError):
+                timeout = 90
+
+            try:
+                result = advise_architecture(
+                    state.report,
+                    provider=provider,
+                    model=model,
+                    api_key=api_key,
+                    base_url=base_url,
+                    timeout=timeout,
+                )
+            except RuntimeError as exc:
+                self._write_json(
+                    HTTPStatus.BAD_GATEWAY,
+                    {"status": "error", "message": str(exc)},
+                )
+                return
+            except (TimeoutError, OSError) as exc:
+                self._write_json(
+                    HTTPStatus.GATEWAY_TIMEOUT,
+                    {"status": "error", "message": f"LLM request timed out or connection failed: {exc}"},  # noqa: E501
+                )
+                return
+
+            self._write_json(HTTPStatus.OK, {"status": "success", **result})
+
         def log_message(self, _format: str, *args) -> None:
             return
 
@@ -492,6 +556,37 @@ def _parse_history_limit(raw_value: object) -> int:
     except (TypeError, ValueError):
         return 12
     return max(1, min(50, parsed))
+
+
+_BADGE_COLORS: dict[str, str] = {
+    "A": "#4c1",
+    "B": "#a3c51c",
+    "C": "#dfb317",
+    "D": "#fe7d37",
+    "F": "#e05d44",
+}
+
+
+def _build_badge_svg(score: int, grade: str) -> bytes:
+    color = _BADGE_COLORS.get(grade, "#9f9f9f")
+    label = "ArchMAP"
+    value = f"{score} {grade}"
+    label_w = 62
+    value_w = max(36, len(value) * 7 + 10)
+    total_w = label_w + value_w
+    label_cx = label_w // 2
+    value_cx = label_w + value_w // 2
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{total_w}" height="20">'
+        f'<rect width="{label_w}" height="20" fill="#555"/>'
+        f'<rect x="{label_w}" width="{value_w}" height="20" fill="{color}"/>'
+        f'<text x="{label_cx}" y="14" fill="#fff" font-size="11" text-anchor="middle"'
+        f' font-family="DejaVu Sans,Verdana,Geneva,sans-serif">{label}</text>'
+        f'<text x="{value_cx}" y="14" fill="#fff" font-size="11" text-anchor="middle"'
+        f' font-family="DejaVu Sans,Verdana,Geneva,sans-serif">{value}</text>'
+        f"</svg>"
+    )
+    return svg.encode("utf-8")
 
 
 def can_open_browser(host: str) -> bool:

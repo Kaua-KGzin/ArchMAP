@@ -58,10 +58,14 @@ def build_graph(parsed_project: dict) -> dict:
         if target_node:
             target_node["incoming"] += 1
 
+    total_imports = sum(int(f.get("importsTotal", 0)) for f in parsed_project["parsedFiles"])
+    resolved_imports = sum(int(f.get("importsResolved", 0)) for f in parsed_project["parsedFiles"])
+
     return {
         "projectRoot": parsed_project["projectRoot"],
         "nodes": nodes,
         "edges": edges,
+        "importStats": {"total": total_imports, "resolved": resolved_imports},
     }
 
 

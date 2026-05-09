@@ -173,6 +173,13 @@ def print_summary(report: dict) -> None:
             "[ok] Average instability "
             f"{round(float(coupling.get('averageInstability', 0.0)) * 100)}%"
         )
+    resolution_rate = float(metrics.get("resolutionRate", 1.0))
+    rate_pct = round(resolution_rate * 100)
+    if rate_pct < 70:
+        print(f"[warn] Import resolution rate {rate_pct}% — some imports could not be resolved")
+    else:
+        print(f"[ok] Import resolution rate {rate_pct}%")
+
     architecture = report.get("architecture", {})
     health = architecture.get("health", {})
     style = architecture.get("detectedStyle", {})
@@ -283,6 +290,16 @@ def evaluate_quality_gates(report: dict, args: argparse.Namespace) -> list[str]:
             "health gate failed: "
             f"architecture health {health_score} is below {int(args.min_health)}"
         )
+
+    min_rate = getattr(args, "min_resolution_rate", None)
+    if min_rate is not None:
+        resolution_rate = float(metrics.get("resolutionRate", 1.0))
+        rate_pct = round(resolution_rate * 100)
+        if rate_pct < int(min_rate):
+            failures.append(
+                f"resolution-rate gate failed: "
+                f"import resolution {rate_pct}% is below {int(min_rate)}%"
+            )
 
     return failures
 

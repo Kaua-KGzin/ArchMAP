@@ -36,11 +36,17 @@ def analyze_graph(
     incoming_counts = {node["id"]: int(node.get("incoming", 0)) for node in nodes}
     enriched = enrich_cycles(cycles, adjacency, incoming_counts)
 
+    import_stats = graph.get("importStats", {})
+    _total_i = int(import_stats.get("total", 0))
+    _resolved_i = int(import_stats.get("resolved", 0))
+    resolution_rate = round(min(_resolved_i / _total_i, 1.0), 3) if _total_i > 0 else 1.0
+
     metrics = {
         "filesAnalyzed": len(file_nodes),
         "totalDependencies": len(graph["edges"]),
         "externalDependencies": len([node for node in nodes if node.get("type") == "package"]),
         "circularDependencyCount": len(cycles),
+        "resolutionRate": resolution_rate,
         "complexity": summarize_complexity(nodes),
         "coupling": summarize_coupling(nodes),
         "criticalFiles": summarize_critical_files(nodes),

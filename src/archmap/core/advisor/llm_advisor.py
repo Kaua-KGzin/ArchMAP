@@ -183,7 +183,14 @@ def _call_openai_compat(
     if key:
         headers["Authorization"] = f"Bearer {key}"
 
-    data = _http_post(f"{base_url}/v1/chat/completions", headers, payload, timeout)
+    # custom provider: base_url already contains the full path prefix (e.g.
+    # Gemini uses .../v1beta/openai, LM Studio uses .../v1), so only append
+    # /chat/completions. Other providers follow the standard /v1/chat/completions.
+    if provider == "custom":
+        chat_url = f"{base_url}/chat/completions"
+    else:
+        chat_url = f"{base_url}/v1/chat/completions"
+    data = _http_post(chat_url, headers, payload, timeout)
     choices = data.get("choices", [])
     text = choices[0].get("message", {}).get("content", "") if choices else ""
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import posixpath
 from pathlib import Path, PurePosixPath
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 from archmap.core.parser import plugins as plugins  # noqa: F401
 from archmap.core.parser.cpp_parser import CParser, CppParser
@@ -43,6 +43,8 @@ class ParsedFile(TypedDict):
     type: str
     language: str
     dependencies: list[Dependency]
+    importsTotal: NotRequired[int]
+    importsResolved: NotRequired[int]
 
 
 class ParsedProject(TypedDict):
@@ -102,6 +104,8 @@ def parse_project(
             "type": "file",
             "language": language,
             "dependencies": dependencies,
+            "importsTotal": len(import_entries),
+            "importsResolved": len(dependencies),
         }
 
     parsed_files: list[ParsedFile] = []

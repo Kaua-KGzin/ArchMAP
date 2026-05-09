@@ -2,7 +2,20 @@
 
 ## Released
 
-### v0.8.0 (current)
+### v0.9.0 (current)
+- **Parser resolution rate** — `resolutionRate` metric in all reports. CLI warns when < 70%. `--min-resolution-rate PCT` gate for CI.
+- **Shell completion** — `archmap --print-completion bash|zsh|fish`. Install: `pip install archmap[completion]`.
+- **Web UI PNG export** — Download button in canvas toolbar, 2× scale, zero deps.
+- **Docker image** — `ghcr.io/kaua-kgzin/archmap:latest` published automatically on each release via GitHub Actions.
+- **i18n — 6 languages** — English, Português (Brasil), Español, Français, Deutsch, 中文 (简体). Instant switch, persisted.
+- **Config panel** — Interface/General/Graph/LLM Advisor/Scan Languages. All persisted in localStorage.
+- **LLM config persistence** — Provider, model, base URL, API key saved; auto-save mode.
+
+### v0.8.1
+- **`/api/badge`** — dynamic SVG health badge endpoint for README embedding (`GET /api/badge`).
+- **`/api/advise`** — server-side LLM advisor endpoint; Web UI AI Advisor panel now has an interactive form with Ollama/Claude/OpenAI/custom provider support.
+
+### v0.8.0
 - **`archmap trace <entrypoint>`** — BFS reachability from any file: dependency tree by depth, coverage %, `--unreachable`, `--max-depth`.
 - **`archmap advise`** — LLM-powered architectural advisor supporting Claude, OpenAI, Ollama, and any OpenAI-compatible local endpoint (LM Studio, etc.) — zero new runtime deps.
 - **`archmap init --from-analysis`** — derives `.archmap.toml` layer rules from the actual dependency graph (not just directory names).
@@ -33,22 +46,22 @@
 
 ---
 
-## Next up (v0.8.x / v0.9.0)
+## Next up (v0.9.0)
 
-- **CLI coverage** — `tests/test_args.py`, `tests/test_commands.py`, `tests/test_reporting.py` to bring coverage ≥ 85%.
-- **Server security** — `/api/project` path validation (`allowed_roots`), rate limit on `/api/reanalyze`.
-- **`--quiet` flag** — fully silent mode for CI pipelines.
-- **Dead-code detector** — surface unreferenced files and exports.
-- **Architectural Blueprint** — target-state enforcement from `.archmap.toml` layer rules.
-- **Dynamic health badge** — `/api/badge` endpoint for README embedding.
+- **CLI coverage** — `tests/test_args.py`, `tests/test_commands.py`, `tests/test_reporting.py` to bring coverage ≥ 85%. ✅ Reached 85% in v0.8.1.
+- **Server security** — `/api/project` path validation (`allowed_roots`), rate limit on `/api/reanalyze`. ✅ Done.
+- **`--quiet` flag** — fully silent mode for CI pipelines. ✅ Done.
+- **Dead-code detector** — surface unreferenced files and exports. ✅ Done (`archmap trace --unreachable`).
+- **Architectural Blueprint** — target-state enforcement from `.archmap.toml` layer rules. ✅ Done.
+- **Dynamic health badge** — `/api/badge` endpoint for README embedding. ✅ Done in v0.8.1.
 
 ---
 
 ## Medium-term (v0.9.x)
 
-- **Shell completion** — bash, zsh, and fish autocompletion via `argcomplete` or `shtab`; `archmap --print-completion bash` convenience flag. Critical DX gap for power users and CI environments.
-- **Docker image** — Official `ghcr.io/kaua-kgzin/archmap:latest` image, published automatically on each release via GitHub Actions. Enables CI use without requiring Python installed in the runner.
-- **Parser resolution rate** — Expose `resolution_rate` (resolved imports ÷ total imports) in JSON output, Web UI, and CLI summary. Warn when below 70%. Add `--min-resolution-rate` gate for CI. Makes parser confidence visible and prevents silently misleading graphs.
+- **Shell completion** — ✅ Done in v0.9.0.
+- **Docker image** — ✅ Done in v0.8.2.
+- **Parser resolution rate** — ✅ Done in v0.9.0.
 - **Public Python API** — Define and document a stable programmatic surface (`from archmap import analyze_project, ArchMapConfig, AnalysisResult`). Add `__all__` to public modules, document with MkDocs examples, establish a deprecation policy (`DeprecationWarning` + semver). Unlocks IDE plugins, pytest integrations, and custom CI tooling beyond the CLI.
 - **mypy enforcement (blocking)** — Graduate mypy from non-blocking (infrastructure only, v0.8.x) to a hard CI gate. Expand typed coverage module by module until `--strict` is feasible on the full `src/archmap/` tree.
 

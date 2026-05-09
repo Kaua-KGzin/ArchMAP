@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-05-08
+
+### Added
+- **Parser resolution rate** — `resolutionRate` metric (0.0–1.0) now included in every analysis report. Tracks what fraction of import statements were successfully resolved to a file or package. Visible in the CLI summary (warns when below 70%), in the Web UI Insights panel, and in JSON output (`metrics.resolutionRate`). New `--min-resolution-rate PCT` flag gates CI on this metric (e.g. `--min-resolution-rate 70`).
+- **Shell completion** — `archmap --print-completion bash|zsh|fish` prints the shell-specific setup command. Install the `argcomplete` optional dep (`pip install archmap[completion]`) and add the printed line to your shell profile for full tab-completion of all subcommands and flags.
+- **Web UI — PNG export** — "PNG" download button in the canvas toolbar. Exports the current dependency graph as a 2× scale PNG using Cytoscape.js's native `cy.png()` API. Zero new dependencies.
+- **Docker image** — `ghcr.io/kaua-kgzin/archmap:latest` published automatically on each GitHub release. Includes `:X.Y.Z` and `:X.Y` version tags. Use `docker run -p 3000:3000 -v $(pwd):/project ghcr.io/kaua-kgzin/archmap` to start the Web UI.
+- **Web UI — i18n** — Full interface internationalization: English, Português (Brasil), Español, Français, Deutsch, 中文 (简体). Language selector in the Config panel; setting persists across sessions and applies instantly without reload.
+- **Web UI — Config panel** — Clicking the ArchMAP logo opens a persistent settings panel: Interface (language), General (auto-save config, animations toggle), Graph (default layout: cose/breadthfirst/concentric/circle/grid), LLM Advisor, Scan Languages. All settings saved to localStorage.
+- **Web UI — Advisor persistence** — LLM provider, model, base URL, and API key are saved to localStorage and restored on every session. Auto-save mode writes on every keystroke.
+
+### Changed
+- `metrics.resolutionRate` field added to the JSON report schema (always present, defaults to `1.0` when no imports are found).
+
 ## [0.8.0] - 2026-05-07
 
 ### Added

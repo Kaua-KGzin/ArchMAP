@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" id="htmlRoot">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -15,35 +15,35 @@
 
     <!-- NAV RAIL -->
     <nav class="nav-rail" aria-label="Main">
-      <img class="rail-logo" src="/logo-icon.png" alt="ArchMAP" />
-      <button class="rail-btn rail-btn-active" id="navBtnGraph" type="button" aria-label="Graph view">
+      <img class="rail-logo" id="railLogo" src="/logo-icon.png" alt="ArchMAP" role="button" tabindex="0" data-i18n-title="navSettings" title="Settings" />
+      <button class="rail-btn rail-btn-active" id="navBtnGraph" type="button" data-i18n-title="navGraph" aria-label="Graph view">
         <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 7.5l3 9M16.5 7.5l-3 9M8 6h8"/></svg>
-        <span class="rail-tooltip">Graph view</span>
+        <span class="rail-tooltip" data-i18n="navGraph">Graph view</span>
       </button>
-      <button class="rail-btn" id="navBtnInsights" type="button" aria-label="Insights">
+      <button class="rail-btn" id="navBtnInsights" type="button" data-i18n-title="navInsights" aria-label="Insights">
         <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9-6-18-3 9H2"/></svg>
-        <span class="rail-tooltip">Insights</span>
+        <span class="rail-tooltip" data-i18n="navInsights">Insights</span>
       </button>
-      <button class="rail-btn" id="navBtnRules" type="button" aria-label="Rules">
+      <button class="rail-btn" id="navBtnRules" type="button" data-i18n-title="navRules" aria-label="Rules">
         <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-        <span class="rail-tooltip">Rules &amp; Layers</span>
+        <span class="rail-tooltip" data-i18n="navRules">Rules &amp; Layers</span>
       </button>
-      <button class="rail-btn" id="navBtnTrace" type="button" aria-label="Trace">
+      <button class="rail-btn" id="navBtnTrace" type="button" data-i18n-title="navTrace" aria-label="Trace">
         <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 12h4m0 0V7m0 5v5"/></svg>
-        <span class="rail-tooltip">Trace reachability</span>
+        <span class="rail-tooltip" data-i18n="navTrace">Trace reachability</span>
       </button>
-      <button class="rail-btn" id="navBtnAdvisor" type="button" aria-label="Advisor">
+      <button class="rail-btn" id="navBtnAdvisor" type="button" data-i18n-title="navAdvisor" aria-label="Advisor">
         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span class="rail-tooltip">AI Advisor</span>
+        <span class="rail-tooltip" data-i18n="navAdvisor">AI Advisor</span>
       </button>
       <div class="rail-divider"></div>
-      <button class="rail-btn" id="openProjectBtn" type="button" aria-label="Open project">
+      <button class="rail-btn" id="openProjectBtn" type="button" data-i18n-title="navOpenProject" aria-label="Open project">
         <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-        <span class="rail-tooltip">Open project</span>
+        <span class="rail-tooltip" data-i18n="navOpenProject">Open project</span>
       </button>
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">
+      <button id="themeToggle" class="theme-toggle" type="button" data-i18n-title="navToggleTheme" aria-label="Toggle theme">
         <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
-        <span class="rail-tooltip">Toggle theme</span>
+        <span class="rail-tooltip" data-i18n="navToggleTheme">Toggle theme</span>
       </button>
     </nav>
 
@@ -55,8 +55,8 @@
         <header class="card panel-header">
           <div class="card-body">
             <p class="eyebrow">ArchMAP</p>
-            <h1 class="title">Service Map</h1>
-            <p class="subtitle">Dependency topology and architectural risk hotspots.</p>
+            <h1 class="title" data-i18n="serviceMap">Service Map</h1>
+            <p class="subtitle" data-i18n="serviceMapSub">Dependency topology and architectural risk hotspots.</p>
             <div class="project-row">
               <span class="project-chip"><span class="dot-ok"></span><span id="projectPath">Loading…</span></span>
             </div>
@@ -66,7 +66,7 @@
         <section class="card">
           <div class="card-head">
             <span class="ico"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9-6-18-3 9H2"/></svg></span>
-            <h2>Architecture Health</h2>
+            <h2 data-i18n="archHealth">Architecture Health</h2>
             <span class="count-pill" id="healthPill">—</span>
           </div>
           <div class="card-body">
@@ -84,10 +84,10 @@
               </div>
             </div>
             <div class="bar-rows">
-              <div class="bar-row"><span class="lbl">Cycles</span><div class="bar-track"><span class="bar-fill warn" id="barCycles" style="width:0%"></span></div><span class="val" id="valCycles">—</span></div>
-              <div class="bar-row"><span class="lbl">Layer viol.</span><div class="bar-track"><span class="bar-fill ok" id="barViols" style="width:0%"></span></div><span class="val" id="valViols">—</span></div>
-              <div class="bar-row"><span class="lbl">God files</span><div class="bar-track"><span class="bar-fill warn" id="barGods" style="width:0%"></span></div><span class="val" id="valGods">—</span></div>
-              <div class="bar-row"><span class="lbl">Avg complex.</span><div class="bar-track"><span class="bar-fill ok" id="barComplex" style="width:0%"></span></div><span class="val" id="valComplex">—</span></div>
+              <div class="bar-row"><span class="lbl" data-i18n="cycles">Cycles</span><div class="bar-track"><span class="bar-fill warn" id="barCycles" style="width:0%"></span></div><span class="val" id="valCycles">—</span></div>
+              <div class="bar-row"><span class="lbl" data-i18n="layerViol">Layer viol.</span><div class="bar-track"><span class="bar-fill ok" id="barViols" style="width:0%"></span></div><span class="val" id="valViols">—</span></div>
+              <div class="bar-row"><span class="lbl" data-i18n="godFiles">God files</span><div class="bar-track"><span class="bar-fill warn" id="barGods" style="width:0%"></span></div><span class="val" id="valGods">—</span></div>
+              <div class="bar-row"><span class="lbl" data-i18n="avgComplex">Avg complex.</span><div class="bar-track"><span class="bar-fill ok" id="barComplex" style="width:0%"></span></div><span class="val" id="valComplex">—</span></div>
             </div>
           </div>
         </section>
@@ -95,7 +95,7 @@
         <section class="card">
           <div class="card-head">
             <span class="ico"><svg viewBox="0 0 24 24"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>
-            <h2>Risks &amp; Anomalies</h2>
+            <h2 data-i18n="risksAnomalies">Risks &amp; Anomalies</h2>
             <span class="count-pill" id="risksPill">0</span>
           </div>
           <div id="risksSummary" class="card-body--list"></div>
@@ -104,18 +104,18 @@
         <section class="card">
           <div class="card-head">
             <span class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg></span>
-            <h2>Graph Controls</h2>
+            <h2 data-i18n="graphControls">Graph Controls</h2>
           </div>
           <div class="card-body">
-            <label class="field"><span>Filter by folder</span><select id="folderFilter"></select></label>
-            <label class="switch"><input id="cyclesOnly" type="checkbox" /><span>Only circular dependencies</span></label>
-            <label class="switch"><input id="heatmapMode" type="checkbox" /><span>Heatmap (complexity)</span></label>
+            <label class="field"><span data-i18n="filterByFolder">Filter by folder</span><select id="folderFilter"></select></label>
+            <label class="switch"><input id="cyclesOnly" type="checkbox" /><span data-i18n="onlyCircular">Only circular dependencies</span></label>
+            <label class="switch"><input id="heatmapMode" type="checkbox" /><span data-i18n="heatmapMode">Heatmap (complexity)</span></label>
             <div class="actions">
-              <button id="zoomInBtn" type="button"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M11 8v6M8 11h6M21 21l-4.35-4.35"/></svg>Zoom +</button>
-              <button id="zoomOutBtn" type="button"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M21 21l-4.35-4.35"/></svg>Zoom −</button>
-              <button id="fitBtn" type="button"><svg viewBox="0 0 24 24"><path d="M4 9V5h5M20 9V5h-5M4 15v4h5M20 15v4h-5"/></svg>Fit</button>
-              <button id="layoutBtn" type="button"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.4L21 3v6h-6"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 21v-6h6"/></svg>Relayout</button>
-              <button id="resetBtn" type="button" class="ghost" style="grid-column:1/-1"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>Clear highlight</button>
+              <button id="zoomInBtn" type="button"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M11 8v6M8 11h6M21 21l-4.35-4.35"/></svg><span data-i18n="zoomIn">Zoom +</span></button>
+              <button id="zoomOutBtn" type="button"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M21 21l-4.35-4.35"/></svg><span data-i18n="zoomOut">Zoom −</span></button>
+              <button id="fitBtn" type="button"><svg viewBox="0 0 24 24"><path d="M4 9V5h5M20 9V5h-5M4 15v4h5M20 15v4h-5"/></svg><span data-i18n="fit">Fit</span></button>
+              <button id="layoutBtn" type="button"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.4L21 3v6h-6"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 21v-6h6"/></svg><span data-i18n="relayout">Relayout</span></button>
+              <button id="resetBtn" type="button" class="ghost" style="grid-column:1/-1"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span data-i18n="clearHighlight">Clear highlight</span></button>
             </div>
           </div>
         </section>
@@ -123,7 +123,7 @@
         <section class="card">
           <div class="card-head">
             <span class="ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
-            <h2>Critical files</h2>
+            <h2 data-i18n="criticalFiles">Critical files</h2>
             <span class="count-pill" id="criticalPill">0</span>
           </div>
           <ol id="criticalList" class="list"></ol>
@@ -134,9 +134,9 @@
       <div class="lp-view lp-hidden" id="lpInsights">
         <header class="card panel-header">
           <div class="card-body">
-            <p class="eyebrow">Insights</p>
-            <h1 class="title">Architecture Report</h1>
-            <p class="subtitle">AI-generated analysis of your codebase structure.</p>
+            <p class="eyebrow" data-i18n="navInsights">Insights</p>
+            <h1 class="title" data-i18n="insightsTitle">Architecture Report</h1>
+            <p class="subtitle" data-i18n="insightsSub">AI-generated analysis of your codebase structure.</p>
           </div>
         </header>
         <div id="insightsContent" style="display:contents"></div>
@@ -146,9 +146,9 @@
       <div class="lp-view lp-hidden" id="lpRules">
         <header class="card panel-header">
           <div class="card-body">
-            <p class="eyebrow">Rules &amp; Layers</p>
-            <h1 class="title">Architecture Rules</h1>
-            <p class="subtitle">Layer hierarchy, violations, and structural constraints.</p>
+            <p class="eyebrow" data-i18n="navRules">Rules &amp; Layers</p>
+            <h1 class="title" data-i18n="rulesTitle">Architecture Rules</h1>
+            <p class="subtitle" data-i18n="rulesSub">Layer hierarchy, violations, and structural constraints.</p>
           </div>
         </header>
         <div id="rulesContent" style="display:contents"></div>
@@ -158,18 +158,18 @@
       <div class="lp-view lp-hidden" id="lpTrace">
         <header class="card panel-header">
           <div class="card-body">
-            <p class="eyebrow">Trace</p>
-            <h1 class="title">Reachability</h1>
-            <p class="subtitle">BFS from an entrypoint through all dependency edges.</p>
+            <p class="eyebrow" data-i18n="navTrace">Trace</p>
+            <h1 class="title" data-i18n="traceTitle">Reachability</h1>
+            <p class="subtitle" data-i18n="traceSub">BFS from an entrypoint through all dependency edges.</p>
             <div class="trace-input-row">
-              <input id="traceInput" type="search" placeholder="File path or name…" aria-label="Entrypoint" />
-              <button id="traceRunBtn" type="button" class="primary" style="flex-shrink:0">Trace</button>
+              <input id="traceInput" type="search" data-i18n-placeholder="tracePlaceholder" placeholder="File path or name…" aria-label="Entrypoint" />
+              <button id="traceRunBtn" type="button" class="primary" style="flex-shrink:0" data-i18n="traceBtn">Trace</button>
             </div>
-            <button id="traceClearBtn" type="button" class="ghost" style="display:none;margin-top:6px;width:100%">Clear highlight</button>
+            <button id="traceClearBtn" type="button" class="ghost" style="display:none;margin-top:6px;width:100%" data-i18n="traceClear">Clear highlight</button>
           </div>
         </header>
         <div id="traceContent" style="display:contents">
-          <p class="selection-muted" style="padding:16px 18px">Select a node on the graph and click <b>Trace from here</b>, or type a file name above.</p>
+          <p class="selection-muted" style="padding:16px 18px" data-i18n-html="traceHint">Select a node on the graph and click <b>Trace from here</b>, or type a file name above.</p>
         </div>
       </div>
 
@@ -177,12 +177,136 @@
       <div class="lp-view lp-hidden" id="lpAdvisor">
         <header class="card panel-header">
           <div class="card-body">
-            <p class="eyebrow">AI Advisor</p>
-            <h1 class="title">Advice</h1>
-            <p class="subtitle">Top issues and commands for LLM-powered architectural advice.</p>
+            <p class="eyebrow" data-i18n="navAdvisor">AI Advisor</p>
+            <h1 class="title" data-i18n="advisorTitle">Advice</h1>
+            <p class="subtitle" data-i18n="advisorSub">Top issues and commands for LLM-powered architectural advice.</p>
           </div>
         </header>
         <div id="advisorContent" style="display:contents"></div>
+      </div>
+
+      <!-- VIEW: Config -->
+      <div class="lp-view lp-hidden" id="lpConfig">
+        <header class="card panel-header">
+          <div class="card-body">
+            <p class="eyebrow" data-i18n="navSettings">Settings</p>
+            <h1 class="title" data-i18n="cfgTitle">Configuration</h1>
+            <p class="subtitle" data-i18n="cfgSub">LLM provider, languages, and preferences.</p>
+          </div>
+        </header>
+
+        <!-- Interface / Language -->
+        <section class="card">
+          <div class="card-head">
+            <span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+            <h2 data-i18n="cfgInterface">Interface</h2>
+          </div>
+          <div class="card-body">
+            <div class="advisor-form">
+              <div class="advisor-field">
+                <label class="advisor-label" for="cfgLang" data-i18n="cfgLangLabel">Language</label>
+                <select class="advisor-select" id="cfgLang">
+                  <option value="en">🇺🇸 English</option>
+                  <option value="pt">🇧🇷 Português (Brasil)</option>
+                  <option value="es">🇪🇸 Español</option>
+                  <option value="fr">🇫🇷 Français</option>
+                  <option value="de">🇩🇪 Deutsch</option>
+                  <option value="zh">🇨🇳 中文 (简体)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- General -->
+        <section class="card">
+          <div class="card-head">
+            <span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+            <h2 data-i18n="cfgGeneral">General</h2>
+          </div>
+          <div class="card-body">
+            <label class="switch">
+              <input type="checkbox" id="cfgAutoSave" />
+              <span data-i18n="cfgAutoSaveLabel">Auto-save config</span>
+            </label>
+            <p class="cfg-hint" data-i18n="cfgAutoSaveDesc">Save LLM settings automatically as you type.</p>
+            <label class="switch" style="margin-top:6px">
+              <input type="checkbox" id="cfgAnimations" checked />
+              <span data-i18n="cfgAnimations">Enable animations</span>
+            </label>
+          </div>
+        </section>
+
+        <!-- Graph -->
+        <section class="card">
+          <div class="card-head">
+            <span class="ico"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 7.5l3 9M16.5 7.5l-3 9M8 6h8"/></svg></span>
+            <h2 data-i18n="cfgGraph">Graph</h2>
+          </div>
+          <div class="card-body">
+            <div class="advisor-form">
+              <div class="advisor-field">
+                <label class="advisor-label" for="cfgLayout" data-i18n="cfgDefaultLayout">Default layout</label>
+                <select class="advisor-select" id="cfgLayout">
+                  <option value="cose">Force-directed (cose)</option>
+                  <option value="breadthfirst">Breadth-first</option>
+                  <option value="concentric">Concentric</option>
+                  <option value="circle">Circle</option>
+                  <option value="grid">Grid</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- LLM Advisor -->
+        <section class="card">
+          <div class="card-head">
+            <span class="ico"><svg viewBox="0 0 24 24"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-5 0V4.5A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 8A2.5 2.5 0 0 1 17 10.5v9a2.5 2.5 0 0 1-5 0v-9A2.5 2.5 0 0 1 14.5 8z"/><path d="M4.5 14A2.5 2.5 0 0 1 7 16.5v3a2.5 2.5 0 0 1-5 0v-3A2.5 2.5 0 0 1 4.5 14z"/></svg></span>
+            <h2 data-i18n="cfgLlmAdvisor">LLM Advisor</h2>
+          </div>
+          <div class="card-body">
+            <div class="advisor-form">
+              <div class="advisor-field">
+                <label class="advisor-label" for="cfgProvider" data-i18n="advisorProvider">Provider</label>
+                <select class="advisor-select" id="cfgProvider">
+                  <option value="ollama">Ollama (local)</option>
+                  <option value="claude">Claude (Anthropic)</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="custom">Custom (OpenAI-compatible)</option>
+                </select>
+              </div>
+              <div class="advisor-field">
+                <label class="advisor-label" for="cfgModel" data-i18n="advisorModel">Model</label>
+                <input class="advisor-input" id="cfgModel" type="text" placeholder="e.g. llama3" />
+              </div>
+              <div class="advisor-field" id="cfgBaseUrlRow">
+                <label class="advisor-label" for="cfgBaseUrl" data-i18n="advisorBaseUrl">Base URL</label>
+                <input class="advisor-input" id="cfgBaseUrl" type="text" placeholder="http://localhost:11434" />
+              </div>
+              <div class="advisor-field" id="cfgApiKeyRow">
+                <label class="advisor-label" for="cfgApiKey" data-i18n="advisorApiKey">API Key</label>
+                <input class="advisor-input" id="cfgApiKey" type="password" placeholder="sk-…" />
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+                <button class="advisor-btn" id="cfgSaveBtn" type="button" data-i18n="cfgSave">Save</button>
+                <span id="cfgSavedMsg" style="display:none;font-size:11px;color:var(--ok)" data-i18n="cfgSaved">Saved ✓</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Scan Languages -->
+        <section class="card">
+          <div class="card-head">
+            <span class="ico"><svg viewBox="0 0 24 24"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></svg></span>
+            <h2 data-i18n="cfgScanLangs">Scan Languages</h2>
+          </div>
+          <div class="card-body">
+            <p class="cfg-hint" data-i18n="cfgScanLangsDesc">Languages included in the architectural analysis.</p>
+            <div class="cfg-lang-grid" id="cfgLangGrid"></div>
+          </div>
+        </section>
       </div>
 
     </aside>
@@ -199,18 +323,22 @@
           <h2 class="toolbar-title" id="canvasTitle">Dependency Graph</h2>
         </div>
         <div class="toolbar-tabs" role="tablist">
-          <button class="active" id="canvasTabGraph" type="button">Graph</button>
-          <button id="canvasTabLayers" type="button">Layers</button>
-          <button id="canvasTabMatrix" type="button">Matrix</button>
+          <button class="active" id="canvasTabGraph" type="button" data-i18n="canvasGraph">Graph</button>
+          <button id="canvasTabLayers" type="button" data-i18n="canvasLayers">Layers</button>
+          <button id="canvasTabMatrix" type="button" data-i18n="canvasMatrix">Matrix</button>
         </div>
         <div class="toolbar-spacer"></div>
         <div class="search-wrap" id="searchWrap">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input id="searchInput" type="search" placeholder="Search files or packages" aria-label="Search" />
+          <input id="searchInput" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Search files or packages" aria-label="Search" />
         </div>
         <button id="refreshBtn" class="primary" type="button">
           <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.4L21 3v6h-6"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 21v-6h6"/></svg>
-          Refresh
+          <span data-i18n="refresh">Refresh</span>
+        </button>
+        <button id="exportBtn" type="button" data-i18n-title="exportPng" title="Export PNG">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span data-i18n="exportPng">PNG</span>
         </button>
       </header>
 
@@ -218,7 +346,7 @@
         <!-- Graph view -->
         <div id="graph">
           <aside class="mini-map">
-            <div class="mini-map-head"><span>Mini map</span><span class="mono" id="zoomPct">100%</span></div>
+            <div class="mini-map-head"><span data-i18n="miniMap">Mini map</span><span class="mono" id="zoomPct">100%</span></div>
             <div class="mini-map-body"><div class="viewport"></div></div>
           </aside>
         </div>
@@ -233,13 +361,13 @@
         <div id="matrixView" class="canvas-view-hidden">
           <div class="matrix-header">
             <div>
-              <h3 class="matrix-title">Dependency Matrix</h3>
-              <p class="matrix-subtitle">Top files by connectivity · rows = source · columns = target</p>
+              <h3 class="matrix-title" data-i18n="matrixTitle">Dependency Matrix</h3>
+              <p class="matrix-subtitle" data-i18n="matrixSub">Top files by connectivity · rows = source · columns = target</p>
             </div>
             <div class="matrix-legend">
-              <span class="mx-legend-item"><span class="mx-swatch dep"></span>Dependency</span>
-              <span class="mx-legend-item"><span class="mx-swatch circular"></span>Circular</span>
-              <span class="mx-legend-item"><span class="mx-swatch self-dep"></span>Self</span>
+              <span class="mx-legend-item"><span class="mx-swatch dep"></span><span data-i18n="matrixDep">Dependency</span></span>
+              <span class="mx-legend-item"><span class="mx-swatch circular"></span><span data-i18n="matrixCircular">Circular</span></span>
+              <span class="mx-legend-item"><span class="mx-swatch self-dep"></span><span data-i18n="matrixSelf">Self</span></span>
             </div>
           </div>
           <div class="matrix-scroll" id="matrixScroll"></div>
@@ -247,11 +375,11 @@
       </div>
 
       <footer class="canvas-statusbar">
-        <span class="legend-pill"><span class="swatch file"></span>File</span>
+        <span class="legend-pill"><span class="swatch file"></span><span data-i18n="statusFile">File</span></span>
         <span class="sep"></span>
-        <span class="legend-pill"><span class="swatch pkg"></span>Package</span>
+        <span class="legend-pill"><span class="swatch pkg"></span><span data-i18n="statusPkg">Package</span></span>
         <span class="sep"></span>
-        <span class="legend-pill"><span class="swatch cycle"></span>Cycle</span>
+        <span class="legend-pill"><span class="swatch cycle"></span><span data-i18n="statusCycle">Cycle</span></span>
         <span class="sep"></span>
         <span id="statusCounts"><span class="mono">0</span> nodes · <span class="mono">0</span> edges · <span class="mono">0</span> cycles</span>
         <span class="zoom-readout">
@@ -266,7 +394,7 @@
       <section class="card">
         <div class="card-head">
           <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-7"/></svg></span>
-          <h2>Summary</h2>
+          <h2 data-i18n="summary">Summary</h2>
         </div>
         <div class="card-body"><div id="summary" class="kpi-grid"></div></div>
       </section>
@@ -274,17 +402,17 @@
       <section class="card">
         <div class="card-head">
           <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51z"/><path d="M13 13l6 6"/></svg></span>
-          <h2>Selection</h2>
+          <h2 data-i18n="selection">Selection</h2>
         </div>
         <div id="selectionInfo" class="card-body">
-          <p class="selection-muted">Click a node to inspect dependencies.</p>
+          <p class="selection-muted" data-i18n="selectionHint">Click a node to inspect dependencies.</p>
         </div>
       </section>
 
       <section class="card">
         <div class="card-head">
           <span class="ico" style="background:var(--danger-soft);color:var(--danger)"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 12V8M3 12h4"/></svg></span>
-          <h2>Circular deps</h2>
+          <h2 data-i18n="circularDeps">Circular deps</h2>
           <span class="count-pill" id="cyclesPill" style="color:var(--danger)">0</span>
         </div>
         <ol id="cyclesList" class="list" style="padding:0"></ol>
@@ -293,14 +421,14 @@
       <section class="card">
         <div class="card-head">
           <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
-          <h2>Heatmap legend</h2>
+          <h2 data-i18n="heatmapLegend">Heatmap legend</h2>
         </div>
         <div class="card-body">
           <div id="heatmapLegend" class="legend legend-hidden">
             <div class="legend-bar"></div>
-            <div class="legend-labels"><span>Low</span><span>Medium</span><span>High</span></div>
+            <div class="legend-labels"><span data-i18n="heatLow">Low</span><span data-i18n="heatMid">Medium</span><span data-i18n="heatHigh">High</span></div>
           </div>
-          <p class="subtitle" style="margin-top:8px;font-size:11.5px">Toggle "Heatmap mode" to color nodes by import complexity.</p>
+          <p class="subtitle" style="margin-top:8px;font-size:11.5px" data-i18n="heatmapDesc">Toggle "Heatmap mode" to color nodes by import complexity.</p>
         </div>
       </section>
     </aside>

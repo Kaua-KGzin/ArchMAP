@@ -61,8 +61,23 @@ def _resolve_command_handler(command: str | None):
 def main(argv: list[str] | None = None) -> int:
     _configure_stdio()
     parser = _build_parser()
+
+    try:
+        import argcomplete
+        argcomplete.autocomplete(parser)
+    except ImportError:
+        pass
+
     args = parser.parse_args(argv)
     _apply_default_command(args)
+
+    if getattr(args, "print_completion", None):
+        shell = args.print_completion
+        if shell in ("bash", "zsh"):
+            print('eval "$(register-python-argcomplete archmap)"')
+        elif shell == "fish":
+            print("register-python-argcomplete --shell fish archmap | source")
+        return 0
 
     if args.command == "version":
         _print_banner()
