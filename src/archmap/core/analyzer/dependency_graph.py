@@ -40,6 +40,9 @@ def analyze_graph(
     _total_i = int(import_stats.get("total", 0))
     _resolved_i = int(import_stats.get("resolved", 0))
     resolution_rate = round(min(_resolved_i / _total_i, 1.0), 3) if _total_i > 0 else 1.0
+    # Cap unresolved list at 200 entries to keep the report payload manageable.
+    _unresolved_raw: list[dict] = import_stats.get("unresolved", [])
+    unresolved_imports = _unresolved_raw[:200]
 
     metrics = {
         "filesAnalyzed": len(file_nodes),
@@ -47,6 +50,8 @@ def analyze_graph(
         "externalDependencies": len([node for node in nodes if node.get("type") == "package"]),
         "circularDependencyCount": len(cycles),
         "resolutionRate": resolution_rate,
+        "unresolvedImports": unresolved_imports,
+        "unresolvedImportsTotal": len(_unresolved_raw),
         "complexity": summarize_complexity(nodes),
         "coupling": summarize_coupling(nodes),
         "criticalFiles": summarize_critical_files(nodes),

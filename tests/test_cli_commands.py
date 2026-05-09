@@ -20,7 +20,7 @@ def test_run_analyze_prints_summary_and_hint(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
         cli_commands,
         "print_summary",
-        lambda payload: calls.append(("summary", payload)),
+        lambda payload, **_kw: calls.append(("summary", payload)),
     )
     monkeypatch.setattr(
         cli_commands,
@@ -86,7 +86,7 @@ def test_run_analyze_returns_2_when_quality_gate_fails(monkeypatch, capsys) -> N
         lambda _path, **kwargs: {"metrics": {}, "risks": {}},
     )
     monkeypatch.setattr(cli_commands, "export_outputs", lambda **_kwargs: {})
-    monkeypatch.setattr(cli_commands, "print_summary", lambda _payload: None)
+    monkeypatch.setattr(cli_commands, "print_summary", lambda _payload, **_kw: None)
     monkeypatch.setattr(cli_commands, "print_top_complexity", lambda _payload, _limit: None)
     monkeypatch.setattr(cli_commands, "print_top_risks", lambda _payload, _limit: None)
     monkeypatch.setattr(cli_commands, "print_export_summary", lambda _payload: None)
@@ -127,7 +127,7 @@ def test_run_serve_raises_when_static_dir_is_missing(monkeypatch, tmp_path) -> N
 
     monkeypatch.setattr(cli_commands, "ReportState", StubReportState)
     monkeypatch.setattr(cli_commands, "export_outputs", lambda **_kwargs: {})
-    monkeypatch.setattr(cli_commands, "print_summary", lambda _payload: None)
+    monkeypatch.setattr(cli_commands, "print_summary", lambda _payload, **_kw: None)
     monkeypatch.setattr(cli_commands, "print_top_complexity", lambda _payload, _limit: None)
     monkeypatch.setattr(cli_commands, "print_top_risks", lambda _payload, _limit: None)
     monkeypatch.setattr(cli_commands, "print_export_summary", lambda _payload: None)
@@ -183,7 +183,7 @@ def test_run_serve_starts_server_and_closes_cleanly(monkeypatch, tmp_path, capsy
         "export_outputs",
         lambda **_kwargs: {"jsonPath": "graph.json", "mermaidPath": None, "cytoscapePath": None},
     )
-    monkeypatch.setattr(cli_commands, "print_summary", lambda _payload: None)
+    monkeypatch.setattr(cli_commands, "print_summary", lambda _payload, **_kw: None)
     monkeypatch.setattr(cli_commands, "print_top_complexity", lambda _payload, _limit: None)
     monkeypatch.setattr(cli_commands, "print_top_risks", lambda _payload, _limit: None)
     monkeypatch.setattr(cli_commands, "print_export_summary", lambda _payload: None)
@@ -289,7 +289,7 @@ def test_run_explain_prints_simple_view(monkeypatch) -> None:
     monkeypatch.setattr(
         cli_commands,
         "print_summary",
-        lambda payload: calls.append(("summary", payload)),
+        lambda payload, **_kw: calls.append(("summary", payload)),
     )
     monkeypatch.setattr(
         cli_commands,
@@ -631,7 +631,7 @@ def test_run_serve_starts_watch_thread(monkeypatch, tmp_path, capsys) -> None:
 
     monkeypatch.setattr(cli_commands, "ReportState", StubReportState)
     monkeypatch.setattr(cli_commands, "export_outputs", lambda **_kwargs: {})
-    monkeypatch.setattr(cli_commands, "print_summary", lambda _payload: None)
+    monkeypatch.setattr(cli_commands, "print_summary", lambda _payload, **_kw: None)
     monkeypatch.setattr(cli_commands, "print_top_complexity", lambda _payload, _limit: None)
     monkeypatch.setattr(cli_commands, "print_top_risks", lambda _payload, _limit: None)
     monkeypatch.setattr(cli_commands, "print_export_summary", lambda _payload: None)
