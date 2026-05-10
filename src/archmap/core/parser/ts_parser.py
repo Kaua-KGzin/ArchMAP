@@ -24,7 +24,15 @@ class TSParser(JSParser):
     extensions = [".ts", ".tsx", ".mts", ".cts"]
 
     def parse(self, source_code: str) -> list[str]:
-        imports: set[str] = set(super().parse(source_code))
+        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_ts_imports
+
+        if HAS_TREE_SITTER:
+            # Use the TypeScript grammar directly rather than the JS grammar
+            # inherited from JSParser — avoids misclassification of TS-specific syntax.
+            imports = set(extract_ts_imports(source_code))
+        else:
+            imports = set(super().parse(source_code))
+
         imports.update(self._parse_triple_slash_refs(source_code))
         return sorted(imports)
 

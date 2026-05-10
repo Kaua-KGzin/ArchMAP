@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Tree-sitter JS/TS parser** — optional `[tree-sitter]` extra (`pip install archmap[tree-sitter]`) upgrades the JavaScript and TypeScript parsers from regex to a proper AST engine using `tree-sitter`, `tree-sitter-javascript`, and `tree-sitter-typescript`. When the extra is installed:
+  - Multiline import statements are parsed correctly.
+  - Import-like text inside string literals and comments no longer produces false positives.
+  - TypeScript files are parsed with the native TS grammar instead of the JS grammar, improving accuracy for TS-specific constructs (`import type`, `export type`).
+  - TSX files use the dedicated TSX grammar via `extract_ts_imports(..., tsx=True)`.
+  - The regex-based fallback is retained for environments without the optional dependency; all existing tests continue to pass with or without tree-sitter installed.
+
 ## [0.9.0] - 2026-05-08
 
 ### Added
