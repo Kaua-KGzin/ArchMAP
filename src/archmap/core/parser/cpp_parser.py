@@ -14,7 +14,17 @@ class CppImportEntry(TypedDict):
     value: str
 
 
-def _parse_cpp_includes(source_code: str) -> list[CppImportEntry]:
+def _parse_cpp_includes(source_code: str, cpp: bool = False) -> list[CppImportEntry]:
+    from archmap.core.parser.ts_engine import (  # noqa: PLC0415
+        HAS_TREE_SITTER,
+        extract_c_includes,
+        extract_cpp_includes,
+    )
+
+    if HAS_TREE_SITTER:
+        fn = extract_cpp_includes if cpp else extract_c_includes
+        return fn(source_code)  # type: ignore[return-value]
+
     imports: list[CppImportEntry] = []
     for match in SYSTEM_INCLUDE_RE.finditer(source_code):
         imports.append({"type": "system", "value": match.group(1).strip()})
@@ -55,7 +65,7 @@ class CppParser(ParserPlugin):
     extensions = [".cpp", ".hpp", ".cc", ".cxx"]
 
     def parse(self, source_code: str) -> list[CppImportEntry]:
-        return _parse_cpp_includes(source_code)
+        return _parse_cpp_includes(source_code, cpp=True)
 
     def resolve(
         self, import_entries: list[Any], file_id: str, file_ids: set[str], **kwargs: Any

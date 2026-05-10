@@ -5,12 +5,15 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
-- **Tree-sitter JS/TS parser** — optional `[tree-sitter]` extra (`pip install archmap[tree-sitter]`) upgrades the JavaScript and TypeScript parsers from regex to a proper AST engine using `tree-sitter`, `tree-sitter-javascript`, and `tree-sitter-typescript`. When the extra is installed:
-  - Multiline import statements are parsed correctly.
-  - Import-like text inside string literals and comments no longer produces false positives.
-  - TypeScript files are parsed with the native TS grammar instead of the JS grammar, improving accuracy for TS-specific constructs (`import type`, `export type`).
-  - TSX files use the dedicated TSX grammar via `extract_ts_imports(..., tsx=True)`.
-  - The regex-based fallback is retained for environments without the optional dependency; all existing tests continue to pass with or without tree-sitter installed.
+- **Tree-sitter multi-language parser** — optional `[tree-sitter]` extra (`pip install archmap[tree-sitter]`) replaces every regex-based parser with a proper AST engine. When the extra is installed, all nine language parsers use tree-sitter grammars:
+  - **JavaScript / TypeScript** — `tree-sitter-javascript` / `tree-sitter-typescript` (+ TSX variant). Multiline imports, `import type`, `export type` all handled correctly. Import-like text in string literals and comments no longer produces false positives.
+  - **Java** — `tree-sitter-java`. Static imports, wildcard imports (`com.example.*`), and standard imports all resolved correctly.
+  - **Go** — `tree-sitter-go`. Both single-import and block-import forms captured without regex edge cases.
+  - **Rust** — `tree-sitter-rust`. `use`, `mod`, and `extern crate` declarations extracted and normalised using the existing `_normalize_rust_use` logic.
+  - **PHP** — `tree-sitter-php`. Handles both single-quoted and double-quoted strings, and the parenthesized call form (`require('x')`).
+  - **C# — `tree-sitter-c-sharp`. `using`, `using static`, and alias directives.
+  - **C / C++** — `tree-sitter-c` / `tree-sitter-cpp`. `#include <system>` and `#include "local"` correctly distinguished by node type.
+  - The regex fallback is preserved in all parsers; no behaviour change when the extra is not installed.
 
 ## [0.9.0] - 2026-05-08
 

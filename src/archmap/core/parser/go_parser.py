@@ -24,6 +24,11 @@ class GoParser(ParserPlugin):
     extensions = [".go"]
 
     def parse(self, source_code: str) -> list[str]:
+        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_go_imports
+
+        if HAS_TREE_SITTER:
+            return extract_go_imports(source_code)
+
         imports: set[str] = set()
 
         for match in SINGLE_IMPORT_RE.finditer(source_code):
