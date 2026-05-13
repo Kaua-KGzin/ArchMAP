@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import NotRequired, TypedDict
 
+
 # ---------------------------------------------------------------------------
 # Node / edge types
 # ---------------------------------------------------------------------------
