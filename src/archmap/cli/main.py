@@ -42,6 +42,8 @@ def _configure_stdio() -> None:
 
 
 def _resolve_command_handler(command: str | None):
+    if command is None:
+        return None
     handlers = {
         "analyze": _run_analyze,
         "serve": _run_serve,
@@ -79,7 +81,8 @@ def main(argv: list[str] | None = None) -> int:
             print("register-python-argcomplete --shell fish archmap | source")
         return 0
 
-    if args.command == "version":
+    command: str | None = getattr(args, "command", None)
+    if command == "version":
         _print_banner()
         print(f"archmap {__version__}")
         return 0
@@ -87,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     if sys.stdout.isatty():
         _print_banner()
 
-    handler = _resolve_command_handler(args.command)
+    handler = _resolve_command_handler(command)
     if handler is None:
         parser.print_help()
         return 1

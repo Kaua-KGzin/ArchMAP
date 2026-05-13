@@ -4,6 +4,7 @@ import os
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
+from typing import Any
 
 from archmap.utils.file_utils import normalize_file_id
 
@@ -86,7 +87,7 @@ GENERIC_TOKENS = {
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 
 
-def suggest_architecture(report: dict, max_groups: int = 8) -> dict:
+def suggest_architecture(report: dict[str, Any], max_groups: int = 8) -> dict:
     file_nodes = [node for node in report.get("nodes", []) if node.get("type") == "file"]
     if not file_nodes:
         return {
@@ -173,7 +174,7 @@ def generate_refactor_script(suggestions: dict, shell: str | None = None) -> str
 
 
 def _build_file_adjacency(edges: list[dict], file_set: set[str]) -> dict[str, set[str]]:
-    adjacency = {file_id: set() for file_id in file_set}
+    adjacency: dict[str, set[str]] = {file_id: set() for file_id in file_set}
     for edge in edges:
         source = str(edge.get("source", ""))
         target = str(edge.get("target", ""))

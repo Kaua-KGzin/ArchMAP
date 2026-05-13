@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs, urlsplit
 from xml.sax.saxutils import escape as _xml_escape
 
@@ -22,7 +23,7 @@ from archmap.utils.file_utils import normalize_file_id
 @dataclass
 class ReportState:
     path: Path
-    report: dict
+    report: dict[str, Any]
     history_cache: dict[tuple[str, int], dict] = field(default_factory=dict)
     _listeners: list[threading.Event] = field(default_factory=list, repr=False)
     _listeners_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -505,7 +506,7 @@ def _candidate_file_path(project_root: Path, normalized_node_id: str) -> Path | 
 
 def _open_local_path(target_path: Path) -> None:
     if sys.platform.startswith("win"):
-        os.startfile(str(target_path))  # type: ignore[attr-defined]
+        os.startfile(str(target_path))  # type: ignore[attr-defined,unused-ignore]
         return
     if sys.platform == "darwin":
         try:

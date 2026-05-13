@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from archmap.core.parser import ParsedProject
 from archmap.utils.file_utils import first_segment
 
 
-def build_graph(parsed_project: dict) -> dict:
+def build_graph(parsed_project: ParsedProject) -> dict:
     node_map: dict[str, dict] = {}
     edge_map: dict[str, dict] = {}
 

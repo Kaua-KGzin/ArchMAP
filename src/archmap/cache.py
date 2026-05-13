@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 _CACHE_DIR = ".archmap"
 _CACHE_FILE = "cache.json"
@@ -10,7 +11,7 @@ _CACHE_FILE = "cache.json"
 _MAX_CACHE_BYTES = 50 * 1024 * 1024
 
 
-def compute_fingerprint(project_root: Path, config: dict) -> str:
+def compute_fingerprint(project_root: Path, config: Any) -> str:
     """Compute a stable fingerprint for cache invalidation.
 
     The fingerprint encodes the project config and the mtime+size of every

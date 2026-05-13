@@ -4,7 +4,7 @@ from __future__ import annotations
 def calculate_impact(node_id: str, edges: list[dict]) -> dict:
     # Build backward adjacency list (target -> list of sources)
     # If source depends on target, target impacts source.
-    dependents_map = {}
+    dependents_map: dict[str, list[str]] = {}
     for edge in edges:
         source = edge["source"]
         target = edge["target"]

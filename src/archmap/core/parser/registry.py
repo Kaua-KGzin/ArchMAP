@@ -21,6 +21,7 @@ class ParserPlugin(Protocol):
         import_entries: list[Any],
         file_id: str,
         file_ids: set[str],
+        **kwargs: Any,
     ) -> list[Dependency]:
         ...
 

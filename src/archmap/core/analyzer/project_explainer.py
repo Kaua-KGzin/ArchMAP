@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 def explain_project(nodes: list[dict], edges: list[dict]) -> dict:
-    folder_counts = {}
+    folder_counts: dict[str, int] = {}
     file_count = 0
 
     for node in nodes:
