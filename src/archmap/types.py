@@ -5,6 +5,37 @@ from __future__ import annotations
 from typing import NotRequired, TypedDict
 
 
+# ---------------------------------------------------------------------------
+# Node / edge types
+# ---------------------------------------------------------------------------
+
+
+class ImpactResult(TypedDict):
+    nodeId: str
+    impactedFiles: list[str]
+    impactCount: int
+    risk: str  # "low" | "ok" | "warning" | "critical"
+
+
+class NodeResult(TypedDict):
+    id: str
+    label: str
+    type: str  # "file" | "package"
+    language: NotRequired[str]
+    folder: NotRequired[str]
+    outgoing: int
+    incoming: int
+    isCircular: bool
+    complexityScore: NotRequired[float]
+    complexityImports: NotRequired[int]
+    complexityDependents: NotRequired[int]
+    complexityConnections: NotRequired[int]
+    efferentCoupling: NotRequired[int]
+    afferentCoupling: NotRequired[int]
+    instability: NotRequired[float]
+    impact: NotRequired[ImpactResult]
+
+
 class EdgeResult(TypedDict):
     id: str
     source: str
@@ -12,30 +43,38 @@ class EdgeResult(TypedDict):
     isCircular: bool
 
 
-class NodeResult(TypedDict):
-    id: str
-    label: str
-    type: str
-    language: NotRequired[str]
-    folder: NotRequired[str]
-    outgoing: int
-    incoming: int
-    isCircular: bool
-    complexity: NotRequired[float]
-    impact: NotRequired[float]
+# ---------------------------------------------------------------------------
+# Metrics types
+# ---------------------------------------------------------------------------
 
 
-class ComplexityMetrics(TypedDict):
-    average: float
-    max: float
-    stdDev: NotRequired[float]
+class ComplexityEntry(TypedDict):
+    file: str
+    imports: int
+    dependents: int
+    totalConnections: int
+    efferentCoupling: int
+    afferentCoupling: int
+    instability: float
+    score: float
+
+
+class CouplingFileEntry(TypedDict):
+    file: str
+    afferentCoupling: int
+    efferentCoupling: int
+    instability: float
 
 
 class CouplingMetrics(TypedDict):
-    averageOutgoing: float
-    averageIncoming: float
-    maxOutgoing: int
-    maxIncoming: int
+    averageInstability: float
+    mostStable: list[CouplingFileEntry]
+    mostVolatile: list[CouplingFileEntry]
+
+
+class CriticalFileEntry(TypedDict):
+    file: str
+    dependents: int
 
 
 class UnresolvedImportEntry(TypedDict):
@@ -51,12 +90,17 @@ class MetricsResult(TypedDict):
     resolutionRate: float
     unresolvedImportsTotal: NotRequired[int]
     unresolvedImports: NotRequired[list[UnresolvedImportEntry]]
-    complexity: ComplexityMetrics
+    complexity: list[ComplexityEntry]
     coupling: CouplingMetrics
-    criticalFiles: list[str]
+    criticalFiles: list[CriticalFileEntry]
     architectureHealthScore: float
     architectureStyle: str
     architectureRuleViolations: int
+
+
+# ---------------------------------------------------------------------------
+# Cycle types
+# ---------------------------------------------------------------------------
 
 
 class CycleDetail(TypedDict):
@@ -64,11 +108,55 @@ class CycleDetail(TypedDict):
     length: int
 
 
-class RiskEntry(TypedDict):
-    type: str
-    severity: str
-    file: NotRequired[str]
-    description: str
+# ---------------------------------------------------------------------------
+# Risk types
+# ---------------------------------------------------------------------------
+
+
+class GodModuleEntry(TypedDict):
+    file: str
+    outgoing: int
+
+
+class LayerViolationEntry(TypedDict):
+    source: str
+    target: str
+    sourceLayer: str
+    targetLayer: str
+    rule: str
+
+
+class DependencyExplosionEntry(TypedDict):
+    file: str
+    incoming: int
+    outgoing: int
+    totalConnections: int
+
+
+class TopRiskFileEntry(TypedDict):
+    file: str
+    riskScore: int
+    dependents: int
+    outgoing: int
+    signals: list[str]
+
+
+class RiskThresholds(TypedDict):
+    god_module_min_outgoing: int
+    dependency_explosion_min_connections: int
+
+
+class RisksResult(TypedDict):
+    god_modules: list[GodModuleEntry]
+    layer_violations: list[LayerViolationEntry]
+    dependency_explosions: list[DependencyExplosionEntry]
+    top_risk_files: list[TopRiskFileEntry]
+    thresholds: RiskThresholds
+
+
+# ---------------------------------------------------------------------------
+# Top-level result
+# ---------------------------------------------------------------------------
 
 
 class SimpleGraph(TypedDict):
@@ -90,7 +178,7 @@ class AnalysisResult(TypedDict):
     metrics: MetricsResult
     cycles: list[list[str]]
     cycleDetails: list[CycleDetail]
-    risks: list[RiskEntry]
+    risks: RisksResult
     architecture: dict
     insights: dict
     explanation: dict
@@ -99,13 +187,21 @@ class AnalysisResult(TypedDict):
 
 __all__ = [
     "AnalysisResult",
-    "ComplexityMetrics",
+    "ComplexityEntry",
+    "CouplingFileEntry",
     "CouplingMetrics",
+    "CriticalFileEntry",
     "CycleDetail",
+    "DependencyExplosionEntry",
     "EdgeResult",
+    "GodModuleEntry",
+    "ImpactResult",
+    "LayerViolationEntry",
     "MetricsResult",
     "NodeResult",
-    "RiskEntry",
+    "RiskThresholds",
+    "RisksResult",
     "SimpleGraph",
+    "TopRiskFileEntry",
     "UnresolvedImportEntry",
 ]
