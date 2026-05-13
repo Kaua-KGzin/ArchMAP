@@ -4,6 +4,8 @@ import posixpath
 from pathlib import Path, PurePosixPath
 from typing import Any, NotRequired, TypedDict
 
+__all__ = ["ParsedFile", "ParsedProject", "parse_project"]
+
 from archmap.core.parser import plugins as plugins  # noqa: F401
 from archmap.core.parser.cpp_parser import CParser, CppParser
 from archmap.core.parser.csharp_parser import CSharpParser

@@ -7,13 +7,16 @@ from archmap.config import load_project_config
 from archmap.core.analyzer.dependency_graph import analyze_graph
 from archmap.core.graph.graph_builder import build_graph
 from archmap.core.parser import parse_project
+from archmap.types import AnalysisResult
+
+__all__ = ["analyze_project"]
 
 
 def analyze_project(
     project_path: str | Path,
     parallel: bool | None = None,
     use_cache: bool = True,
-) -> dict:
+) -> AnalysisResult:
     project_root = Path(project_path).resolve()
     config = load_project_config(project_root)
 
