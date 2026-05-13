@@ -11,9 +11,22 @@ All notable changes to this project are documented in this file.
   - **Go** — `tree-sitter-go`. Both single-import and block-import forms captured without regex edge cases.
   - **Rust** — `tree-sitter-rust`. `use`, `mod`, and `extern crate` declarations extracted and normalised using the existing `_normalize_rust_use` logic.
   - **PHP** — `tree-sitter-php`. Handles both single-quoted and double-quoted strings, and the parenthesized call form (`require('x')`).
-  - **C# — `tree-sitter-c-sharp`. `using`, `using static`, and alias directives.
+  - **C#** — `tree-sitter-c-sharp`. `using`, `using static`, and alias directives.
   - **C / C++** — `tree-sitter-c` / `tree-sitter-cpp`. `#include <system>` and `#include "local"` correctly distinguished by node type.
   - The regex fallback is preserved in all parsers; no behaviour change when the extra is not installed.
+- **Per-import unresolved tracking** — parser now resolves each import statement individually. `importsTotal`, `importsResolved`, and `unresolvedImports` fields on every `ParsedFile`. `metrics.unresolvedImports` and `metrics.unresolvedImportsTotal` in the graph report.
+- **`--show-unresolved[=N]`** — prints a detailed list of import statements that could not be resolved (file + specifier). `N` controls how many are shown (default 20 when flag is present).
+- **`--fail-on-budget-violations`** — CI gate that exits with code 2 when any file exceeds coupling budgets. Works with CLI overrides or `.archmap.toml`.
+- **`--max-outgoing-per-file N`** — CLI override for maximum allowed outgoing dependencies per file.
+- **`--max-incoming-per-file N`** — CLI override for maximum allowed incoming dependencies per file.
+- **`[analysis.budgets]` in `.archmap.toml`** — `max_outgoing_per_file` and `max_incoming_per_file` config keys for project-wide coupling limits.
+- **`--ignore-external`** — strips external package nodes (e.g. `pkg:requests`) and their edges from the output graph. Metrics are recomputed after filtering. Useful for focusing on internal structure only.
+- **`--summary-format {text,table,markdown}`** — controls the terminal summary output style. `text` (default) is the existing `[ok]/[warn]` format; `table` renders an aligned ASCII table with separator lines; `markdown` renders a pipe-delimited markdown table for pasting into docs or PRs.
+
+### Fixed
+- **SVG injection in `/api/badge`** — health grade string is now XML-escaped via `xml.sax.saxutils.escape` before being embedded in the SVG response. Prevents XSS if a grade value ever contained `<`, `>`, or `&`.
+- **Web UI Config navigation** — Config panel is now accessible via a dedicated gear-icon button in the nav rail (`navBtnConfig`). The ArchMAP logo click is restored to its original behavior: navigating to the Graph view. Previously the logo opened Config, leaving no dedicated button and no way to return to the graph.
+- **`_VALID_LLM_PROVIDERS` scoping in `server.py`** — moved to module-level `frozenset` constant; previously re-declared as a local variable inside `_handle_advise` on every request.
 
 ## [0.9.0] - 2026-05-08
 
