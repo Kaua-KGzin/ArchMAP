@@ -6,6 +6,17 @@ from typing import NotRequired, TypedDict
 
 from archmap.utils.file_utils import normalize_file_id
 
+__all__ = [
+    "AnalysisConfig",
+    "ArchitectureConfig",
+    "ArchitectureRulesConfig",
+    "BudgetsConfig",
+    "ProjectConfig",
+    "RiskConfig",
+    "default_project_config",
+    "load_project_config",
+]
+
 CONFIG_FILENAMES = (".archmap.toml", "archmap.toml")
 
 _ABSOLUTE_MAX_COUPLING = 10_000  # sanity ceiling for budget values
