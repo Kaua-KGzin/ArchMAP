@@ -55,18 +55,7 @@
 
 ---
 
-## Next up (v0.9.0)
-
-- **CLI coverage** — `tests/test_args.py`, `tests/test_commands.py`, `tests/test_reporting.py` to bring coverage ≥ 85%. ✅ Reached 85% in v0.8.1.
-- **Server security** — `/api/project` path validation (`allowed_roots`), rate limit on `/api/reanalyze`. ✅ Done.
-- **`--quiet` flag** — fully silent mode for CI pipelines. ✅ Done.
-- **Dead-code detector** — surface unreferenced files and exports. ✅ Done (`archmap trace --unreachable`).
-- **Architectural Blueprint** — target-state enforcement from `.archmap.toml` layer rules. ✅ Done.
-- **Dynamic health badge** — `/api/badge` endpoint for README embedding. ✅ Done in v0.8.1.
-
----
-
-## Medium-term (v0.9.x)
+## Medium-term (v1.0.0)
 
 - **Public Python API** — Define and document a stable programmatic surface (`from archmap import analyze_project, ArchMapConfig, AnalysisResult`). Add `__all__` to public modules, document with MkDocs examples, establish a deprecation policy (`DeprecationWarning` + semver). Unlocks IDE plugins, pytest integrations, and custom CI tooling beyond the CLI.
 - **mypy enforcement (blocking)** — Graduate mypy from non-blocking (infrastructure only, v0.8.x) to a hard CI gate. Expand typed coverage module by module until `--strict` is feasible on the full `src/archmap/` tree.
@@ -81,7 +70,7 @@
 - Multi-repo topology support.
 - WebSocket-based live UI refresh.
 - GraphML and Graphviz DOT export formats.
-- **Tree-sitter based parsers** — Replace regex-based parsers for JS, TS, Java, PHP, C#, and C++ with `tree-sitter` bindings. The Python parser already uses the native AST; applying the same rigor to all languages eliminates silent misclassification of multiline imports, template literals, decorators, and comment-embedded patterns.
+- **Tree-sitter based parsers** — ✅ Done. Optional `[tree-sitter]` extra ships AST-based parsers for all 9 languages; regex fallback preserved when the extra is not installed.
 - **Property-based testing (Hypothesis)** — Add `hypothesis` to dev deps and use it on all language parsers. The parser must never crash on any valid unicode input.
 - **Mutation testing (mutmut)** — Apply mutation testing to core analysis modules (`cycle_detector.py`, `risk_analyzer.py`, `complexity_analyzer.py`).
 - **Homebrew formula** — Distribute as a Homebrew tap for macOS users (`brew install kaua-kgzin/tap/archmap`).

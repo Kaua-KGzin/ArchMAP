@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/>
   </a>
   <a href="./CHANGELOG.md">
-    <img src="https://img.shields.io/badge/version-0.8.0-orange" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-0.9.0-orange" alt="Version"/>
   </a>
   <a href="https://pypi.org/project/KG-ARCHMAP/">
     <img src="https://img.shields.io/badge/PyPI-KG--ARCHMAP-orange?logo=pypi&logoColor=white" alt="PyPI"/>
@@ -86,37 +86,24 @@ archmap analyze <path> --format json|mermaid|both
 Quality gates for CI:
 
 ```bash
+# Fail on cycles or architectural risks
 archmap analyze . --fail-on-risks --top 10
+
+# Coupling budget gate
+archmap analyze . --fail-on-budget-violations --max-outgoing-per-file 15 --max-incoming-per-file 10
+
+# Resolution rate gate
+archmap analyze . --min-resolution-rate 70
+
+# Strip external packages from the graph
+archmap analyze . --ignore-external
+
+# Summary output styles: text (default), table, markdown
+archmap analyze . --summary-format markdown
+
+# Show unresolved imports
+archmap analyze . --show-unresolved=20
 ```
-
-### Explain
-
-```bash
-archmap explain <path>
-```
-
-Prints a simple architecture summary:
-
-```text
-auth -> users, payments
-payments -> gateway
-```
-
-### Risk
-
-```bash
-archmap risk <file> [path]
-```
-
-Shows blast radius, incoming/outgoing dependencies, and the file risk score.
-
-### Improve
-
-```bash
-archmap improve [path] --out-script .codeatlas/refactor.ps1
-```
-
-Suggests a cleaner project structure and can generate a helper refactor script.
 
 ### Serve
 
@@ -132,8 +119,6 @@ archmap diff HEAD~5 HEAD
 
 # Compare two saved JSON snapshots (no git required)
 archmap diff --snapshot-a before.json --snapshot-b after.json
-
-archmap history --repo . --limit 12
 ```
 
 ### Trace
@@ -161,6 +146,16 @@ archmap advise . --provider openai                        # OpenAI (OPENAI_API_K
 archmap advise . --provider ollama                        # local Ollama
 archmap advise . --provider custom --base-url http://localhost:1234  # any OpenAI-compat API
 ```
+
+### Tree-sitter parser (optional)
+
+Install the `[tree-sitter]` extra for AST-based parsing across all 9 languages (eliminates regex false positives on multiline imports, string literals, and comments):
+
+```bash
+pip install "KG-ARCHMAP[tree-sitter]"
+```
+
+When installed, all language parsers upgrade automatically. The regex fallback is preserved — no behaviour change without the extra.
 
 ## VS Code Extension
 
