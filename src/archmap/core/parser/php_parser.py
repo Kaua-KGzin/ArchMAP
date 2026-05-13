@@ -20,6 +20,11 @@ class PHPParser(ParserPlugin):
     extensions = [".php"]
 
     def parse(self, source_code: str) -> list[PHPImportEntry]:
+        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_php_imports
+
+        if HAS_TREE_SITTER:
+            return extract_php_imports(source_code)  # type: ignore[return-value]
+
         imports: list[PHPImportEntry] = []
         for match in USE_RE.finditer(source_code):
             imports.append({"type": "use", "value": match.group(1).strip()})

@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Tree-sitter multi-language parser** — optional `[tree-sitter]` extra (`pip install archmap[tree-sitter]`) replaces every regex-based parser with a proper AST engine. When the extra is installed, all nine language parsers use tree-sitter grammars:
+  - **JavaScript / TypeScript** — `tree-sitter-javascript` / `tree-sitter-typescript` (+ TSX variant). Multiline imports, `import type`, `export type` all handled correctly. Import-like text in string literals and comments no longer produces false positives.
+  - **Java** — `tree-sitter-java`. Static imports, wildcard imports (`com.example.*`), and standard imports all resolved correctly.
+  - **Go** — `tree-sitter-go`. Both single-import and block-import forms captured without regex edge cases.
+  - **Rust** — `tree-sitter-rust`. `use`, `mod`, and `extern crate` declarations extracted and normalised using the existing `_normalize_rust_use` logic.
+  - **PHP** — `tree-sitter-php`. Handles both single-quoted and double-quoted strings, and the parenthesized call form (`require('x')`).
+  - **C#** — `tree-sitter-c-sharp`. `using`, `using static`, and alias directives.
+  - **C / C++** — `tree-sitter-c` / `tree-sitter-cpp`. `#include <system>` and `#include "local"` correctly distinguished by node type.
+  - The regex fallback is preserved in all parsers; no behaviour change when the extra is not installed.
 - **Per-import unresolved tracking** — parser now resolves each import statement individually. `importsTotal`, `importsResolved`, and `unresolvedImports` fields on every `ParsedFile`. `metrics.unresolvedImports` and `metrics.unresolvedImportsTotal` in the graph report.
 - **`--show-unresolved[=N]`** — prints a detailed list of import statements that could not be resolved (file + specifier). `N` controls how many are shown (default 20 when flag is present).
 - **`--fail-on-budget-violations`** — CI gate that exits with code 2 when any file exceeds coupling budgets. Works with CLI overrides or `.archmap.toml`.

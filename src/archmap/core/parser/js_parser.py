@@ -15,6 +15,11 @@ class JSParser(ParserPlugin):
     extensions = [".js", ".jsx", ".mjs", ".cjs"]
 
     def parse(self, source_code: str) -> list[str]:
+        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_js_imports
+
+        if HAS_TREE_SITTER:
+            return extract_js_imports(source_code)
+
         imports: set[str] = set()
         for pattern in (IMPORT_EXPORT_RE, REQUIRE_RE, DYNAMIC_IMPORT_RE):
             for match in pattern.finditer(source_code):

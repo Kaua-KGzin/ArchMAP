@@ -13,6 +13,11 @@ class CSharpParser(ParserPlugin):
     extensions = [".cs"]
 
     def parse(self, source_code: str) -> list[str]:
+        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_csharp_imports
+
+        if HAS_TREE_SITTER:
+            return extract_csharp_imports(source_code)
+
         imports: set[str] = set()
         for match in CS_IMPORT_RE.finditer(source_code):
             imports.add(match.group(1).strip())
