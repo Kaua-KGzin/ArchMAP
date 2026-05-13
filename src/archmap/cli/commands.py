@@ -29,6 +29,7 @@ from archmap.cli.reporting import (
     print_top_complexity,
     print_top_risks,
     print_trace_report,
+    print_unresolved_imports,
 )
 from archmap.cli.server import (
     ReportState,
@@ -82,9 +83,32 @@ KNOWN_INIT_IGNORE_DIRS = {
 }
 
 
+def _filter_external(report: dict) -> dict:
+    """Return a shallow copy of report with external package nodes and their edges removed."""
+    external_ids = {n["id"] for n in report.get("nodes", []) if n.get("type") == "package"}
+    if not external_ids:
+        return report
+    nodes = [n for n in report["nodes"] if n["id"] not in external_ids]
+    edges = [
+        e for e in report["edges"]
+        if e["source"] not in external_ids and e["target"] not in external_ids
+    ]
+    corrected_nodes = []
+    for node in nodes:
+        n = dict(node)
+        n["outgoing"] = sum(1 for e in edges if e["source"] == n["id"])
+        corrected_nodes.append(n)
+    metrics = dict(report.get("metrics", {}))
+    metrics["externalDependencies"] = 0
+    metrics["totalDependencies"] = len(edges)
+    return {**report, "nodes": corrected_nodes, "edges": edges, "metrics": metrics}
+
+
 def run_analyze(args: argparse.Namespace) -> int:
     quiet = getattr(args, "quiet", False)
     report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
+    if getattr(args, "ignore_external", False):
+        report = _filter_external(report)
     export_kwargs = {
         "report": report,
         "output_format": args.format,
@@ -102,7 +126,11 @@ def run_analyze(args: argparse.Namespace) -> int:
 
     if not quiet:
         top_count = max(0, int(args.top))
-        print_summary(report)
+        summary_format = getattr(args, "summary_format", "text") or "text"
+        print_summary(report, summary_format=summary_format)
+        show_unresolved = getattr(args, "show_unresolved", 0) or 0
+        if show_unresolved:
+            print_unresolved_imports(report, limit=int(show_unresolved))
         if args.include_insights:
             print_human_insights(report)
         if args.include_explanation:

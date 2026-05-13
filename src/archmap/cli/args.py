@@ -132,6 +132,56 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="PCT",
         help="exit with code 2 when import resolution rate is below PCT percent (0-100)",
     )
+    analyze_parser.add_argument(
+        "--show-unresolved",
+        type=int,
+        default=0,
+        nargs="?",
+        const=20,
+        metavar="N",
+        help=(
+            "print unresolved imports in the summary; "
+            "N controls how many are shown (default 20 when flag is present)"
+        ),
+    )
+    analyze_parser.add_argument(
+        "--fail-on-budget-violations",
+        action="store_true",
+        help=(
+            "exit with code 2 when any file exceeds coupling budgets "
+            "(set via .archmap.toml [analysis.budgets] or --max-outgoing/incoming-per-file)"
+        ),
+    )
+    analyze_parser.add_argument(
+        "--max-outgoing-per-file",
+        type=int,
+        default=None,
+        metavar="N",
+        help="CLI override for max outgoing dependencies per file (overrides config file)",
+    )
+    analyze_parser.add_argument(
+        "--max-incoming-per-file",
+        type=int,
+        default=None,
+        metavar="N",
+        help="CLI override for max incoming dependencies per file (overrides config file)",
+    )
+    analyze_parser.add_argument(
+        "--ignore-external",
+        action="store_true",
+        help=(
+            "exclude external package nodes and their edges from the output; "
+            "useful for focusing the graph on internal structure only"
+        ),
+    )
+    analyze_parser.add_argument(
+        "--summary-format",
+        choices=["text", "table", "markdown"],
+        default="text",
+        dest="summary_format",
+        metavar="FMT",
+        help="terminal summary output style: text (default), table, or markdown",
+    )
 
     serve_parser = subparsers.add_parser("serve", help="serve the interactive graph UI")
     serve_parser.add_argument("path", nargs="?", default=".")

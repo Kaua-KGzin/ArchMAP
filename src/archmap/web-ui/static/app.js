@@ -435,9 +435,10 @@ function bindControls() {
   document.getElementById("navBtnRules")?.addEventListener("click",    () => switchLeftView("rules"));
   document.getElementById("navBtnTrace")?.addEventListener("click",    () => switchLeftView("trace"));
   document.getElementById("navBtnAdvisor")?.addEventListener("click",  () => switchLeftView("advisor"));
+  document.getElementById("navBtnConfig")?.addEventListener("click",   () => switchLeftView("config"));
   const _railLogo = document.getElementById("railLogo");
-  _railLogo?.addEventListener("click", () => switchLeftView("config"));
-  _railLogo?.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") switchLeftView("config"); });
+  _railLogo?.addEventListener("click", () => switchLeftView("graph"));
+  _railLogo?.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") switchLeftView("graph"); });
 
   // Trace panel controls
   document.getElementById("traceRunBtn")?.addEventListener("click", () => {
@@ -563,7 +564,7 @@ const LP_NAV = {
   rules:   ["lpRules",    "navBtnRules",    "rail-btn-active"],
   trace:   ["lpTrace",    "navBtnTrace",    "rail-btn-active"],
   advisor: ["lpAdvisor",  "navBtnAdvisor",  "rail-btn-active"],
-  config:  ["lpConfig",   "railLogo",       "rail-logo-active"],
+  config:  ["lpConfig",   "navBtnConfig",   "rail-btn-active"],
 };
 
 function switchLeftView(key) {

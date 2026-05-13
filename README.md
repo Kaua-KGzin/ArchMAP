@@ -34,7 +34,7 @@ ArchMAP scans source code, builds dependency graphs, detects cycles, reports arc
 
 | | |
 |---|---|
-| Release | `v0.8.0` |
+| Release | `v0.9.0` |
 | Runtime | Python `>=3.11` |
 | UI | built-in static UI + Node dev server |
 | Distribution | PyPI (`KG-ARCHMAP`) + Windows `.exe` |

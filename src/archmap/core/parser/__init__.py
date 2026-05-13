@@ -45,6 +45,7 @@ class ParsedFile(TypedDict):
     dependencies: list[Dependency]
     importsTotal: NotRequired[int]
     importsResolved: NotRequired[int]
+    unresolvedImports: NotRequired[list[str]]
 
 
 class ParsedProject(TypedDict):
@@ -98,6 +99,20 @@ def parse_project(
         except Exception as exc:
             logger.error("Failed to parse %s: %s", file_id, exc)
             return None
+
+        # Identify per-entry unresolved imports by resolving each entry individually.
+        # Resolution is pure set-lookup so the overhead is negligible.
+        unresolved_imports: list[str] = []
+        for entry in import_entries:
+            try:
+                entry_deps = parser.resolve(
+                    [entry], file_id, file_ids, get_file_content=get_file_content
+                )
+            except Exception:
+                entry_deps = []
+            if not entry_deps:
+                unresolved_imports.append(_format_import_entry(entry))
+
         return {
             "id": file_id,
             "label": file_id,
@@ -105,7 +120,8 @@ def parse_project(
             "language": language,
             "dependencies": dependencies,
             "importsTotal": len(import_entries),
-            "importsResolved": len(dependencies),
+            "importsResolved": len(import_entries) - len(unresolved_imports),
+            "unresolvedImports": unresolved_imports,
         }
 
     parsed_files: list[ParsedFile] = []
@@ -457,3 +473,17 @@ def _safe_norm_join(*parts: str) -> str:
     if normalized.startswith("../") or normalized == "..":
         return ""
     return normalized
+
+
+def _format_import_entry(entry: Any) -> str:
+    """Return a human-readable string for a raw import entry from any parser."""
+    if isinstance(entry, dict):
+        specifier = (
+            entry.get("module")
+            or entry.get("path")
+            or entry.get("crate")
+            or entry.get("value")
+            or ""
+        )
+        return str(specifier)
+    return str(entry)
