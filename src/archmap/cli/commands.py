@@ -9,6 +9,7 @@ import time
 import webbrowser
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from typing import Any
 
 from archmap import __version__
 from archmap.cli.defaults import DEFAULT_SARIF_OUTPUT_PATH, DEFAULT_TOP_ITEMS
@@ -83,7 +84,7 @@ KNOWN_INIT_IGNORE_DIRS = {
 }
 
 
-def _filter_external(report: dict) -> dict:
+def _filter_external(report: dict[str, Any]) -> dict[str, Any]:
     """Return a shallow copy of report with external package nodes and their edges removed."""
     external_ids = {n["id"] for n in report.get("nodes", []) if n.get("type") == "package"}
     if not external_ids:
@@ -509,7 +510,7 @@ def _serve_watch_loop(state: ReportState) -> None:
             print(f"[error] Watch re-analysis failed: {exc}")
 
 
-def _derive_blueprint(report: dict) -> dict:
+def _derive_blueprint(report: dict[str, Any]) -> dict[str, Any]:
     nodes = report.get("nodes", [])
 
     dir_incoming: dict[str, int] = {}
@@ -592,10 +593,10 @@ def _render_layer_suggestions(layer_candidates: list[str]) -> str:
 
 
 def _build_file_risk_payload(
-    report: dict,
+    report: dict[str, Any],
     project_path: Path,
     target_path: str,
-) -> dict | None:
+) -> dict[str, Any] | None:
     project_root = Path(report.get("projectRoot", project_path)).resolve()
     normalized_target = _normalize_target_id(project_root, target_path)
     node = next(

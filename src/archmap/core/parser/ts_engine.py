@@ -243,14 +243,14 @@ def extract_php_imports(source_code: str) -> list[dict]:
             results.append({"type": "use", "value": val})
 
     for node in _captures(_PHP_REQUIRE_QUERY, tree).get("req", []):
-        val = _find_string_content(node)
-        if val:
-            results.append({"type": "require", "value": val})
+        val_r: str | None = _find_string_content(node)
+        if val_r:
+            results.append({"type": "require", "value": val_r})
 
     for node in _captures(_PHP_INCLUDE_QUERY, tree).get("inc", []):
-        val = _find_string_content(node)
-        if val:
-            results.append({"type": "include", "value": val})
+        val_i: str | None = _find_string_content(node)
+        if val_i:
+            results.append({"type": "include", "value": val_i})
 
     return results
 
@@ -288,7 +288,7 @@ def _extract_includes(language: Language, query: Query, source_code: str) -> lis
     tree = _parse(language, source_code)
     results: list[dict] = []
     for inc_node in _captures(query, tree).get("inc", []):
-        for child in inc_node.children:  # type: ignore[attr-defined]
+        for child in inc_node.children:
             if getattr(child, "type", "") == "system_lib_string":
                 raw = _text(child)
                 results.append({"type": "system", "value": raw[1:-1]})  # strip < >

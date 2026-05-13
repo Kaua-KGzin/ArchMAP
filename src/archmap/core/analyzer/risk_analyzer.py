@@ -66,15 +66,15 @@ def detect_architectural_risks(
     layer_violations: list[dict] = []
     violations_by_file: dict[str, int] = defaultdict(int)
     for edge in edges:
-        source = edge.get("source")
-        target = edge.get("target")
-        if source not in file_ids or target not in file_ids:
+        source: str | None = edge.get("source")
+        target: str | None = edge.get("target")
+        if source is None or target is None or source not in file_ids or target not in file_ids:
             continue
 
         source_layer = _detect_layer(source, active_layer_order)
         target_layer = _detect_layer(target, active_layer_order)
-        source_rank = active_layer_order.get(source_layer)
-        target_rank = active_layer_order.get(target_layer)
+        source_rank = active_layer_order.get(source_layer) if source_layer else None
+        target_rank = active_layer_order.get(target_layer) if target_layer else None
         if source_rank is None or target_rank is None:
             continue
         if source_layer == target_layer:

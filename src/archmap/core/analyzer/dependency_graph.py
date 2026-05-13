@@ -93,7 +93,7 @@ def analyze_graph(
 def _build_file_adjacency(
     file_node_ids: list[str], edges: list[dict], file_node_set: set[str]
 ) -> dict[str, list[str]]:
-    adjacency = {node_id: [] for node_id in file_node_ids}
+    adjacency: dict[str, list[str]] = {node_id: [] for node_id in file_node_ids}
 
     for edge in edges:
         source = edge["source"]

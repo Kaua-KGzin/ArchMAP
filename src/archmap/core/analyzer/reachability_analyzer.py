@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections import deque
+from typing import Any
 
 from archmap.utils.file_utils import normalize_file_id
 
 
 def trace_reachability(
-    report: dict,
+    report: dict[str, Any],
     entrypoint: str,
     max_depth: int | None = None,
 ) -> dict:

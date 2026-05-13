@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from typing import Any
 
 from archmap.exporters import (
     export_graph_as_cytoscape,
@@ -13,7 +14,7 @@ from archmap.exporters import (
 
 def export_outputs(
     *,
-    report: dict,
+    report: dict[str, Any],
     output_format: str,
     json_output: str,
     mermaid_output: str,
@@ -22,7 +23,9 @@ def export_outputs(
     no_subgraphs: bool = False,
     sarif_output: str | None = None,
 ) -> dict:
-    result = {"jsonPath": None, "mermaidPath": None, "cytoscapePath": None, "sarifPath": None}
+    result: dict[str, str | None] = {
+        "jsonPath": None, "mermaidPath": None, "cytoscapePath": None, "sarifPath": None
+    }
 
     if output_format in {"json", "both"}:
         result["jsonPath"] = str(export_graph_as_json(report, json_output))
@@ -44,7 +47,7 @@ def export_outputs(
     return result
 
 
-def print_human_insights(report: dict) -> None:
+def print_human_insights(report: dict[str, Any]) -> None:
     insights = report.get("insights")
     if not insights:
         return
@@ -67,7 +70,7 @@ def print_human_insights(report: dict) -> None:
             print(f"  - {action}")
 
 
-def print_project_explanation(report: dict) -> None:
+def print_project_explanation(report: dict[str, Any]) -> None:
     explanation = report.get("explanation")
     if not explanation:
         return
@@ -83,7 +86,7 @@ def print_project_explanation(report: dict) -> None:
         print(technical_text)
 
 
-def print_impact_analysis(report: dict, target_path: str, max_impacted: int = 15) -> None:
+def print_impact_analysis(report: dict[str, Any], target_path: str, max_impacted: int = 15) -> None:
     from archmap.utils.file_utils import normalize_file_id
 
     target_id = normalize_file_id(target_path)
@@ -162,7 +165,7 @@ def print_improve_report(suggestions: dict) -> None:
             print(f"  - ... and {len(moves) - 12} more moves")
 
 
-def print_summary(report: dict, summary_format: str = "text") -> None:
+def print_summary(report: dict[str, Any], summary_format: str = "text") -> None:
     if summary_format == "table":
         _print_summary_table(report)
     elif summary_format == "markdown":
@@ -171,7 +174,7 @@ def print_summary(report: dict, summary_format: str = "text") -> None:
         _print_summary_text(report)
 
 
-def _build_summary_rows(report: dict) -> list[tuple[str, str]]:
+def _build_summary_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
     """Return (metric, value) pairs for all applicable summary fields."""
     metrics = report["metrics"]
     rows: list[tuple[str, str]] = [
@@ -215,7 +218,7 @@ def _build_summary_rows(report: dict) -> list[tuple[str, str]]:
     return rows
 
 
-def _print_summary_text(report: dict) -> None:
+def _print_summary_text(report: dict[str, Any]) -> None:
     metrics = report["metrics"]
     print(f"[ok] {metrics['filesAnalyzed']} files analyzed")
     print(f"[ok] {metrics['totalDependencies']} dependencies detected")
@@ -258,7 +261,7 @@ def _print_summary_text(report: dict) -> None:
         print(f"[warn] {len(rule_violations)} custom architecture rule violations detected")
 
 
-def _print_summary_table(report: dict) -> None:
+def _print_summary_table(report: dict[str, Any]) -> None:
     rows = _build_summary_rows(report)
     col1 = max(len(r[0]) for r in rows)
     col2 = max(len(r[1]) for r in rows)
@@ -271,7 +274,7 @@ def _print_summary_table(report: dict) -> None:
     print(sep)
 
 
-def _print_summary_markdown(report: dict) -> None:
+def _print_summary_markdown(report: dict[str, Any]) -> None:
     rows = _build_summary_rows(report)
     col1 = max(len("Metric"), max(len(r[0]) for r in rows))
     col2 = max(len("Value"), max(len(r[1]) for r in rows))
@@ -281,7 +284,7 @@ def _print_summary_markdown(report: dict) -> None:
         print(f"| {metric:<{col1}} | {value:<{col2}} |")
 
 
-def print_top_complexity(report: dict, limit: int) -> None:
+def print_top_complexity(report: dict[str, Any], limit: int) -> None:
     if limit <= 0:
         return
 
@@ -302,7 +305,7 @@ def print_top_complexity(report: dict, limit: int) -> None:
         )
 
 
-def print_top_risks(report: dict, limit: int) -> None:
+def print_top_risks(report: dict[str, Any], limit: int) -> None:
     if limit <= 0:
         return
 
@@ -316,7 +319,7 @@ def print_top_risks(report: dict, limit: int) -> None:
         print(f"  - {item['file']}: score {item['riskScore']} ({signals})")
 
 
-def print_unresolved_imports(report: dict, limit: int = 20) -> None:
+def print_unresolved_imports(report: dict[str, Any], limit: int = 20) -> None:
     metrics = report.get("metrics", {})
     unresolved = metrics.get("unresolvedImports", [])
     total = int(metrics.get("unresolvedImportsTotal", len(unresolved)))
@@ -342,7 +345,7 @@ def print_export_summary(export_result: dict) -> None:
         print(f"[info] SARIF report exported to {export_result['sarifPath']}")
 
 
-def evaluate_quality_gates(report: dict, args: argparse.Namespace) -> list[str]:
+def evaluate_quality_gates(report: dict[str, Any], args: argparse.Namespace) -> list[str]:
     metrics = report.get("metrics", {})
     risks = report.get("risks", {})
     architecture = report.get("architecture", {})
@@ -404,7 +407,7 @@ def evaluate_quality_gates(report: dict, args: argparse.Namespace) -> list[str]:
     return failures
 
 
-def _evaluate_budget_violations(report: dict, args: argparse.Namespace) -> list[str]:
+def _evaluate_budget_violations(report: dict[str, Any], args: argparse.Namespace) -> list[str]:
     """Check per-file coupling budgets from args (CLI overrides) or from the config."""
     nodes = report.get("nodes", [])
     failures: list[str] = []

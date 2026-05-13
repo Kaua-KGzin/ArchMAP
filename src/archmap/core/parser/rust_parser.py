@@ -40,13 +40,26 @@ class RustParser(ParserPlugin):
         return dependencies
 
     def resolve(
-        self, import_entries: list[Any], file_id: str, file_ids: set[str], **kwargs: Any
+        self,
+        import_entries: list[Any],
+        file_id: str,
+        file_ids: set[str],
+        **kwargs: Any,
     ) -> list[Dependency]:
         from archmap.core.parser import _resolve_rust_dependency
         resolved: list[Dependency] = []
         for entry in import_entries:
             if isinstance(entry, dict):
-                resolved.extend(_resolve_rust_dependency(entry, file_id, file_ids))
+                resolved.extend(_resolve_rust_dependency(
+                    RustImportEntry(
+                        type=entry.get("type", ""),
+                        path=entry.get("path", ""),
+                        module=entry.get("module", ""),
+                        crate=entry.get("crate", ""),
+                    ),
+                    file_id,
+                    file_ids,
+                ))
         return resolved
 
 def _normalize_use_path(raw_path: str) -> str:

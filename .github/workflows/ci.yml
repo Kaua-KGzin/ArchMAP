@@ -37,9 +37,8 @@ jobs:
         if: matrix.python-version == '3.13'
 
       - name: Type check (mypy)
-        run: python -m mypy src/archmap/
+        run: python -m mypy src/archmap/ --ignore-missing-imports --exclude "web-ui"
         if: matrix.python-version == '3.13'
-        continue-on-error: true
 
       - name: Audit dependencies (pip-audit)
         run: pip-audit --progress-spinner off .

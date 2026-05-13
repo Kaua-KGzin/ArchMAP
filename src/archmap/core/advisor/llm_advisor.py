@@ -4,6 +4,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+from typing import Any
 
 _DEFAULT_MODELS: dict[str, str] = {
     "claude": "claude-opus-4-7",
@@ -29,7 +30,7 @@ _HTTP_TIMEOUT = 90
 
 
 def advise_architecture(
-    report: dict,
+    report: dict[str, Any],
     *,
     provider: str = "claude",
     model: str | None = None,

@@ -141,7 +141,7 @@ def _compute_finish_order(
 def _build_reverse_adjacency(
     file_node_ids: list[str], adjacency: dict[str, list[str]]
 ) -> dict[str, list[str]]:
-    reverse_adjacency = {node_id: [] for node_id in file_node_ids}
+    reverse_adjacency: dict[str, list[str]] = {node_id: [] for node_id in file_node_ids}
 
     for source, targets in adjacency.items():
         for target in targets:
