@@ -62,6 +62,7 @@ def analyze_project(
         _analyze_project_impl(project_path, parallel=parallel, use_cache=use_cache),
     )
 
+
 __all__ = [
     "__version__",
     # Main entry point
