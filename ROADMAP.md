@@ -2,7 +2,15 @@
 
 ## Released
 
-### post-v0.9.0 (main — unreleased)
+### v1.0.0 (2026-05-25)
+- **`archmap temporal`** — temporal coupling analysis via `git log`. Detects files that change together, ranked by co-change frequency and coupling strength. `--min-commits`, `--top`, `--json` flags. Zero new deps.
+- **Web UI SVG export** — "SVG" button in canvas toolbar. Scalable vector download via `cy.svg({ full: true })`. Zero new deps.
+- **MCP server** (`archmap mcp`) — JSON-RPC 2.0 stdio server with 4 tools: `get_architecture_summary`, `get_file_context`, `impact_analysis`, `run_checks`. Works with Claude Code, Cursor, Windsurf.
+- **Stable Public Python API** — `from archmap import analyze_project, AnalysisResult` is stable and fully typed. Zero-breaking-change commitment for all 1.x.
+- **mypy strict enforcement** — 0 errors as blocking CI gate.
+- **Test coverage raised to 88%** — new tests for `reachability_analyzer`, `generic_parser`, `rust_parser`, `go_parser`, `temporal_analyzer`.
+
+### post-v0.9.0 (now in v1.0.0)
 - **Per-import unresolved tracking** — `importsTotal`, `importsResolved`, `unresolvedImports` per file; `metrics.unresolvedImports` in graph report.
 - **`--show-unresolved[=N]`** — list imports that failed to resolve (file + specifier).
 - **Coupling budgets** — `[analysis.budgets]` in `.archmap.toml` + `--fail-on-budget-violations` CI gate + `--max-outgoing-per-file` / `--max-incoming-per-file` CLI overrides.

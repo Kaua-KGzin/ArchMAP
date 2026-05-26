@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.0] - 2026-05-25
+
+### Added
+- **`archmap temporal`** — temporal coupling analysis via `git log`. Detects files that frequently change together in commits — hidden coupling not visible in static imports. Outputs ranked pairs with co-change count and coupling strength (0–1). Flags: `--min-commits N`, `--top N`, `--json`. Zero new dependencies (stdlib `subprocess` only).
+- **Web UI — SVG export** — "SVG" button in the canvas toolbar next to PNG. Uses Cytoscape.js native `cy.svg({ full: true })` API and downloads as `archmap-graph.svg`. Scalable vector output, zero new dependencies.
+- **MCP server** (`archmap mcp`) — exposes the ArchMAP analysis engine as a JSON-RPC 2.0 server over stdio. Four tools: `get_architecture_summary`, `get_file_context`, `impact_analysis`, `run_checks`. Compatible with Claude Code, Cursor, Windsurf, and any MCP-capable AI assistant.
+
+### Changed
+- **Stable public Python API** — `from archmap import analyze_project, AnalysisResult` is now fully typed and considered stable. All types exported from `archmap.types`. Zero-breaking-change commitment for all 1.x releases.
+- **mypy strict enforcement** — 0 type errors enforced as a blocking CI gate. All new code must pass mypy at the same strictness level.
+- **Test coverage** — raised to 88% (from 85% in v0.9.0). New test files: `test_reachability_analyzer`, `test_generic_parser`, `test_rust_go_parsers`, `test_temporal_analyzer`.
+
+### Migration from 0.x
+
+No breaking changes. The `analyze_project()` function and all return types are backward-compatible with 0.9.0. The only additions are:
+- New `archmap temporal` subcommand.
+- New SVG export button in the Web UI.
+- New `archmap mcp` subcommand (available since 0.9.x, now stable).
+- `from archmap import AnalysisResult` and all sibling types are now part of the public API contract.
+
 ## [Unreleased]
 
 ### Added
