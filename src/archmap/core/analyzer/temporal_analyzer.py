@@ -9,6 +9,7 @@ from __future__ import annotations
 import subprocess
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 
 def analyze_temporal_coupling(
@@ -50,7 +51,7 @@ def analyze_temporal_coupling(
             for b in unique[i + 1 :]:
                 co_changes[(a, b)] += 1
 
-    pairs = [
+    pairs: list[dict[str, Any]] = [
         {
             "fileA": a,
             "fileB": b,
