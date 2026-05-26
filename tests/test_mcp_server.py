@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
-from archmap.cli.mcp_server import _dispatch, _tool_get_architecture_summary, _tool_get_file_context, _tool_impact_analysis, _tool_run_checks
-
+from archmap.cli.mcp_server import (
+    _dispatch,
+    _tool_get_architecture_summary,
+    _tool_get_file_context,
+    _tool_impact_analysis,
+    _tool_run_checks,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -43,7 +46,12 @@ _FAKE_NODES = [
         "isCircular": False,
         "complexityScore": 5.0,
         "instability": 0.75,
-        "impact": {"nodeId": "src/app.py", "impactedFiles": ["src/main.py"], "impactCount": 1, "risk": "ok"},
+        "impact": {
+            "nodeId": "src/app.py",
+            "impactedFiles": ["src/main.py"],
+            "impactCount": 1,
+            "risk": "ok",
+        },
     },
     {
         "id": "src/main.py",

@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
-from archmap.core.parser.rust_parser import RustParser, _normalize_use_path
 from archmap.core.parser.go_parser import GoParser
-
+from archmap.core.parser.rust_parser import RustParser, _normalize_use_path
 
 # ---------------------------------------------------------------------------
 # Helper: force tree-sitter off so we exercise the regex branch

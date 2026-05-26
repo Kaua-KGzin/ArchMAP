@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
 from archmap.core.analyzer.temporal_analyzer import _parse_git_log, analyze_temporal_coupling
-
 
 # ---------------------------------------------------------------------------
 # _parse_git_log
@@ -118,7 +115,10 @@ def test_analyze_git_error(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_analyze_git_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
     import subprocess
 
-    monkeypatch.setattr(subprocess, "check_output", lambda *a, **kw: (_ for _ in ()).throw(FileNotFoundError()))
+    def _raise(*a: object, **kw: object) -> str:
+        raise FileNotFoundError("git not found")
+
+    monkeypatch.setattr(subprocess, "check_output", _raise)
     result = analyze_temporal_coupling(".")
     assert "error" in result
 
@@ -138,19 +138,22 @@ def test_analyze_metadata_fields(mock_git: None) -> None:
 
 def test_run_temporal_json(mock_git: None, capsys: pytest.CaptureFixture) -> None:
     import argparse
+
     from archmap.cli.commands import run_temporal
 
     args = argparse.Namespace(path=".", min_commits=1, top=10, json=True)
     rc = run_temporal(args)
     assert rc == 0
-    out = capsys.readouterr().out
     import json
+
+    out = capsys.readouterr().out
     data = json.loads(out)
     assert "pairs" in data
 
 
 def test_run_temporal_text(mock_git: None, capsys: pytest.CaptureFixture) -> None:
     import argparse
+
     from archmap.cli.commands import run_temporal
 
     args = argparse.Namespace(path=".", min_commits=1, top=10, json=False)
@@ -161,19 +164,26 @@ def test_run_temporal_text(mock_git: None, capsys: pytest.CaptureFixture) -> Non
 
 
 def test_run_temporal_error(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture) -> None:
-    import subprocess
     import argparse
+    import subprocess
+
     from archmap.cli.commands import run_temporal
 
-    monkeypatch.setattr(subprocess, "check_output", lambda *a, **kw: (_ for _ in ()).throw(FileNotFoundError()))
+    def _raise(*a: object, **kw: object) -> str:
+        raise FileNotFoundError("git not found")
+
+    monkeypatch.setattr(subprocess, "check_output", _raise)
     args = argparse.Namespace(path=".", min_commits=2, top=20, json=False)
     rc = run_temporal(args)
     assert rc == 1
 
 
-def test_run_temporal_no_pairs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture) -> None:
-    import subprocess
+def test_run_temporal_no_pairs(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
     import argparse
+    import subprocess
+
     from archmap.cli.commands import run_temporal
 
     monkeypatch.setattr(subprocess, "check_output", lambda *a, **kw: "")

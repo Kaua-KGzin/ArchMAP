@@ -181,7 +181,10 @@ _TOOLS = [
             "properties": {
                 "project_path": {
                     "type": "string",
-                    "description": "Absolute path to the project root (default: server startup path).",
+                    "description": (
+                        "Absolute path to the project root "
+                        "(default: server startup path)."
+                    ),
                 }
             },
             "required": [],
@@ -203,7 +206,10 @@ _TOOLS = [
                 },
                 "project_path": {
                     "type": "string",
-                    "description": "Absolute path to the project root (default: server startup path).",
+                    "description": (
+                        "Absolute path to the project root "
+                        "(default: server startup path)."
+                    ),
                 },
             },
             "required": ["file"],
@@ -225,7 +231,10 @@ _TOOLS = [
                 },
                 "project_path": {
                     "type": "string",
-                    "description": "Absolute path to the project root (default: server startup path).",
+                    "description": (
+                        "Absolute path to the project root "
+                        "(default: server startup path)."
+                    ),
                 },
             },
             "required": ["file"],
@@ -243,7 +252,10 @@ _TOOLS = [
             "properties": {
                 "project_path": {
                     "type": "string",
-                    "description": "Absolute path to the project root (default: server startup path).",
+                    "description": (
+                        "Absolute path to the project root "
+                        "(default: server startup path)."
+                    ),
                 }
             },
             "required": [],
