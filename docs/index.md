@@ -10,7 +10,7 @@
   <a href="https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml">
     <img src="https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml/badge.svg" alt="CI"/>
   </a>
-  <img src="https://img.shields.io/badge/version-0.8.0-orange" alt="v0.8.0"/>
+  <img src="https://img.shields.io/badge/version-1.0.0-brightgreen" alt="v1.0.0"/>
   <img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"/>
 </p>
@@ -21,7 +21,7 @@
 
 It parses code, builds dependency graphs, detects circular dependencies, computes complexity and risk signals, and exposes results through a rich CLI and an interactive web UI.
 
-## What's in v0.8.0
+## What's in v1.0.0
 
 | Feature | Command |
 |---|---|
@@ -30,9 +30,12 @@ It parses code, builds dependency graphs, detects circular dependencies, compute
 | Architecture risk scoring (god modules, layer violations, dep explosions) | `archmap risk` |
 | Git ref diff and JSON snapshot diff | `archmap diff` |
 | BFS reachability from any entrypoint | `archmap trace` |
+| Temporal coupling analysis via git log | `archmap temporal` |
 | LLM architectural advisor — Claude, OpenAI, Ollama, or any local model | `archmap advise` |
+| MCP server for Claude Code / Cursor / Windsurf integration | `archmap mcp` |
 | Exporters: JSON, Mermaid, Cytoscape, SARIF | `archmap analyze` |
-| Interactive service map with Trace and Advisor views | `archmap serve` |
+| Interactive service map with PNG + SVG export | `archmap serve` |
+| Stable public Python API (`from archmap import analyze_project`) | library |
 | VS Code extension with inline diagnostics and health score | IDE |
 
 ## Getting started
@@ -64,6 +67,8 @@ archmap serve .
 | [`trace`](cli/trace.md) | BFS reachability from any entrypoint |
 | [`init`](cli/init.md) | Generate `.archmap.toml` from real dependency graph |
 | [`advise`](cli/advise.md) | LLM-powered architectural advisor |
+| [`temporal`](cli/temporal.md) | Temporal coupling via git history |
+| [`mcp`](cli/mcp.md) | MCP server for AI assistant integration |
 | [`watch`](cli/watch.md) | Continuous analysis on file change |
 
 ## Governance and release

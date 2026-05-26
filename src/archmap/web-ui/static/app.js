@@ -429,6 +429,7 @@ function bindControls() {
 
   // Nav rail — left panel view switching
   document.getElementById("exportBtn")?.addEventListener("click", exportGraphPng);
+  document.getElementById("exportSvgBtn")?.addEventListener("click", exportGraphSvg);
 
   document.getElementById("navBtnGraph")?.addEventListener("click",    () => switchLeftView("graph"));
   document.getElementById("navBtnInsights")?.addEventListener("click", () => switchLeftView("insights"));
@@ -993,6 +994,20 @@ function exportGraphPng() {
   document.body.removeChild(a);
 }
 
+function exportGraphSvg() {
+  if (!cy) return;
+  const svgContent = cy.svg({ full: true });
+  const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "archmap-graph.svg";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 /* ============================================================
    i18n — translations & engine
    ============================================================ */
@@ -1028,7 +1043,7 @@ const _TRANSLATIONS = {
     summary:"Summary",selection:"Selection",selectionHint:"Click a node to inspect dependencies.",circularDeps:"Circular deps",
     heatmapLegend:"Heatmap legend",heatmapDesc:'Toggle "Heatmap mode" to color nodes by import complexity.',heatLow:"Low",heatMid:"Medium",heatHigh:"High",
     statusFile:"File",statusPkg:"Package",statusCycle:"Cycle",loading:"Loading…",
-    insResolutionRate:"Resolution rate",exportPng:"PNG",
+    insResolutionRate:"Resolution rate",exportPng:"PNG",exportSvg:"SVG",
   },
   pt: {
     navGraph:"Grafo",navInsights:"Insights",navRules:"Regras & Camadas",navTrace:"Rastrear dependências",navAdvisor:"Consultor IA",navOpenProject:"Abrir projeto",navToggleTheme:"Alternar tema",navSettings:"Configurações",
@@ -1060,7 +1075,7 @@ const _TRANSLATIONS = {
     summary:"Resumo",selection:"Seleção",selectionHint:"Clique em um nó para inspecionar dependências.",circularDeps:"Deps. circulares",
     heatmapLegend:"Legenda do mapa de calor",heatmapDesc:'Ative o "Modo mapa de calor" para colorir nós por complexidade.',heatLow:"Baixo",heatMid:"Médio",heatHigh:"Alto",
     statusFile:"Arquivo",statusPkg:"Pacote",statusCycle:"Ciclo",loading:"Carregando…",
-    insResolutionRate:"Taxa de resolução",exportPng:"PNG",
+    insResolutionRate:"Taxa de resolução",exportPng:"PNG",exportSvg:"SVG",
   },
   es: {
     navGraph:"Vista de grafo",navInsights:"Perspectivas",navRules:"Reglas y Capas",navTrace:"Rastrear dependencias",navAdvisor:"Asesor IA",navOpenProject:"Abrir proyecto",navToggleTheme:"Cambiar tema",navSettings:"Configuración",
@@ -1092,7 +1107,7 @@ const _TRANSLATIONS = {
     summary:"Resumen",selection:"Selección",selectionHint:"Haz clic en un nodo para inspeccionar dependencias.",circularDeps:"Deps. circulares",
     heatmapLegend:"Leyenda del mapa de calor",heatmapDesc:'Activa el "Modo mapa de calor" para colorear nodos por complejidad.',heatLow:"Bajo",heatMid:"Medio",heatHigh:"Alto",
     statusFile:"Archivo",statusPkg:"Paquete",statusCycle:"Ciclo",loading:"Cargando…",
-    insResolutionRate:"Tasa de resolución",exportPng:"PNG",
+    insResolutionRate:"Tasa de resolución",exportPng:"PNG",exportSvg:"SVG",
   },
   fr: {
     navGraph:"Vue graphe",navInsights:"Insights",navRules:"Règles & Couches",navTrace:"Tracer les dépendances",navAdvisor:"Conseiller IA",navOpenProject:"Ouvrir le projet",navToggleTheme:"Changer le thème",navSettings:"Paramètres",
@@ -1124,7 +1139,7 @@ const _TRANSLATIONS = {
     summary:"Résumé",selection:"Sélection",selectionHint:"Cliquez sur un nœud pour inspecter les dépendances.",circularDeps:"Dép. circulaires",
     heatmapLegend:"Légende de la carte de chaleur",heatmapDesc:"Activez le mode carte de chaleur pour colorier les nœuds par complexité.",heatLow:"Bas",heatMid:"Moyen",heatHigh:"Élevé",
     statusFile:"Fichier",statusPkg:"Paquet",statusCycle:"Cycle",loading:"Chargement…",
-    insResolutionRate:"Taux de résolution",exportPng:"PNG",
+    insResolutionRate:"Taux de résolution",exportPng:"PNG",exportSvg:"SVG",
   },
   de: {
     navGraph:"Graphansicht",navInsights:"Einblicke",navRules:"Regeln & Schichten",navTrace:"Abhängigkeiten verfolgen",navAdvisor:"KI-Berater",navOpenProject:"Projekt öffnen",navToggleTheme:"Design wechseln",navSettings:"Einstellungen",
@@ -1156,7 +1171,7 @@ const _TRANSLATIONS = {
     summary:"Zusammenfassung",selection:"Auswahl",selectionHint:"Klicken Sie auf einen Knoten, um Abhängigkeiten zu prüfen.",circularDeps:"Zirk. Abhängigkeiten",
     heatmapLegend:"Heatmap-Legende",heatmapDesc:'Aktivieren Sie den "Heatmap-Modus" um Knoten nach Importkomplexität zu färben.',heatLow:"Niedrig",heatMid:"Mittel",heatHigh:"Hoch",
     statusFile:"Datei",statusPkg:"Paket",statusCycle:"Zyklus",loading:"Wird geladen…",
-    insResolutionRate:"Auflösungsrate",exportPng:"PNG",
+    insResolutionRate:"Auflösungsrate",exportPng:"PNG",exportSvg:"SVG",
   },
   zh: {
     navGraph:"依赖图",navInsights:"洞察",navRules:"规则与层",navTrace:"追踪依赖",navAdvisor:"AI 顾问",navOpenProject:"打开项目",navToggleTheme:"切换主题",navSettings:"设置",
@@ -1188,7 +1203,7 @@ const _TRANSLATIONS = {
     summary:"摘要",selection:"选择",selectionHint:"点击节点以检查依赖关系。",circularDeps:"循环依赖",
     heatmapLegend:"热力图图例",heatmapDesc:"切换热力图模式以按导入复杂度为节点着色。",heatLow:"低",heatMid:"中",heatHigh:"高",
     statusFile:"文件",statusPkg:"包",statusCycle:"循环",loading:"加载中…",
-    insResolutionRate:"解析率",exportPng:"PNG",
+    insResolutionRate:"解析率",exportPng:"PNG",exportSvg:"SVG",
   },
 };
 

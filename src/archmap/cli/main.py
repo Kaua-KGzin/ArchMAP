@@ -12,8 +12,10 @@ from archmap.cli.commands import run_explain as _run_explain
 from archmap.cli.commands import run_history as _run_history
 from archmap.cli.commands import run_improve as _run_improve
 from archmap.cli.commands import run_init as _run_init
+from archmap.cli.commands import run_mcp as _run_mcp
 from archmap.cli.commands import run_risk as _run_risk
 from archmap.cli.commands import run_serve as _run_serve
+from archmap.cli.commands import run_temporal as _run_temporal
 from archmap.cli.commands import run_trace as _run_trace
 from archmap.cli.commands import run_watch as _run_watch
 from archmap.cli.defaults import DEFAULT_HOST, DEFAULT_PORT  # noqa: F401
@@ -56,6 +58,8 @@ def _resolve_command_handler(command: str | None):
         "watch": _run_watch,
         "trace": _run_trace,
         "advise": _run_advise,
+        "mcp": _run_mcp,
+        "temporal": _run_temporal,
     }
     return handlers.get(command)
 
@@ -87,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"archmap {__version__}")
         return 0
 
-    if sys.stdout.isatty():
+    if sys.stdout.isatty() and command != "mcp":
         _print_banner()
 
     handler = _resolve_command_handler(command)

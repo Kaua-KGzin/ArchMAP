@@ -405,6 +405,43 @@ def build_parser() -> argparse.ArgumentParser:
         help="enable parallel file parsing for speedup",
     )
 
+    mcp_parser = subparsers.add_parser(
+        "mcp",
+        help="start an MCP server for AI assistant integration (Claude Code, Cursor, Windsurf)",
+    )
+    mcp_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="project root to analyze (default: current directory)",
+    )
+
+    temporal_parser = subparsers.add_parser(
+        "temporal",
+        help="detect temporal coupling — files that frequently change together in git history",
+    )
+    temporal_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="git repository root to analyze (default: current directory)",
+    )
+    temporal_parser.add_argument(
+        "--min-commits",
+        type=int,
+        default=2,
+        metavar="N",
+        help="minimum co-change count to include a pair (default: 2)",
+    )
+    temporal_parser.add_argument(
+        "--top",
+        type=int,
+        default=20,
+        metavar="N",
+        help="number of top pairs to show (default: 20)",
+    )
+    temporal_parser.add_argument("--json", action="store_true")
+
     subparsers.add_parser("version", help="print tool version")
     return parser
 

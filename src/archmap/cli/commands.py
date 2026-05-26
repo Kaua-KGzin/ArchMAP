@@ -495,6 +495,50 @@ def run_watch(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_mcp(args: argparse.Namespace) -> int:
+    from archmap.cli.mcp_server import run_mcp_server
+    return run_mcp_server(getattr(args, "path", "."))
+
+
+def run_temporal(args: argparse.Namespace) -> int:
+    from archmap.core.analyzer.temporal_analyzer import analyze_temporal_coupling
+
+    result = analyze_temporal_coupling(
+        args.path,
+        min_commits=getattr(args, "min_commits", 2),
+        top=getattr(args, "top", 20),
+    )
+
+    if getattr(args, "json", False):
+        import json as _json
+        print(_json.dumps(result, indent=2))
+        return 0
+
+    if "error" in result:
+        print(f"[error] {result['error']}", file=sys.stderr)
+        return 1
+
+    pairs = result.get("pairs", [])
+    print(
+        f"\n  Temporal Coupling Analysis — {result['totalCommitsScanned']} commits scanned\n"
+        f"  Showing top {len(pairs)} pairs (min co-changes: {result['minCommits']})\n"
+    )
+    if not pairs:
+        print("  No significant temporal coupling detected.")
+        return 0
+
+    header = f"  {'File A':<40} {'File B':<40} {'Co-Changes':>10}  {'Strength':>8}"
+    print(header)
+    print("  " + "-" * (len(header) - 2))
+    for p in pairs:
+        a = p["fileA"][:38]
+        b = p["fileB"][:38]
+        print(f"  {a:<40} {b:<40} {p['coChanges']:>10}  {p['couplingStrength']:>8.3f}")
+
+    print(f"\n  Total pairs with min {result['minCommits']} co-changes: {result['totalPairs']}")
+    return 0
+
+
 def _serve_watch_loop(state: ReportState) -> None:
     path = state.path
     last_mtimes = _get_project_mtimes(path)

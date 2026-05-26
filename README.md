@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/>
   </a>
   <a href="./CHANGELOG.md">
-    <img src="https://img.shields.io/badge/version-0.9.0-orange" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-1.0.0-brightgreen" alt="Version"/>
   </a>
   <a href="https://pypi.org/project/KG-ARCHMAP/">
     <img src="https://img.shields.io/badge/PyPI-KG--ARCHMAP-orange?logo=pypi&logoColor=white" alt="PyPI"/>
@@ -34,7 +34,7 @@ ArchMAP scans source code, builds dependency graphs, detects cycles, reports arc
 
 | | |
 |---|---|
-| Release | `v0.9.0` |
+| Release | `v1.0.0` |
 | Runtime | Python `>=3.11` |
 | UI | built-in static UI + Node dev server |
 | Distribution | PyPI (`KG-ARCHMAP`) + Windows `.exe` |
@@ -146,6 +146,24 @@ archmap advise . --provider openai                        # OpenAI (OPENAI_API_K
 archmap advise . --provider ollama                        # local Ollama
 archmap advise . --provider custom --base-url http://localhost:1234  # any OpenAI-compat API
 ```
+
+### Temporal coupling
+
+```bash
+archmap temporal .                     # files that change together (hidden coupling)
+archmap temporal . --min-commits 3     # raise signal threshold
+archmap temporal . --top 30 --json    # machine-readable output
+```
+
+Parses `git log` and ranks file pairs by co-change frequency + coupling strength. Zero new dependencies (stdlib only).
+
+### MCP server (AI assistant integration)
+
+```bash
+archmap mcp .
+```
+
+Starts a JSON-RPC 2.0 server over stdio exposing 4 tools: `get_architecture_summary`, `get_file_context`, `impact_analysis`, `run_checks`. Register in `~/.claude/claude_desktop_config.json` to let Claude Code, Cursor, or Windsurf query your project's structure before making changes.
 
 ### Tree-sitter parser (optional)
 
