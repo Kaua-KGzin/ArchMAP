@@ -2,6 +2,38 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.3] - 2026-06-11
+
+Tree-sitter engine overhaul. Tree-sitter becomes a resilient *primary* parser
+with automatic per-file fallback to the regex path. Fully backward-compatible;
+the optional `[tree-sitter]` extra is still optional.
+
+### Added
+- **Per-language grammar availability** — each tree-sitter grammar now loads
+  independently. A single missing or broken grammar (e.g. `tree-sitter-php`) no
+  longer disables tree-sitter for every other language; the affected language
+  simply uses its regex fallback. New `ts_engine.language_available(name)`.
+- **Automatic per-file fallback (`ts_engine.try_extract`)** — the parsers call a
+  single orchestrator that returns the structured tree-sitter result, or `None`
+  to request the regex fallback when tree-sitter cannot be trusted for that file:
+  the grammar is unavailable, parsing/querying raised an exception, or the parse
+  contained syntax errors *and* recovered no imports. Previously a file that made
+  tree-sitter raise was dropped from the graph entirely.
+- **Structured C# extraction** — `using` directives are read from typed AST
+  nodes, so `using Alias = Real.Namespace;` resolves to the real namespace
+  (not the alias), and `global using` / `using static` are handled. This matches
+  the regex fallback's behaviour so both paths agree.
+- **CI now tests both paths** — a dedicated `tree-sitter` job runs the suite with
+  the AST grammars installed, while the existing `quality` job continues to
+  cover the regex fallback. The tree-sitter code path was previously untested in
+  CI.
+
+### Changed
+- Rust regex fallback now strips comments before matching, consistent with the
+  other regex fallbacks introduced in 1.0.2.
+- `ts_engine` extractors were refactored to parse-then-extract from a shared
+  tree, enabling the reliability check without changing their public signatures.
+
 ## [1.0.2] - 2026-06-11
 
 Parser-accuracy release. Every change reduces false positives or raises the

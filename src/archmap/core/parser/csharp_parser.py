@@ -18,10 +18,11 @@ class CSharpParser(ParserPlugin):
     extensions = [".cs"]
 
     def parse(self, source_code: str) -> list[str]:
-        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_csharp_imports
+        from archmap.core.parser import ts_engine
 
-        if HAS_TREE_SITTER:
-            return extract_csharp_imports(source_code)
+        ts_result = ts_engine.try_extract("csharp", source_code)
+        if ts_result is not None:
+            return ts_result
 
         from archmap.core.parser._text import strip_comments
 

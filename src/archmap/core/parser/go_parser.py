@@ -24,10 +24,11 @@ class GoParser(ParserPlugin):
     extensions = [".go"]
 
     def parse(self, source_code: str) -> list[str]:
-        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_go_imports
+        from archmap.core.parser import ts_engine
 
-        if HAS_TREE_SITTER:
-            return extract_go_imports(source_code)
+        ts_result = ts_engine.try_extract("go", source_code)
+        if ts_result is not None:
+            return ts_result
 
         imports: set[str] = set()
 

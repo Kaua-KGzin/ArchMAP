@@ -21,10 +21,11 @@ class PHPParser(ParserPlugin):
     extensions = [".php"]
 
     def parse(self, source_code: str) -> list[PHPImportEntry]:
-        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_php_imports
+        from archmap.core.parser import ts_engine
 
-        if HAS_TREE_SITTER:
-            return extract_php_imports(source_code)  # type: ignore[return-value]
+        ts_result = ts_engine.try_extract("php", source_code)
+        if ts_result is not None:
+            return ts_result
 
         from archmap.core.parser._text import strip_comments
 

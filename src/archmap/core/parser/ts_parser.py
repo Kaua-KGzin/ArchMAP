@@ -22,16 +22,18 @@ class TSParser(JSParser):
 
     language = "typescript"
     extensions = [".ts", ".tsx", ".mts", ".cts"]
+    # Use the TypeScript grammar directly rather than the JS grammar inherited
+    # from JSParser — avoids misclassification of TS-specific syntax.
+    _TS_LANGUAGE = "typescript"
 
     def parse(self, source_code: str) -> list[str]:
-        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_ts_imports
+        from archmap.core.parser import ts_engine
 
-        if HAS_TREE_SITTER:
-            # Use the TypeScript grammar directly rather than the JS grammar
-            # inherited from JSParser — avoids misclassification of TS-specific syntax.
-            imports = set(extract_ts_imports(source_code))
+        ts_result = ts_engine.try_extract(self._TS_LANGUAGE, source_code)
+        if ts_result is not None:
+            imports = set(ts_result)
         else:
-            imports = set(super().parse(source_code))
+            imports = set(self._parse_with_regex(source_code))
 
         imports.update(self._parse_triple_slash_refs(source_code))
         return sorted(imports)

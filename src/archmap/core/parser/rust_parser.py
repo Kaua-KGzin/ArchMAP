@@ -19,11 +19,15 @@ class RustParser(ParserPlugin):
     extensions = [".rs"]
 
     def parse(self, source_code: str) -> list[RustImportEntry]:
-        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_rust_imports
+        from archmap.core.parser import ts_engine
 
-        if HAS_TREE_SITTER:
-            return extract_rust_imports(source_code)  # type: ignore[return-value]
+        ts_result = ts_engine.try_extract("rust", source_code)
+        if ts_result is not None:
+            return ts_result
 
+        from archmap.core.parser._text import strip_comments
+
+        source_code = strip_comments(source_code)
         dependencies: list[RustImportEntry] = []
         for match in USE_RE.finditer(source_code):
             normalized = _normalize_use_path(match.group(1))

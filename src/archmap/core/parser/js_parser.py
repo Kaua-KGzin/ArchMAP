@@ -14,12 +14,17 @@ class JSParser(ParserPlugin):
     language = "javascript"
     extensions = [".js", ".jsx", ".mjs", ".cjs"]
 
+    _TS_LANGUAGE = "javascript"
+
     def parse(self, source_code: str) -> list[str]:
-        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_js_imports
+        from archmap.core.parser import ts_engine
 
-        if HAS_TREE_SITTER:
-            return extract_js_imports(source_code)
+        ts_result = ts_engine.try_extract(self._TS_LANGUAGE, source_code)
+        if ts_result is not None:
+            return ts_result
+        return self._parse_with_regex(source_code)
 
+    def _parse_with_regex(self, source_code: str) -> list[str]:
         from archmap.core.parser._text import strip_comments
 
         cleaned = strip_comments(source_code, string_delims=('"', "'", "`"))

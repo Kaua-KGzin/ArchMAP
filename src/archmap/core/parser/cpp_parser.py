@@ -15,15 +15,11 @@ class CppImportEntry(TypedDict):
 
 
 def _parse_cpp_includes(source_code: str, cpp: bool = False) -> list[CppImportEntry]:
-    from archmap.core.parser.ts_engine import (  # noqa: PLC0415
-        HAS_TREE_SITTER,
-        extract_c_includes,
-        extract_cpp_includes,
-    )
+    from archmap.core.parser import ts_engine  # noqa: PLC0415
 
-    if HAS_TREE_SITTER:
-        fn = extract_cpp_includes if cpp else extract_c_includes
-        return fn(source_code)  # type: ignore[return-value]
+    ts_result = ts_engine.try_extract("cpp" if cpp else "c", source_code)
+    if ts_result is not None:
+        return ts_result
 
     from archmap.core.parser._text import strip_comments
 
