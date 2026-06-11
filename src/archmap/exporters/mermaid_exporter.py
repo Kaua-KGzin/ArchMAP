@@ -90,4 +90,13 @@ def _infer_node_type(node_id: str) -> str:
 
 
 def _to_mermaid_label(label: str) -> str:
-    return str(label).replace('"', '\\"')
+    # Wrap in quotes at the call site is implicit; escape characters that would
+    # otherwise break Mermaid node syntax. Backslash must be escaped first so we
+    # do not double-escape the sequences introduced below.
+    escaped = str(label).replace("\\", "\\\\")
+    escaped = escaped.replace('"', "&quot;")
+    escaped = escaped.replace("\n", " ").replace("\r", " ")
+    escaped = escaped.replace("[", "(").replace("]", ")")
+    escaped = escaped.replace("{", "(").replace("}", ")")
+    escaped = escaped.replace("<", "&lt;").replace(">", "&gt;")
+    return f'"{escaped}"'

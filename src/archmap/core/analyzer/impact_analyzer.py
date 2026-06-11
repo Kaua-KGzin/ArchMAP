@@ -1,21 +1,41 @@
 from __future__ import annotations
 
+from collections import deque
 
-def calculate_impact(node_id: str, edges: list[dict]) -> dict:
-    # Build backward adjacency list (target -> list of sources)
-    # If source depends on target, target impacts source.
+
+def build_dependents_map(edges: list[dict]) -> dict[str, list[str]]:
+    """Build a backward adjacency map (target -> sources that depend on it).
+
+    Computing this once and reusing it across every node turns whole-graph
+    impact analysis from O(V * E) into O(V + E).  If ``source`` depends on
+    ``target``, then ``target`` impacts ``source``.
+    """
     dependents_map: dict[str, list[str]] = {}
     for edge in edges:
-        source = edge["source"]
-        target = edge["target"]
-        dependents_map.setdefault(target, []).append(source)
+        dependents_map.setdefault(edge["target"], []).append(edge["source"])
+    return dependents_map
 
-    impacted = set()
-    queue = [node_id]
+
+def calculate_impact(
+    node_id: str,
+    edges: list[dict],
+    dependents_map: dict[str, list[str]] | None = None,
+) -> dict:
+    """Return the transitive set of files impacted by a change to ``node_id``.
+
+    ``dependents_map`` may be supplied (via :func:`build_dependents_map`) to
+    avoid rebuilding the backward adjacency on every call; when omitted it is
+    derived from ``edges`` for backward compatibility.
+    """
+    if dependents_map is None:
+        dependents_map = build_dependents_map(edges)
+
+    impacted: set[str] = set()
     visited = {node_id}
+    queue: deque[str] = deque([node_id])
 
     while queue:
-        current = queue.pop(0)
+        current = queue.popleft()
         for dependent in dependents_map.get(current, []):
             if dependent not in visited:
                 visited.add(dependent)
@@ -33,7 +53,7 @@ def calculate_impact(node_id: str, edges: list[dict]) -> dict:
 
     return {
         "nodeId": node_id,
-        "impactedFiles": sorted(list(impacted)),
+        "impactedFiles": sorted(impacted),
         "impactCount": count,
-        "risk": risk
+        "risk": risk,
     }

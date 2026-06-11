@@ -2,6 +2,13 @@
 
 ## Released
 
+### v1.0.1 (2026-06-11)
+- **Security hardening** — `serve` binds to loopback by default; state-changing and local endpoints (`/api/project`, `/api/reanalyze`, `/api/advise`) gated to loopback; `/api/advise` validates `base_url` scheme.
+- **Impact analysis O(V·E) → O(V+E)** — shared backward-adjacency map + `deque` BFS.
+- **Bug fixes** — LLM advisor layer-violation field names; Mermaid label escaping.
+- **tsconfig/jsconfig `paths` + `baseUrl` resolution** for JS/TS imports (improves resolution rate).
+- **CI coverage gate** (`--cov-fail-under=85`); Dockerfile pinned to `python:3.13-slim`.
+
 ### v1.0.0 (2026-05-25)
 - **`archmap temporal`** — temporal coupling analysis via `git log`. Detects files that change together, ranked by co-change frequency and coupling strength. `--min-commits`, `--top`, `--json` flags. Zero new deps.
 - **Web UI SVG export** — "SVG" button in canvas toolbar. Scalable vector download via `cy.svg({ full: true })`. Zero new deps.

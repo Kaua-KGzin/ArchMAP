@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import posixpath
+import re
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from typing import Any, NotRequired, TypedDict
 
@@ -203,8 +206,148 @@ def _resolve_dependencies(
     return []
 
 
+class TsconfigAliases(TypedDict):
+    """Resolved tsconfig/jsconfig module-resolution settings."""
+
+    base_url: str
+    paths: dict[str, list[str]]
+
+
+def _strip_jsonc(text: str) -> str:
+    """Remove // and /* */ comments and trailing commas from a JSONC document.
+
+    tsconfig.json is JSON-with-comments; ``json.loads`` rejects both comments
+    and trailing commas, so we sanitise them while preserving string contents.
+    """
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            out.append(ch)
+            if ch == "\\" and i + 1 < n:
+                out.append(text[i + 1])
+                i += 2
+                continue
+            if ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == "/" and i + 1 < n and text[i + 1] == "/":
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        if ch == "/" and i + 1 < n and text[i + 1] == "*":
+            i += 2
+            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
+                i += 1
+            i += 2
+            continue
+        out.append(ch)
+        i += 1
+    sanitised = "".join(out)
+    # Drop trailing commas before } or ]
+    return re.sub(r",(\s*[}\]])", r"\1", sanitised)
+
+
+def _load_tsconfig_aliases(
+    get_file_content: Callable[[str], str | None] | None,
+) -> TsconfigAliases | None:
+    """Read tsconfig.json / jsconfig.json and extract baseUrl + paths aliases."""
+    if get_file_content is None:
+        return None
+
+    raw = None
+    for name in ("tsconfig.json", "jsconfig.json"):
+        raw = get_file_content(name)
+        if raw:
+            break
+    if not raw:
+        return None
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        try:
+            data = json.loads(_strip_jsonc(raw))
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(data, dict):
+        return None
+
+    compiler_options = data.get("compilerOptions")
+    if not isinstance(compiler_options, dict):
+        return None
+
+    base_url = compiler_options.get("baseUrl")
+    base_url = base_url if isinstance(base_url, str) else ""
+
+    raw_paths = compiler_options.get("paths")
+    paths: dict[str, list[str]] = {}
+    if isinstance(raw_paths, dict):
+        for alias, targets in raw_paths.items():
+            if not isinstance(alias, str) or not isinstance(targets, list):
+                continue
+            string_targets = [t for t in targets if isinstance(t, str)]
+            if string_targets:
+                paths[alias] = string_targets
+
+    if not base_url and not paths:
+        return None
+    return {"base_url": base_url, "paths": paths}
+
+
+def _resolve_alias_specifier(
+    specifier: str, aliases: TsconfigAliases, file_ids: set[str]
+) -> Dependency | None:
+    """Resolve a bare specifier against tsconfig paths/baseUrl, if possible."""
+    base_url = aliases["base_url"].strip("/")
+
+    def _try(candidate: str) -> Dependency | None:
+        normalized = normalize_file_id(candidate.lstrip("/"))
+        if not normalized:
+            return None
+        match = _find_matching_file(normalized, JS_TS_RESOLUTION_EXTENSIONS, file_ids)
+        return _make_file_dependency(match) if match else None
+
+    # paths aliases take precedence (e.g. "@app/*": ["src/*"])
+    for alias, targets in aliases["paths"].items():
+        for target in targets:
+            if alias.endswith("*") and target.endswith("*"):
+                prefix = alias[:-1]
+                if specifier.startswith(prefix):
+                    tail = specifier[len(prefix):]
+                    mapped = target[:-1] + tail
+                    candidate = posixpath.join(base_url, mapped) if base_url else mapped
+                    dep = _try(candidate)
+                    if dep:
+                        return dep
+            elif alias == specifier:
+                candidate = posixpath.join(base_url, target) if base_url else target
+                dep = _try(candidate)
+                if dep:
+                    return dep
+
+    # baseUrl-relative resolution for non-aliased bare specifiers
+    if base_url:
+        dep = _try(posixpath.join(base_url, specifier))
+        if dep:
+            return dep
+    return None
+
+
 def _resolve_js_ts_dependency(
-    specifier: str, file_id: str, file_ids: set[str]
+    specifier: str,
+    file_id: str,
+    file_ids: set[str],
+    aliases: TsconfigAliases | None = None,
 ) -> Dependency | None:
     if specifier.startswith(".") or specifier.startswith("/"):
         if specifier.startswith("/"):
@@ -220,6 +363,11 @@ def _resolve_js_ts_dependency(
         if match:
             return _make_file_dependency(match)
         return None
+
+    if aliases is not None:
+        alias_dep = _resolve_alias_specifier(specifier, aliases, file_ids)
+        if alias_dep:
+            return alias_dep
 
     package_name = _extract_package_name(specifier)
     if package_name:

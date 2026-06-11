@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.13-slim
 
 LABEL org.opencontainers.image.title="ArchMAP" \
       org.opencontainers.image.description="Static architecture analysis and visualization for software projects." \

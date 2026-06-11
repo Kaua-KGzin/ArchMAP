@@ -2,6 +2,47 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.1] - 2026-06-11
+
+Hardening and correctness release. No public API breakage — every change is
+backward-compatible with 1.0.0.
+
+### Security
+- **`serve` binds to `127.0.0.1` by default** (was `0.0.0.0`). Exposing the
+  server on the network now requires an explicit `--host` and prints a warning.
+- **All state-changing / local endpoints gated to loopback** — `/api/project`
+  (switch analyzed directory), `/api/reanalyze`, and `/api/advise` now require a
+  loopback client, matching `/api/open` and `/api/open-file`. Previously a host
+  on the same network could repoint the analyzer at any directory and read its
+  structure via `/api/graph`, or trigger outbound LLM requests (SSRF).
+- **`/api/advise` validates `base_url`** — only well-formed `http`/`https` URLs
+  are forwarded server-side; `file://` and other schemes are rejected.
+
+### Fixed
+- **Whole-graph impact analysis is now O(V+E)** instead of O(V·E). The backward
+  adjacency map is built once and shared across nodes (`impact_analyzer.build_dependents_map`),
+  and the BFS uses a `deque` instead of `list.pop(0)`. Large repositories no
+  longer spend most of the analysis time in impact calculation.
+- **LLM advisor layer-violation rendering** — the prompt read non-existent
+  `fromLayer`/`toLayer` keys and emitted `None -> None`. It now reads the
+  `sourceLayer`/`targetLayer`/`source` fields actually produced by the risk
+  analyzer.
+- **Mermaid label escaping** — labels containing `\n`, `[` `]`, `{` `}`, `<` `>`,
+  `"` or `\` no longer break the generated diagram; labels are quoted and the
+  breaking characters are escaped or substituted.
+
+### Added
+- **tsconfig / jsconfig path-alias resolution** — JS/TS imports that rely on
+  `compilerOptions.baseUrl` and `compilerOptions.paths` (e.g. `@app/*` → `src/*`)
+  now resolve to internal files instead of being reported as external packages,
+  raising `resolutionRate` on real-world TypeScript projects. JSONC comments and
+  trailing commas in the config are tolerated.
+
+### Changed
+- **Coverage gate enforced in CI** — `--cov-fail-under=85` added to the pytest
+  configuration; the suite now fails if coverage regresses below 85%.
+- **Dockerfile pinned to `python:3.13-slim`** (was the unreleased `3.14-slim`).
+
 ## [1.0.0] - 2026-05-25
 
 ### Added

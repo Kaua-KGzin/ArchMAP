@@ -88,7 +88,7 @@ def _build_prompt(report: dict) -> str:
             d.get("file") for d in risks.get("dependency_explosions", [])[:5]
         ],
         "layer_violations": [
-            f"{v.get('fromLayer')} -> {v.get('toLayer')}: {v.get('file')}"
+            f"{v.get('sourceLayer')} -> {v.get('targetLayer')}: {v.get('source')}"
             for v in risks.get("layer_violations", [])[:5]
         ],
         "rule_violations": [

@@ -38,7 +38,7 @@ from archmap.types import (
     UnresolvedImportEntry,
 )
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 def analyze_project(
