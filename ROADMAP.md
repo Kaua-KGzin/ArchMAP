@@ -2,6 +2,10 @@
 
 ## Released
 
+### v1.0.2 (2026-06-11)
+- **Parser accuracy** — comment-aware regex fallbacks (no more phantom imports from comments) across JS/TS, Java, C#, PHP, C/C++.
+- **Config-aware resolution** — Go `replace` directives, PHP composer PSR-4 autoload, Java inner classes, C# aliases + `global using`, C/C++ include-dir suffix matching.
+
 ### v1.0.1 (2026-06-11)
 - **Security hardening** — `serve` binds to loopback by default; state-changing and local endpoints (`/api/project`, `/api/reanalyze`, `/api/advise`) gated to loopback; `/api/advise` validates `base_url` scheme.
 - **Impact analysis O(V·E) → O(V+E)** — shared backward-adjacency map + `deque` BFS.

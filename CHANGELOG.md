@@ -2,6 +2,38 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.2] - 2026-06-11
+
+Parser-accuracy release. Every change reduces false positives or raises the
+resolution rate of the regex fallbacks (used when the optional `[tree-sitter]`
+extra is not installed). Fully backward-compatible.
+
+### Added
+- **Comment-aware regex fallbacks** — a shared, string-aware `strip_comments`
+  pass removes `//`, `/* */` (and `#` for PHP) comments before import matching,
+  so import-like text inside comments no longer produces phantom dependencies.
+  Applied to JavaScript/TypeScript, Java, C#, PHP and C/C++. String literals
+  (e.g. `require("x")`, `#include "x"`) are preserved, and line structure is
+  kept intact for `re.MULTILINE` matching.
+- **Go `replace` directives** — local replacements in `go.mod`
+  (`replace x => ./local`) now resolve imports to the replaced directory instead
+  of reporting them as external packages.
+- **PHP composer PSR-4 autoload** — `use` statements resolve through the
+  `autoload`/`autoload-dev` `psr-4` map in `composer.json` (longest prefix wins),
+  replacing the previous fragile suffix-matching heuristic for configured roots.
+- **C# alias and `global using`** — `using Alias = Real.Namespace;` now extracts
+  the right-hand namespace (previously captured the alias name), and
+  `global using` directives are recognized.
+- **Java inner-class resolution** — `import com.example.Outer.Inner;` resolves to
+  `com/example/Outer.java` when no `Inner` compilation unit exists.
+- **C/C++ include-dir resolution** — a header included as `"foo/bar.h"` resolves
+  to a unique `include/foo/bar.h` or `src/foo/bar.h` via path-suffix matching,
+  covering the common `-I` include-directory layout.
+
+### Changed
+- C# `using static System.Math;` now parses to the `System.Math` namespace
+  (the `static` directive keyword is no longer kept in the parsed value).
+
 ## [1.0.1] - 2026-06-11
 
 Hardening and correctness release. No public API breakage — every change is

@@ -25,6 +25,11 @@ def _parse_cpp_includes(source_code: str, cpp: bool = False) -> list[CppImportEn
         fn = extract_cpp_includes if cpp else extract_c_includes
         return fn(source_code)  # type: ignore[return-value]
 
+    from archmap.core.parser._text import strip_comments
+
+    # `#` is a preprocessor directive in C/C++, not a comment, so only //-style
+    # and block comments are stripped. String delims kept so #include "x" stays.
+    source_code = strip_comments(source_code, line_comments=("//",))
     imports: list[CppImportEntry] = []
     for match in SYSTEM_INCLUDE_RE.finditer(source_code):
         imports.append({"type": "system", "value": match.group(1).strip()})

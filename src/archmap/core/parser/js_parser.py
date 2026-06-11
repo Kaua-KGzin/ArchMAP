@@ -20,9 +20,12 @@ class JSParser(ParserPlugin):
         if HAS_TREE_SITTER:
             return extract_js_imports(source_code)
 
+        from archmap.core.parser._text import strip_comments
+
+        cleaned = strip_comments(source_code, string_delims=('"', "'", "`"))
         imports: set[str] = set()
         for pattern in (IMPORT_EXPORT_RE, REQUIRE_RE, DYNAMIC_IMPORT_RE):
-            for match in pattern.finditer(source_code):
+            for match in pattern.finditer(cleaned):
                 specifier = match.group(1).strip()
                 if specifier:
                     imports.add(specifier)

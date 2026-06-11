@@ -18,8 +18,11 @@ class JavaParser(ParserPlugin):
         if HAS_TREE_SITTER:
             return extract_java_imports(source_code)
 
+        from archmap.core.parser._text import strip_comments
+
+        cleaned = strip_comments(source_code)
         imports: set[str] = set()
-        for match in JAVA_IMPORT_RE.finditer(source_code):
+        for match in JAVA_IMPORT_RE.finditer(cleaned):
             imports.add(match.group(1).strip())
         return sorted(imports)
 
