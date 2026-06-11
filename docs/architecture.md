@@ -40,16 +40,51 @@ Discovers all source files under `project_path` and calls the language-specific 
 
 | Sub-parser | Language | Strategy |
 |---|---|---|
-| `python_parser.py` | Python | AST walk — captures `import X`, `from X import Y` |
-| `js_parser.py` | JavaScript | Regex — `import`, `require`, `export ... from`, dynamic `import()` |
-| `ts_parser.py` | TypeScript | Same as JS |
-| `rust_parser.py` | Rust | Regex — `use`, `mod`, `extern crate` |
+| `python_parser.py` | Python | `ast` walk — `import X`, `from X import Y` (regex on `SyntaxError`) |
+| `js_parser.py` | JavaScript | tree-sitter / regex — `import`, `require`, `export … from`, dynamic `import()` |
+| `ts_parser.py` | TypeScript | tree-sitter / regex — JS rules + triple-slash references |
+| `rust_parser.py` | Rust | tree-sitter / regex — `use`, `mod`, `extern crate` |
+| `go_parser.py` | Go | tree-sitter / regex — single + block imports |
+| `php_parser.py` | PHP | tree-sitter / regex — `use`, `require`, `include` |
+| `java_parser.py` | Java | tree-sitter / regex — `import`, `import static`, wildcards |
+| `csharp_parser.py` | C# | tree-sitter / regex — `using`, `global using`, aliases |
+| `cpp_parser.py` | C / C++ | tree-sitter / regex — `#include <…>` vs `#include "…"` |
 
-Dependency resolution (`_resolve_python_dependency`, `_resolve_js_ts_dependency`, etc.) maps each import string to:
+### Tree-sitter as a resilient primary parser
+
+Except for Python (which uses the standard-library `ast`), every parser routes
+through `ts_engine.try_extract(language, source)`:
+
+1. **Tree-sitter first.** When the optional `[tree-sitter]` extra is installed, a
+   real AST is used. Grammars load **independently** — a single missing or broken
+   grammar does not disable the others (`ts_engine.language_available(name)`).
+2. **Automatic per-file fallback.** `try_extract` returns `None` — asking the
+   parser to use its comment-aware regex fallback — whenever tree-sitter cannot be
+   trusted for that file: the grammar is unavailable, parsing/querying raised, or
+   the parse contained syntax errors *and* recovered no imports. A problematic file
+   is never silently dropped from the graph.
+3. **Regex fallback.** Without the extra, every parser uses a string-aware regex
+   pass that strips comments before matching, so import-like text in comments does
+   not create phantom dependencies.
+
+### Dependency resolution
+
+Resolution (`_resolve_python_dependency`, `_resolve_js_ts_dependency`, etc.) maps each import to:
+
 - An **internal file ID** (`type: "file"`) when the path exists in the project
 - An **external package** (`type: "package"`, id prefixed with `pkg:`) otherwise
 
-For Python absolute `from pkg import name` imports, each imported name is checked as a potential submodule (`pkg/name.py`, `pkg/name/__init__.py`) before falling back to the package root.
+Resolution is configuration-aware where the ecosystem provides it:
+
+| Language | Configuration honored |
+|---|---|
+| Python | absolute `from pkg import name` checked as submodule (`pkg/name.py`, `pkg/name/__init__.py`) before the package root |
+| JS / TS | `tsconfig.json` / `jsconfig.json` `baseUrl` + `paths` aliases (e.g. `@app/*` → `src/*`) |
+| Go | `go.mod` module path and local `replace` directives |
+| PHP | `composer.json` PSR-4 autoload map (longest prefix wins) |
+| Java | package → directory, wildcard packages, and inner classes (`Outer.Inner` → `Outer.java`) |
+| C# | namespace → directory; alias `using X = …` resolves the right-hand namespace |
+| C / C++ | local includes relative to the file, then `include/`-style suffix matching |
 
 ---
 

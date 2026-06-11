@@ -1,27 +1,197 @@
-/* ArchMAP brand colors — navy #0d1b2e + orange #e87230 */
+/* ============================================================================
+   ArchMAP documentation theme
+   Brand: navy #0d1b2e + orange #e87230
+   ========================================================================== */
+
+:root {
+  --archmap-navy: #0d1b2e;
+  --archmap-navy-soft: #14253c;
+  --archmap-orange: #e87230;
+  --archmap-orange-soft: #f09050;
+  --md-default-fg-color--lightest: rgba(13, 27, 46, 0.04);
+}
 
 [data-md-color-scheme="default"] {
   --md-primary-fg-color:              #0d1b2e;
   --md-primary-fg-color--light:       #1e3a5f;
   --md-primary-fg-color--dark:        #060d17;
   --md-primary-bg-color:              #ffffff;
-  --md-primary-bg-color--light:       rgba(255,255,255,0.7);
+  --md-primary-bg-color--light:       rgba(255, 255, 255, 0.7);
   --md-accent-fg-color:               #e87230;
-  --md-accent-fg-color--transparent:  rgba(232,114,48,0.1);
+  --md-accent-fg-color--transparent:  rgba(232, 114, 48, 0.1);
   --md-accent-bg-color:               #ffffff;
+  --md-typeset-a-color:               #c0571a;
 }
 
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color:              #e87230;
-  --md-primary-fg-color--light:       #f09050;
-  --md-primary-fg-color--dark:        #c05818;
-  --md-primary-bg-color:              #0d1b2e;
+  --md-primary-fg-color:              #0d1b2e;
+  --md-primary-fg-color--light:       #1e3a5f;
+  --md-primary-fg-color--dark:        #060d17;
+  --md-primary-bg-color:              #ffffff;
   --md-accent-fg-color:               #e87230;
-  --md-accent-fg-color--transparent:  rgba(232,114,48,0.1);
+  --md-accent-fg-color--transparent:  rgba(232, 114, 48, 0.12);
+  --md-typeset-a-color:               #f09050;
+  --md-default-bg-color:              #0a1320;
+  --md-default-bg-color--light:       #0d1b2e;
 }
 
-/* Nav logo sizing */
+/* --- Header / nav polish ------------------------------------------------- */
+
+.md-header {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: saturate(1.2);
+}
+
 .md-header__button.md-logo img {
   height: 2rem;
   width: auto;
+}
+
+.md-tabs {
+  background: linear-gradient(90deg, var(--archmap-navy) 0%, var(--archmap-navy-soft) 100%);
+}
+
+[data-md-color-scheme="slate"] .md-tabs {
+  background: linear-gradient(90deg, #060d17 0%, var(--archmap-navy) 100%);
+}
+
+/* --- Typography ---------------------------------------------------------- */
+
+.md-typeset h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.md-typeset h2 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 2.2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset h3 {
+  font-weight: 600;
+}
+
+/* --- Links --------------------------------------------------------------- */
+
+.md-typeset a {
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.md-typeset a:hover {
+  border-bottom-color: var(--md-accent-fg-color);
+}
+
+/* --- Code blocks --------------------------------------------------------- */
+
+.md-typeset pre > code {
+  border-radius: 8px;
+}
+
+.md-typeset .highlight {
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(13, 27, 46, 0.06);
+}
+
+.md-typeset code {
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+/* --- Tables -------------------------------------------------------------- */
+
+.md-typeset table:not([class]) {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(13, 27, 46, 0.08);
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset table:not([class]) th {
+  background: var(--archmap-navy);
+  color: #fff;
+  font-weight: 600;
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+  background: #060d17;
+}
+
+.md-typeset table:not([class]) tr:hover {
+  background: var(--md-accent-fg-color--transparent);
+}
+
+/* --- Buttons ------------------------------------------------------------- */
+
+.md-typeset .md-button {
+  border-radius: 6px;
+  font-weight: 600;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.md-typeset .md-button--primary {
+  background: var(--archmap-orange);
+  border-color: var(--archmap-orange);
+  color: #fff;
+}
+
+.md-typeset .md-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(232, 114, 48, 0.3);
+}
+
+/* --- Grid cards (homepage + feature grids) ------------------------------- */
+
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid.cards > :is(ul, ol) > li {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.md-typeset .grid.cards > ul > li:hover {
+  transform: translateY(-3px);
+  border-color: var(--archmap-orange);
+  box-shadow: 0 8px 24px rgba(13, 27, 46, 0.1);
+}
+
+.md-typeset .grid.cards .twemoji,
+.md-typeset .grid.cards .emojione {
+  color: var(--archmap-orange);
+}
+
+/* --- Admonitions: brand the "tip" / "note" accents ----------------------- */
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 8px;
+  border-left-width: 3px;
+}
+
+/* --- Homepage hero ------------------------------------------------------- */
+
+.archmap-hero {
+  text-align: center;
+  padding: 1.5rem 0 0.5rem;
+}
+
+.archmap-hero .tagline {
+  font-size: 1.15rem;
+  color: var(--md-default-fg-color--light);
+  margin: 0.2rem 0 1rem;
+}
+
+/* --- Footer -------------------------------------------------------------- */
+
+.md-footer {
+  background: var(--archmap-navy);
+}
+
+.md-footer-meta {
+  background: #060d17;
 }

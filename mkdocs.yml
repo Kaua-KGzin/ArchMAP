@@ -10,29 +10,46 @@ theme:
   logo: assets/logo-nav.png
   favicon: assets/favicon.png
   palette:
-    - scheme: default
+    - media: "(prefers-color-scheme)"
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
       primary: custom
       accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    - scheme: slate
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
       primary: custom
       accent: custom
       toggle:
         icon: material/brightness-4
-        name: Switch to light mode
+        name: Switch to system preference
   features:
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.top
+    - navigation.tracking
     - navigation.indexes
+    - navigation.footer
+    - toc.follow
     - search.highlight
     - search.suggest
+    - search.share
     - content.code.copy
     - content.code.annotate
+    - content.tooltips
   icon:
     repo: fontawesome/brands/github
+  font:
+    text: Inter
+    code: JetBrains Mono
 
 extra_css:
   - stylesheets/extra.css
@@ -71,6 +88,8 @@ nav:
       - trace: cli/trace.md
       - init: cli/init.md
       - advise: cli/advise.md
+      - temporal: cli/temporal.md
+      - mcp: cli/mcp.md
       - watch: cli/watch.md
   - Internals:
       - Architecture: architecture.md
