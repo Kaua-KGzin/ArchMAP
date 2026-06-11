@@ -90,35 +90,29 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
         def _is_local_request(self) -> bool:
             return self.client_address[0] in {"127.0.0.1", "::1", "localhost"}
 
+        # All POST endpoints mutate server state, read local files, switch the
+        # analyzed directory, or trigger outbound LLM requests. None of these
+        # are safe to expose to other hosts, so every one is gated to loopback.
+        _LOCAL_ONLY_POST = {
+            "/api/advise": "_handle_advise",
+            "/api/open": "_handle_open_project",
+            "/api/open-file": "_handle_open_file",
+            "/api/project": "_handle_set_project",
+            "/api/reanalyze": "_handle_reanalyze",
+        }
+
         def do_POST(self):  # noqa: N802
-            if self.path == "/api/advise":
-                self._handle_advise()
+            handler_name = self._LOCAL_ONLY_POST.get(self.path)
+            if handler_name is None:
+                self.send_error(HTTPStatus.NOT_FOUND)
                 return
-            if self.path == "/api/open":
-                if not self._is_local_request():
-                    self._write_json(
-                        HTTPStatus.FORBIDDEN,
-                        {"status": "error", "message": "only available on localhost"},
-                    )
-                    return
-                self._handle_open_project()
+            if not self._is_local_request():
+                self._write_json(
+                    HTTPStatus.FORBIDDEN,
+                    {"status": "error", "message": "only available on localhost"},
+                )
                 return
-            if self.path == "/api/open-file":
-                if not self._is_local_request():
-                    self._write_json(
-                        HTTPStatus.FORBIDDEN,
-                        {"status": "error", "message": "only available on localhost"},
-                    )
-                    return
-                self._handle_open_file()
-                return
-            if self.path == "/api/project":
-                self._handle_set_project()
-                return
-            if self.path == "/api/reanalyze":
-                self._handle_reanalyze()
-                return
-            self.send_error(HTTPStatus.NOT_FOUND)
+            getattr(self, handler_name)()
 
         def do_GET(self):  # noqa: N802
             parsed_url = urlsplit(self.path)
@@ -417,6 +411,15 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
 
             model = payload.get("model") or None
             base_url = payload.get("base_url") or None
+            if base_url is not None and not _is_safe_base_url(str(base_url)):
+                self._write_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {
+                        "status": "error",
+                        "message": "base_url must be an http(s) URL",
+                    },
+                )
+                return
             api_key = payload.get("api_key") or None
             try:
                 timeout = int(payload.get("timeout") or 90)
@@ -451,6 +454,20 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             return
 
     return Handler
+
+
+def _is_safe_base_url(base_url: str) -> bool:
+    """Reject anything that is not a well-formed http(s) URL.
+
+    The advise endpoint POSTs the report to ``base_url`` server-side, so a
+    non-http scheme (file://, gopher://, …) or a malformed value must never be
+    forwarded to ``urllib``.
+    """
+    candidate = base_url.strip()
+    if not candidate:
+        return False
+    parts = urlsplit(candidate)
+    return parts.scheme in {"http", "https"} and bool(parts.netloc)
 
 
 def _describe_directory_picker_error(exc: Exception) -> str:
@@ -605,3 +622,7 @@ def browser_host(host: str) -> str:
     if host in {"0.0.0.0", "::"}:
         return "localhost"
     return host
+
+
+def _is_loopback_host(host: str) -> bool:
+    return host in {"localhost", "127.0.0.1", "::1"}

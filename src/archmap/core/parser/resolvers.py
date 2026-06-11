@@ -349,8 +349,21 @@ def _resolve_go_dependency(
     file_id: str,
     file_ids: set[str],
     module_name: str | None,
+    replacements: dict[str, str] | None = None,
 ) -> list[Dependency]:
     resolved: list[Dependency] = []
+    replacements = replacements or {}
+
+    def _collect_dir(package_dir: str) -> bool:
+        normalized_dir = normalize_file_id(package_dir).strip("/")
+        found = False
+        for fid in file_ids:
+            if normalize_file_id(posixpath.dirname(fid)) == normalized_dir and fid.endswith(
+                ".go"
+            ):
+                resolved.append(_make_file_dependency(fid))
+                found = True
+        return found
 
     for specifier in import_entries:
         if not isinstance(specifier, str) or not specifier:
@@ -358,23 +371,34 @@ def _resolve_go_dependency(
 
         if module_name and (specifier == module_name or specifier.startswith(module_name + "/")):
             package_dir = "" if specifier == module_name else specifier[len(module_name) + 1 :]
-
-            found_local = False
-            for fid in file_ids:
-                if posixpath.dirname(fid) == package_dir and fid.endswith(".go"):
-                    resolved.append(_make_file_dependency(fid))
-                    found_local = True
-
-            if found_local:
+            if _collect_dir(package_dir):
                 continue
+
+        # go.mod replace directive pointing at a local module path
+        replaced_dir = _match_go_replacement(specifier, replacements)
+        if replaced_dir is not None and _collect_dir(replaced_dir):
+            continue
 
         resolved.append(_make_package_dependency(specifier))
 
     return _dedupe_dependencies(resolved)
 
 
+def _match_go_replacement(specifier: str, replacements: dict[str, str]) -> str | None:
+    """Map an import path to a local directory via go.mod replace, if any."""
+    for old, target in replacements.items():
+        if specifier == old or specifier.startswith(old + "/"):
+            sub = "" if specifier == old else specifier[len(old) + 1 :]
+            local = target.removeprefix("./")
+            return _safe_norm_join(local, sub) if sub else _safe_norm_join(local)
+    return None
+
+
 def _resolve_php_dependency(
-    import_entry: Mapping[str, Any], file_id: str, file_ids: set[str]
+    import_entry: Mapping[str, Any],
+    file_id: str,
+    file_ids: set[str],
+    psr4: dict[str, list[str]] | None = None,
 ) -> list[Dependency]:
     entry_type = import_entry.get("type")
     value = str(import_entry.get("value", "")).strip()
@@ -393,6 +417,11 @@ def _resolve_php_dependency(
         return [_make_package_dependency(value)]
 
     if entry_type == "use":
+        # composer PSR-4 autoload takes precedence over heuristic suffix matching.
+        psr4_match = _resolve_php_psr4(value, psr4 or {}, file_ids)
+        if psr4_match:
+            return [_make_file_dependency(psr4_match)]
+
         path_candidate = normalize_file_id(value.replace("\\", "/"))
 
         parts = path_candidate.split("/")
@@ -414,6 +443,34 @@ def _resolve_php_dependency(
         return [_make_package_dependency(value)]
 
     return []
+
+
+def _resolve_php_psr4(
+    namespace: str, psr4: dict[str, list[str]], file_ids: set[str]
+) -> str | None:
+    """Resolve a PHP namespace via composer PSR-4 autoload prefixes.
+
+    e.g. with {"App\\": "src/"}, ``App\\Models\\User`` -> ``src/Models/User.php``.
+    Longest matching prefix wins, as PSR-4 mandates.
+    """
+    if not psr4:
+        return None
+
+    norm_ns = namespace.lstrip("\\")
+    for prefix in sorted(psr4, key=len, reverse=True):
+        clean_prefix = prefix.rstrip("\\")
+        if clean_prefix and not (
+            norm_ns == clean_prefix or norm_ns.startswith(clean_prefix + "\\")
+        ):
+            continue
+        remainder = norm_ns[len(clean_prefix):].lstrip("\\") if clean_prefix else norm_ns
+        sub_path = remainder.replace("\\", "/")
+        for base_dir in psr4[prefix]:
+            candidate = _safe_norm_join(normalize_file_id(base_dir.rstrip("/")), sub_path)
+            match = _find_php_module(candidate, file_ids)
+            if match:
+                return match
+    return None
 
 
 def _find_php_module(base_candidate: str, file_ids: set[str]) -> str | None:
@@ -449,12 +506,15 @@ def _resolve_java_dependency(
             return resolved
         return [_make_package_dependency(specifier)]
 
-    path_candidate = normalize_file_id(specifier.replace(".", "/")) + ".java"
-    normalized_candidate = path_candidate.casefold()
-
-    for fid in file_ids:
-        if fid.casefold().endswith(normalized_candidate):
-            return [_make_file_dependency(fid)]
+    segments = specifier.split(".")
+    # Try the full path first, then progressively treat trailing segments as
+    # inner classes: `com.example.Outer.Inner` may live in `com/example/Outer.java`.
+    for cut in range(len(segments), 1, -1):
+        path_candidate = normalize_file_id("/".join(segments[:cut])) + ".java"
+        normalized_candidate = path_candidate.casefold()
+        for fid in file_ids:
+            if fid.casefold().endswith(normalized_candidate):
+                return [_make_file_dependency(fid)]
 
     return [_make_package_dependency(specifier)]
 
@@ -481,6 +541,14 @@ def _resolve_cpp_dependency(
         absolute_candidate = normalize_file_id(value)
         if absolute_candidate in file_ids:
             return [_make_file_dependency(absolute_candidate)]
+
+        # Fallback for projects that compile with -I include dirs: a header
+        # included as "foo/bar.h" frequently lives at include/foo/bar.h or
+        # src/foo/bar.h. Match by unique path suffix.
+        suffix = "/" + absolute_candidate
+        suffix_matches = [fid for fid in file_ids if fid.endswith(suffix)]
+        if len(suffix_matches) == 1:
+            return [_make_file_dependency(suffix_matches[0])]
 
         return [_make_package_dependency(value)]
 

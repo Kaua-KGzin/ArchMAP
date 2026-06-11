@@ -55,6 +55,26 @@ jobs:
         run: python -m archmap.cli.main analyze src/archmap/ --fail-on-cycles --quiet --format json --out .codeatlas/self-check.json
         if: matrix.python-version == '3.13'
 
+  tree-sitter:
+    name: Tests with tree-sitter (AST path)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies (with tree-sitter extra)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,tree-sitter]"
+
+      - name: Run tests with coverage (tree-sitter active)
+        run: python -m pytest
+
   build-package:
     name: Build Python package (wheel + sdist)
     runs-on: ubuntu-latest

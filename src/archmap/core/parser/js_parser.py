@@ -14,15 +14,23 @@ class JSParser(ParserPlugin):
     language = "javascript"
     extensions = [".js", ".jsx", ".mjs", ".cjs"]
 
+    _TS_LANGUAGE = "javascript"
+
     def parse(self, source_code: str) -> list[str]:
-        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_js_imports
+        from archmap.core.parser import ts_engine
 
-        if HAS_TREE_SITTER:
-            return extract_js_imports(source_code)
+        ts_result = ts_engine.try_extract(self._TS_LANGUAGE, source_code)
+        if ts_result is not None:
+            return ts_result
+        return self._parse_with_regex(source_code)
 
+    def _parse_with_regex(self, source_code: str) -> list[str]:
+        from archmap.core.parser._text import strip_comments
+
+        cleaned = strip_comments(source_code, string_delims=('"', "'", "`"))
         imports: set[str] = set()
         for pattern in (IMPORT_EXPORT_RE, REQUIRE_RE, DYNAMIC_IMPORT_RE):
-            for match in pattern.finditer(source_code):
+            for match in pattern.finditer(cleaned):
                 specifier = match.group(1).strip()
                 if specifier:
                     imports.add(specifier)
@@ -31,12 +39,14 @@ class JSParser(ParserPlugin):
     def resolve(
         self, import_entries: list[Any], file_id: str, file_ids: set[str], **kwargs: Any
     ) -> list[Dependency]:
-        from archmap.core.parser import _resolve_js_ts_dependency
+        from archmap.core.parser import _load_tsconfig_aliases, _resolve_js_ts_dependency
+
+        aliases = _load_tsconfig_aliases(kwargs.get("get_file_content"))
 
         resolved: list[Dependency] = []
         for specifier in import_entries:
             if isinstance(specifier, str):
-                dep = _resolve_js_ts_dependency(specifier, file_id, file_ids)
+                dep = _resolve_js_ts_dependency(specifier, file_id, file_ids, aliases)
                 if dep:
                     resolved.append(dep)
         return resolved

@@ -21,12 +21,13 @@ def test_csharp_parser_regex_extraction() -> None:
     parser = CSharpParser()
     imports = parser.parse(source)
 
+    # `static` is consumed as a directive prefix; the namespace itself is kept.
     assert imports == [
         "MyApp.Core.Services",
         "MyApp.Models",
         "System",
         "System.Collections.Generic",
-        "static System.Math",
+        "System.Math",
     ]
 
 

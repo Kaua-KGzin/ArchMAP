@@ -2,6 +2,111 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.3] - 2026-06-11
+
+Tree-sitter engine overhaul. Tree-sitter becomes a resilient *primary* parser
+with automatic per-file fallback to the regex path. Fully backward-compatible;
+the optional `[tree-sitter]` extra is still optional.
+
+### Added
+- **Per-language grammar availability** — each tree-sitter grammar now loads
+  independently. A single missing or broken grammar (e.g. `tree-sitter-php`) no
+  longer disables tree-sitter for every other language; the affected language
+  simply uses its regex fallback. New `ts_engine.language_available(name)`.
+- **Automatic per-file fallback (`ts_engine.try_extract`)** — the parsers call a
+  single orchestrator that returns the structured tree-sitter result, or `None`
+  to request the regex fallback when tree-sitter cannot be trusted for that file:
+  the grammar is unavailable, parsing/querying raised an exception, or the parse
+  contained syntax errors *and* recovered no imports. Previously a file that made
+  tree-sitter raise was dropped from the graph entirely.
+- **Structured C# extraction** — `using` directives are read from typed AST
+  nodes, so `using Alias = Real.Namespace;` resolves to the real namespace
+  (not the alias), and `global using` / `using static` are handled. This matches
+  the regex fallback's behaviour so both paths agree.
+- **CI now tests both paths** — a dedicated `tree-sitter` job runs the suite with
+  the AST grammars installed, while the existing `quality` job continues to
+  cover the regex fallback. The tree-sitter code path was previously untested in
+  CI.
+
+### Changed
+- Rust regex fallback now strips comments before matching, consistent with the
+  other regex fallbacks introduced in 1.0.2.
+- `ts_engine` extractors were refactored to parse-then-extract from a shared
+  tree, enabling the reliability check without changing their public signatures.
+
+## [1.0.2] - 2026-06-11
+
+Parser-accuracy release. Every change reduces false positives or raises the
+resolution rate of the regex fallbacks (used when the optional `[tree-sitter]`
+extra is not installed). Fully backward-compatible.
+
+### Added
+- **Comment-aware regex fallbacks** — a shared, string-aware `strip_comments`
+  pass removes `//`, `/* */` (and `#` for PHP) comments before import matching,
+  so import-like text inside comments no longer produces phantom dependencies.
+  Applied to JavaScript/TypeScript, Java, C#, PHP and C/C++. String literals
+  (e.g. `require("x")`, `#include "x"`) are preserved, and line structure is
+  kept intact for `re.MULTILINE` matching.
+- **Go `replace` directives** — local replacements in `go.mod`
+  (`replace x => ./local`) now resolve imports to the replaced directory instead
+  of reporting them as external packages.
+- **PHP composer PSR-4 autoload** — `use` statements resolve through the
+  `autoload`/`autoload-dev` `psr-4` map in `composer.json` (longest prefix wins),
+  replacing the previous fragile suffix-matching heuristic for configured roots.
+- **C# alias and `global using`** — `using Alias = Real.Namespace;` now extracts
+  the right-hand namespace (previously captured the alias name), and
+  `global using` directives are recognized.
+- **Java inner-class resolution** — `import com.example.Outer.Inner;` resolves to
+  `com/example/Outer.java` when no `Inner` compilation unit exists.
+- **C/C++ include-dir resolution** — a header included as `"foo/bar.h"` resolves
+  to a unique `include/foo/bar.h` or `src/foo/bar.h` via path-suffix matching,
+  covering the common `-I` include-directory layout.
+
+### Changed
+- C# `using static System.Math;` now parses to the `System.Math` namespace
+  (the `static` directive keyword is no longer kept in the parsed value).
+
+## [1.0.1] - 2026-06-11
+
+Hardening and correctness release. No public API breakage — every change is
+backward-compatible with 1.0.0.
+
+### Security
+- **`serve` binds to `127.0.0.1` by default** (was `0.0.0.0`). Exposing the
+  server on the network now requires an explicit `--host` and prints a warning.
+- **All state-changing / local endpoints gated to loopback** — `/api/project`
+  (switch analyzed directory), `/api/reanalyze`, and `/api/advise` now require a
+  loopback client, matching `/api/open` and `/api/open-file`. Previously a host
+  on the same network could repoint the analyzer at any directory and read its
+  structure via `/api/graph`, or trigger outbound LLM requests (SSRF).
+- **`/api/advise` validates `base_url`** — only well-formed `http`/`https` URLs
+  are forwarded server-side; `file://` and other schemes are rejected.
+
+### Fixed
+- **Whole-graph impact analysis is now O(V+E)** instead of O(V·E). The backward
+  adjacency map is built once and shared across nodes (`impact_analyzer.build_dependents_map`),
+  and the BFS uses a `deque` instead of `list.pop(0)`. Large repositories no
+  longer spend most of the analysis time in impact calculation.
+- **LLM advisor layer-violation rendering** — the prompt read non-existent
+  `fromLayer`/`toLayer` keys and emitted `None -> None`. It now reads the
+  `sourceLayer`/`targetLayer`/`source` fields actually produced by the risk
+  analyzer.
+- **Mermaid label escaping** — labels containing `\n`, `[` `]`, `{` `}`, `<` `>`,
+  `"` or `\` no longer break the generated diagram; labels are quoted and the
+  breaking characters are escaped or substituted.
+
+### Added
+- **tsconfig / jsconfig path-alias resolution** — JS/TS imports that rely on
+  `compilerOptions.baseUrl` and `compilerOptions.paths` (e.g. `@app/*` → `src/*`)
+  now resolve to internal files instead of being reported as external packages,
+  raising `resolutionRate` on real-world TypeScript projects. JSONC comments and
+  trailing commas in the config are tolerated.
+
+### Changed
+- **Coverage gate enforced in CI** — `--cov-fail-under=85` added to the pytest
+  configuration; the suite now fails if coverage regresses below 85%.
+- **Dockerfile pinned to `python:3.13-slim`** (was the unreleased `3.14-slim`).
+
 ## [1.0.0] - 2026-05-25
 
 ### Added

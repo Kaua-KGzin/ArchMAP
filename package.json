@@ -1,6 +1,6 @@
 {
   "name": "archmap",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Static architecture analysis and visualization for software projects — dependency graphs, cycle detection, risk scoring, LLM advisor.",
   "private": true,
   "type": "module",

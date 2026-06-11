@@ -5,7 +5,12 @@ from typing import Any
 
 from archmap.core.parser.registry import Dependency, ParserPlugin
 
-CS_IMPORT_RE = re.compile(r"^\s*using\s+([^=;]+);", re.MULTILINE)
+# Captures `using X;`, `global using X;`, `using static X;` and the right-hand
+# side of alias directives `using Alias = Real.Namespace;`.
+CS_IMPORT_RE = re.compile(
+    r"^\s*(?:global\s+)?using\s+(?:static\s+)?(?:[A-Za-z_][\w.]*\s*=\s*)?([^;]+);",
+    re.MULTILINE,
+)
 
 
 class CSharpParser(ParserPlugin):
@@ -13,14 +18,22 @@ class CSharpParser(ParserPlugin):
     extensions = [".cs"]
 
     def parse(self, source_code: str) -> list[str]:
-        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_csharp_imports
+        from archmap.core.parser import ts_engine
 
-        if HAS_TREE_SITTER:
-            return extract_csharp_imports(source_code)
+        ts_result = ts_engine.try_extract("csharp", source_code)
+        if ts_result is not None:
+            return ts_result
 
+        from archmap.core.parser._text import strip_comments
+
+        cleaned = strip_comments(source_code)
         imports: set[str] = set()
-        for match in CS_IMPORT_RE.finditer(source_code):
-            imports.add(match.group(1).strip())
+        for match in CS_IMPORT_RE.finditer(cleaned):
+            value = match.group(1).strip()
+            # Skip `using (var x = ...)` resource statements and aliases to a
+            # generic/type expression that are not namespace imports.
+            if value and "(" not in value and not value.startswith("var "):
+                imports.add(value)
         return sorted(imports)
 
     def resolve(

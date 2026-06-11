@@ -24,10 +24,11 @@ class GoParser(ParserPlugin):
     extensions = [".go"]
 
     def parse(self, source_code: str) -> list[str]:
-        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_go_imports
+        from archmap.core.parser import ts_engine
 
-        if HAS_TREE_SITTER:
-            return extract_go_imports(source_code)
+        ts_result = ts_engine.try_extract("go", source_code)
+        if ts_result is not None:
+            return ts_result
 
         imports: set[str] = set()
 
@@ -55,6 +56,7 @@ class GoParser(ParserPlugin):
         from archmap.core.parser.resolvers import _resolve_go_dependency
 
         module_name = None
+        replacements: dict[str, str] = {}
         get_file_content = kwargs.get("get_file_content")
         if get_file_content:
             mod_content = get_file_content("go.mod")
@@ -62,4 +64,32 @@ class GoParser(ParserPlugin):
                 match = re.search(r"^module\s+(.+)$", mod_content, re.MULTILINE)
                 if match:
                     module_name = match.group(1).strip()
-        return _resolve_go_dependency(import_entries, file_id, file_ids, module_name)
+                replacements = _parse_go_replacements(mod_content)
+        return _resolve_go_dependency(
+            import_entries, file_id, file_ids, module_name, replacements
+        )
+
+
+# Matches a single replace mapping, with optional version on either side:
+#   example.com/old => ./local
+#   example.com/old v1.2.3 => ../local v0.0.0
+_GO_REPLACE_RE = re.compile(
+    r"^\s*(?:replace\s+)?([^\s=]+)(?:\s+v[^\s]+)?\s*=>\s*([^\s]+)",
+    re.MULTILINE,
+)
+
+
+def _parse_go_replacements(mod_content: str) -> dict[str, str]:
+    """Return a map of replaced module path -> local target path.
+
+    Only local replacements (targets starting with ./ or ../) are kept; remote
+    replacements still resolve as external packages.
+    """
+    replacements: dict[str, str] = {}
+    for match in _GO_REPLACE_RE.finditer(mod_content):
+        old, target = match.group(1).strip(), match.group(2).strip()
+        if "=>" in old or not target:
+            continue
+        if target.startswith(("./", "../")):
+            replacements[old] = target
+    return replacements

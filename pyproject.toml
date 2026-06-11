@@ -69,7 +69,7 @@ packages = ["src/archmap"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --cov=archmap --cov-report=term-missing"
+addopts = "-q --cov=archmap --cov-report=term-missing --cov-fail-under=85"
 
 [tool.mypy]
 python_version = "3.11"

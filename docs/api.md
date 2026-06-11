@@ -241,11 +241,21 @@ Full node and edge objects for the Web UI and Cytoscape integration.
 
 ---
 
-## Web UI live endpoint
+## Web UI live endpoints
 
-When `archmap serve` is running, the same report is available at:
+When `archmap serve` is running, the report and related endpoints are available:
 
 ```
-GET http://localhost:3000/api/graph   → application/json (full report)
-GET http://localhost:3000/api/health  → {"status":"ok"}
+GET  http://localhost:3000/api/graph   → application/json (full report)
+GET  http://localhost:3000/api/health  → {"status":"ok"}
+GET  http://localhost:3000/api/badge   → image/svg+xml (health badge)
+GET  http://localhost:3000/api/project → {"path": "..."}
 ```
+
+State-changing and local endpoints (`POST /api/reanalyze`, `POST /api/project`,
+`POST /api/advise`, `POST /api/open`, `POST /api/open-file`) are **restricted to
+loopback clients** (`127.0.0.1` / `::1`) and return `403` otherwise, even when the
+server is bound to `0.0.0.0`. `/api/advise` additionally validates that `base_url`
+is a well-formed `http`/`https` URL before forwarding the request server-side.
+
+See [`serve`](cli/serve.md#security) for the full endpoint table and the security model.

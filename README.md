@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/>
   </a>
   <a href="./CHANGELOG.md">
-    <img src="https://img.shields.io/badge/version-1.0.0-brightgreen" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-1.0.3-brightgreen" alt="Version"/>
   </a>
   <a href="https://pypi.org/project/KG-ARCHMAP/">
     <img src="https://img.shields.io/badge/PyPI-KG--ARCHMAP-orange?logo=pypi&logoColor=white" alt="PyPI"/>
@@ -34,7 +34,7 @@ ArchMAP scans source code, builds dependency graphs, detects cycles, reports arc
 
 | | |
 |---|---|
-| Release | `v1.0.0` |
+| Release | `v1.0.3` |
 | Runtime | Python `>=3.11` |
 | UI | built-in static UI + Node dev server |
 | Distribution | PyPI (`KG-ARCHMAP`) + Windows `.exe` |
@@ -108,8 +108,18 @@ archmap analyze . --show-unresolved=20
 ### Serve
 
 ```bash
+# Binds to 127.0.0.1 by default (loopback only).
+archmap serve <path> --port 3000
+
+# Expose on the network explicitly (prints a security warning).
 archmap serve <path> --host 0.0.0.0 --port 3000
 ```
+
+> **Security note:** endpoints that read local files, switch the analyzed
+> project, or call an LLM (`/api/open`, `/api/open-file`, `/api/project`,
+> `/api/reanalyze`, `/api/advise`) are restricted to loopback requests
+> regardless of `--host`. Only the read-only graph/health endpoints are
+> reachable from other hosts when you bind to `0.0.0.0`.
 
 ### Diff
 
@@ -173,7 +183,7 @@ Install the `[tree-sitter]` extra for AST-based parsing across all 9 languages (
 pip install "KG-ARCHMAP[tree-sitter]"
 ```
 
-When installed, all language parsers upgrade automatically. The regex fallback is preserved — no behaviour change without the extra.
+When installed, all language parsers upgrade automatically. Tree-sitter is used as a resilient *primary* parser: each grammar loads independently, and if it cannot parse a given file (or parses it unreliably), that single file transparently falls back to the regex path instead of being dropped. The regex fallback is fully preserved — no behaviour change without the extra.
 
 ## VS Code Extension
 

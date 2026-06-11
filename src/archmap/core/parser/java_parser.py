@@ -13,13 +13,17 @@ class JavaParser(ParserPlugin):
     extensions = [".java"]
 
     def parse(self, source_code: str) -> list[str]:
-        from archmap.core.parser.ts_engine import HAS_TREE_SITTER, extract_java_imports
+        from archmap.core.parser import ts_engine
 
-        if HAS_TREE_SITTER:
-            return extract_java_imports(source_code)
+        ts_result = ts_engine.try_extract("java", source_code)
+        if ts_result is not None:
+            return ts_result
 
+        from archmap.core.parser._text import strip_comments
+
+        cleaned = strip_comments(source_code)
         imports: set[str] = set()
-        for match in JAVA_IMPORT_RE.finditer(source_code):
+        for match in JAVA_IMPORT_RE.finditer(cleaned):
             imports.add(match.group(1).strip())
         return sorted(imports)
 

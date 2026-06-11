@@ -34,6 +34,7 @@ from archmap.cli.reporting import (
 )
 from archmap.cli.server import (
     ReportState,
+    _is_loopback_host,
     browser_host,
     build_http_handler,
     can_open_browser,
@@ -202,6 +203,13 @@ def run_serve(args: argparse.Namespace) -> int:
     print(f"[info] Web UI available at {browser_url}")
     if bind_url != browser_url:
         print(f"[info] Listening on {bind_url}")
+    if not _is_loopback_host(args.host):
+        print(
+            f"[warn] Server bound to {args.host}: reachable from other hosts on the "
+            "network. Local-only endpoints (open file, switch project, advise) stay "
+            "restricted to loopback, but anyone who can reach this port can read the "
+            "dependency graph. Use --host 127.0.0.1 if that is not intended."
+        )
     print("[info] Press Ctrl+C to stop.")
     try:
         server.serve_forever()

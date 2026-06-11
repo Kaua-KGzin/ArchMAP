@@ -2,6 +2,22 @@
 
 ## Released
 
+### v1.0.3 (2026-06-11)
+- **Tree-sitter as resilient primary parser** — per-language grammar availability + automatic per-file fallback to regex (`try_extract`) when a parse fails or is unreliable (no more dropped files).
+- **Structured C# extraction** (aliases, `global using`, `static`) via typed AST nodes.
+- **CI tests both the AST and regex paths** (dedicated `tree-sitter` job).
+
+### v1.0.2 (2026-06-11)
+- **Parser accuracy** — comment-aware regex fallbacks (no more phantom imports from comments) across JS/TS, Java, C#, PHP, C/C++.
+- **Config-aware resolution** — Go `replace` directives, PHP composer PSR-4 autoload, Java inner classes, C# aliases + `global using`, C/C++ include-dir suffix matching.
+
+### v1.0.1 (2026-06-11)
+- **Security hardening** — `serve` binds to loopback by default; state-changing and local endpoints (`/api/project`, `/api/reanalyze`, `/api/advise`) gated to loopback; `/api/advise` validates `base_url` scheme.
+- **Impact analysis O(V·E) → O(V+E)** — shared backward-adjacency map + `deque` BFS.
+- **Bug fixes** — LLM advisor layer-violation field names; Mermaid label escaping.
+- **tsconfig/jsconfig `paths` + `baseUrl` resolution** for JS/TS imports (improves resolution rate).
+- **CI coverage gate** (`--cov-fail-under=85`); Dockerfile pinned to `python:3.13-slim`.
+
 ### v1.0.0 (2026-05-25)
 - **`archmap temporal`** — temporal coupling analysis via `git log`. Detects files that change together, ranked by co-change frequency and coupling strength. `--min-commits`, `--top`, `--json` flags. Zero new deps.
 - **Web UI SVG export** — "SVG" button in canvas toolbar. Scalable vector download via `cy.svg({ full: true })`. Zero new deps.
