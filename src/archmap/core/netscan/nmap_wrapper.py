@@ -19,6 +19,7 @@ def run_nmap(
     ports: list[int],
     *,
     extra_args: str | None = None,
+    detect_os: bool = False,
     timeout: float = 300.0,
 ) -> dict[str, Any]:
     """Shell out to the system `nmap` binary and parse its XML output.
@@ -37,6 +38,9 @@ def run_nmap(
     else:
         # No ports requested: a host-discovery-only ping scan.
         command = ["nmap", "-oX", "-", "-sn", target]
+    if detect_os:
+        # -O (OS fingerprinting) needs raw sockets, i.e. root.
+        command.insert(-1, "-O")
     if extra_args:
         command.extend(extra_args.split())
 
@@ -51,6 +55,46 @@ def run_nmap(
         raise RuntimeError(f"nmap exited with code {completed.returncode}: {stderr}")
 
     return _parse_nmap_xml(completed.stdout.decode("utf-8", errors="replace"))
+
+
+def _parse_service_info(service_el: ET.Element | None) -> tuple[str, str | None]:
+    if service_el is None:
+        return "unknown", None
+    service = service_el.get("name") or "unknown"
+    parts = [service_el.get("product"), service_el.get("version"), service_el.get("extrainfo")]
+    banner = " ".join(p for p in parts if p) or None
+    return service, banner
+
+
+def _parse_os_guess(host_el: ET.Element) -> str | None:
+    best_match: ET.Element | None = None
+    best_accuracy = -1
+    for match_el in host_el.findall("os/osmatch"):
+        accuracy = int(match_el.get("accuracy", 0))
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_match = match_el
+    if best_match is None:
+        return None
+    name = best_match.get("name")
+    return f"{name} ({best_accuracy}%)" if name else None
+
+
+def _parse_runstats(root: ET.Element) -> dict[str, Any] | None:
+    finished_el = root.find("runstats/finished")
+    hosts_el = root.find("runstats/hosts")
+    if finished_el is None and hosts_el is None:
+        return None
+
+    elapsed = finished_el.get("elapsed") if finished_el is not None else None
+    hosts_up = hosts_el.get("up") if hosts_el is not None else None
+    hosts_down = hosts_el.get("down") if hosts_el is not None else None
+
+    return {
+        "elapsedSeconds": float(elapsed) if elapsed else None,
+        "hostsUp": int(hosts_up) if hosts_up else None,
+        "hostsDown": int(hosts_down) if hosts_down else None,
+    }
 
 
 def _parse_nmap_xml(xml_text: str) -> dict[str, Any]:
@@ -76,12 +120,7 @@ def _parse_nmap_xml(xml_text: str) -> dict[str, Any]:
             if port_state != "open":
                 continue
 
-            service_el = port_el.find("service")
-            service = service_el.get("name") if service_el is not None else "unknown"
-            product = service_el.get("product") if service_el is not None else None
-            version = service_el.get("version") if service_el is not None else None
-            banner = " ".join(p for p in (product, version) if p) or None
-
+            service, banner = _parse_service_info(port_el.find("service"))
             open_ports.append(
                 {
                     "port": int(port_el.get("portid")),
@@ -97,8 +136,17 @@ def _parse_nmap_xml(xml_text: str) -> dict[str, Any]:
                 "ip": ip,
                 "hostname": hostname,
                 "status": "up" if state == "up" else "down",
+                "os": _parse_os_guess(host_el),
                 "openPorts": open_ports,
             }
         )
 
-    return {"engine": "nmap", "hosts": hosts}
+    result: dict[str, Any] = {
+        "engine": "nmap",
+        "nmapVersion": root.get("version"),
+        "hosts": hosts,
+    }
+    stats = _parse_runstats(root)
+    if stats is not None:
+        result["stats"] = stats
+    return result

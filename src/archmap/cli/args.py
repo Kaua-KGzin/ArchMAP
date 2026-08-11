@@ -501,6 +501,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="extra raw arguments passed through to nmap (only with --use-nmap)",
     )
     netscan_parser.add_argument(
+        "--os-detection",
+        action="store_true",
+        help="attempt OS fingerprinting via nmap -O (requires --use-nmap and root)",
+    )
+    netscan_parser.add_argument(
         "--timeout",
         type=float,
         default=1.0,

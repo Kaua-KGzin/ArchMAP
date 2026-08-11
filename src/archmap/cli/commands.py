@@ -742,6 +742,7 @@ def run_netscan(args: argparse.Namespace) -> int:
             fingerprint=getattr(args, "fingerprint", True),
             use_nmap=getattr(args, "use_nmap", False),
             nmap_args=getattr(args, "nmap_args", None),
+            detect_os=getattr(args, "os_detection", False),
             timeout=getattr(args, "timeout", 1.0),
             concurrency=getattr(args, "concurrency", 200),
         )
@@ -765,37 +766,62 @@ def run_netscan(args: argparse.Namespace) -> int:
 def _print_netscan_report(result: dict[str, Any]) -> None:
     hosts = result.get("hosts", [])
     engine = result.get("engine", "python")
+    version = result.get("nmapVersion")
     scanned = result.get("hostsScanned")
+    stats = result.get("stats") or {}
 
-    print(f"\n  Network Scan — target: {result.get('target')} (engine: {engine})")
+    engine_label = f"{engine} v{version}" if engine == "nmap" and version else engine
+
+    print(f"\n  Network Scan — target: {result.get('target')} (engine: {engine_label})")
+    summary_bits = []
     if scanned is not None:
-        print(f"  Hosts probed: {scanned} — hosts up: {len(hosts)}")
-    print(f"  Duration: {result.get('durationSeconds', 0):.2f}s\n")
+        summary_bits.append(f"hosts probed: {scanned}")
+    summary_bits.append(f"hosts up: {len(hosts)}")
+    if stats.get("elapsedSeconds") is not None:
+        summary_bits.append(f"nmap elapsed: {stats['elapsedSeconds']:.2f}s")
+    summary_bits.append(f"duration: {result.get('durationSeconds', 0):.2f}s")
+    print("  " + " | ".join(summary_bits) + "\n")
 
     if not hosts:
         print("  No live hosts found.")
         return
 
+    discover_only = bool(result.get("discoverOnly"))
+    total_open_ports = 0
     for host in hosts:
-        label = host.get("hostname") or host.get("ip")
-        if host.get("hostname"):
-            label = f"{host['ip']} ({host['hostname']})"
-        print(f"  {label} — {host.get('status', 'up')}")
+        total_open_ports += _print_netscan_host(host, discover_only=discover_only)
 
-        open_ports = host.get("openPorts", [])
-        if not open_ports:
-            msg = (
-                "port scan skipped (--discover-only)"
-                if result.get("discoverOnly")
-                else "no open ports found"
-            )
-            print(f"      ({msg})")
-            continue
+    print(f"  Summary: {len(hosts)} host(s) up, {total_open_ports} open port(s) total.\n")
 
-        for port_info in open_ports:
-            banner = f" — {port_info['banner']}" if port_info.get("banner") else ""
-            print(
-                f"      {port_info['port']}/{port_info.get('protocol', 'tcp'):<3} "
-                f"{port_info.get('service', 'unknown'):<15}{banner}"
-            )
-        print()
+
+def _print_netscan_host(host: dict[str, Any], *, discover_only: bool) -> int:
+    label = host["ip"]
+    if host.get("hostname"):
+        label = f"{host['ip']} ({host['hostname']})"
+    status = str(host.get("status", "up")).upper()
+
+    header = f"  {label} "
+    print(header + "-" * max(2, 64 - len(header)) + f" {status}")
+
+    if host.get("os"):
+        print(f"    OS: {host['os']}")
+
+    open_ports = host.get("openPorts", [])
+    if not open_ports:
+        msg = "port scan skipped (--discover-only)" if discover_only else "no open ports found"
+        print(f"    ({msg})\n")
+        return 0
+
+    col_header = f"    {'PORT':<10}{'STATE':<9}{'SERVICE':<17}{'INFO'}"
+    print(col_header)
+    print("    " + "-" * (len(col_header) - 4))
+    for port_info in open_ports:
+        port_label = f"{port_info['port']}/{port_info.get('protocol', 'tcp')}"
+        print(
+            f"    {port_label:<10}"
+            f"{port_info.get('state', 'open'):<9}"
+            f"{port_info.get('service', 'unknown'):<17}"
+            f"{port_info.get('banner') or ''}"
+        )
+    print()
+    return len(open_ports)

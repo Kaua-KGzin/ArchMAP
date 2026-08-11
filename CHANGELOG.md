@@ -12,6 +12,12 @@ All notable changes to this project are documented in this file.
   scanning, service banner fingerprinting, and JSON output. `--use-nmap`
   delegates to a system `nmap` install for deeper scans (`-sV`, `-O`, etc. via
   `--nmap-args`). First step toward ArchMAP mapping more than just source code.
+- **`archmap netscan` report redesign** — human-readable output is now a clean
+  aligned table (PORT/STATE/SERVICE/INFO per host, plus an up/duration summary
+  line and a totals footer) instead of a flat list, so it reads the same way
+  regardless of engine. New `--os-detection` flag surfaces nmap's `-O` OS guess
+  when `--use-nmap` is set; nmap's own scan stats, version, and richer service
+  info (product/version/extrainfo) are now parsed and shown too.
 
 ## [1.0.3] - 2026-06-11
 

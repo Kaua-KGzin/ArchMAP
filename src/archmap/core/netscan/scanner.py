@@ -19,6 +19,7 @@ def run_netscan(
     fingerprint: bool = True,
     use_nmap: bool = False,
     nmap_args: str | None = None,
+    detect_os: bool = False,
     timeout: float = 1.0,
     concurrency: int = 200,
 ) -> dict[str, Any]:
@@ -31,7 +32,14 @@ def run_netscan(
     ports = [] if discover_only else parse_ports(ports_spec, top=top_ports)
 
     if use_nmap:
-        result = _run_with_nmap(target_spec, ips, ports, nmap_args=nmap_args, timeout=timeout)
+        result = _run_with_nmap(
+            target_spec,
+            ips,
+            ports,
+            nmap_args=nmap_args,
+            detect_os=detect_os,
+            timeout=timeout,
+        )
     else:
         result = _run_pure_python(
             ips,
@@ -79,6 +87,7 @@ def _run_pure_python(
                 "ip": ip,
                 "hostname": reverse_lookup(ip),
                 "status": "up",
+                "os": None,
                 "openPorts": open_ports,
             }
         )
@@ -97,10 +106,17 @@ def _run_with_nmap(
     ports: list[int],
     *,
     nmap_args: str | None,
+    detect_os: bool,
     timeout: float,
 ) -> dict[str, Any]:
     nmap_timeout = max(timeout * 60, 300.0)
-    nmap_result = run_nmap(target_spec, ports, extra_args=nmap_args, timeout=nmap_timeout)
+    nmap_result = run_nmap(
+        target_spec,
+        ports,
+        extra_args=nmap_args,
+        detect_os=detect_os,
+        timeout=nmap_timeout,
+    )
     nmap_result["hostsScanned"] = len(ips)
     nmap_result["discoverOnly"] = not ports
     return nmap_result

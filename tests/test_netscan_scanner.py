@@ -71,3 +71,18 @@ def test_run_netscan_use_nmap_delegates(monkeypatch) -> None:
     assert result["engine"] == "nmap"
     assert result["hostsScanned"] == 1
     assert result["discoverOnly"] is False
+
+
+def test_run_netscan_passes_detect_os_to_nmap(monkeypatch) -> None:
+    monkeypatch.setattr(netscan_scanner, "parse_targets", lambda spec: ["10.0.0.1"])
+    captured: dict = {}
+
+    def fake_run_nmap(target, ports, **kw):
+        captured.update(kw)
+        return {"engine": "nmap", "hosts": []}
+
+    monkeypatch.setattr(netscan_scanner, "run_nmap", fake_run_nmap)
+
+    netscan_scanner.run_netscan("10.0.0.1", ports_spec="22", use_nmap=True, detect_os=True)
+
+    assert captured["detect_os"] is True

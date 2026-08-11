@@ -172,16 +172,34 @@ Parses `git log` and ranks file pairs by co-change frequency + coupling strength
 > **Only scan networks and hosts you own or are explicitly authorized to test.** Unauthorized scanning may be illegal in your jurisdiction.
 
 ```bash
-archmap netscan 192.168.1.0/24                      # discover hosts + scan top 20 ports
-archmap netscan 192.168.1.10 --ports 22,80,443       # scan specific ports on one host
-archmap netscan 192.168.1.0/24 --discover-only       # just find which hosts are up
-archmap netscan 10.0.0.1-50 --top-ports 100 --json   # scan a range, machine-readable output
-archmap netscan 192.168.1.0/24 --use-nmap            # delegate to the system nmap binary
+archmap netscan 192.168.1.0/24                              # discover hosts + scan top 20 ports
+archmap netscan 192.168.1.10 --ports 22,80,443               # scan specific ports on one host
+archmap netscan 192.168.1.0/24 --discover-only               # just find which hosts are up
+archmap netscan 10.0.0.1-50 --top-ports 100 --json            # scan a range, machine-readable output
+archmap netscan 192.168.1.0/24 --use-nmap --nmap-args="-sV"   # delegate to nmap for version detection
 ```
 
 A lightweight, stdlib-only host/port scanner — no root and no extra dependencies required, so it runs the same way on a laptop or in Termux on Android. Accepts a single IP/hostname, a CIDR block, a dash range (`192.168.1.1-50`), or a comma-separated combination.
 
-Host discovery tries ICMP ping first, then falls back to TCP connect probes on common ports (ICMP is often filtered on real networks). Open ports are found with a threaded TCP connect scan, with optional service banner grabbing (`--no-fingerprint` to disable). Pass `--use-nmap` to shell out to a real `nmap` install instead — useful for `-sV`/`-O`-style deeper scans via `--nmap-args`.
+Host discovery tries ICMP ping first, then falls back to TCP connect probes on common ports (ICMP is often filtered on real networks). Open ports are found with a threaded TCP connect scan, with optional service banner grabbing (`--no-fingerprint` to disable).
+
+Pass `--use-nmap` to shell out to a real `nmap` install instead of the built-in scanner. Both engines report through the same clean, aligned table — `--use-nmap` just fills in more of it (service version/extrainfo from `-sV`, an OS guess when `--os-detection` succeeds, and nmap's own scan stats), instead of nmap's raw scrolling console output:
+
+```text
+  Network Scan — target: 192.168.1.0/24 (engine: nmap v7.94)
+  hosts probed: 254 | hosts up: 2 | nmap elapsed: 11.80s | duration: 12.40s
+
+  192.168.1.1 (router.local) ----------------------------------- UP
+    OS: Linux 5.X (92%)
+    PORT      STATE    SERVICE          INFO
+    ----------------------------------------
+    22/tcp    open     ssh              OpenSSH 9.0
+    80/tcp    open     http             nginx 1.18.0
+
+  Summary: 2 host(s) up, 2 open port(s) total.
+```
+
+`--os-detection` adds nmap's `-O` OS fingerprinting (requires `--use-nmap` and root).
 
 **Termux setup:**
 

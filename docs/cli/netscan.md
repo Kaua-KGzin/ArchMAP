@@ -38,6 +38,7 @@ Accepted target formats:
 | `--fingerprint` / `--no-fingerprint` | on | Grab service banners on open ports |
 | `--use-nmap` | off | Delegate scanning to the system `nmap` binary |
 | `--nmap-args ARGS` | — | Extra raw arguments passed through to nmap (only with `--use-nmap`) |
+| `--os-detection` | off | Attempt OS fingerprinting via nmap `-O` (requires `--use-nmap` and root) |
 | `--timeout SECS` | `1.0` | Per-connection timeout in seconds |
 | `--concurrency N` | `200` | Max concurrent connections for discovery/port scanning |
 | `--json` | off | Output results as JSON |
@@ -70,19 +71,40 @@ archmap netscan 192.168.1.0/24 --out scan.json
 
 ## Output
 
-### Default (human-readable)
+Both engines print through the same clean, aligned report — `--use-nmap` just fills in more of it (service version/extrainfo, an OS guess, nmap's own scan stats and version) instead of dumping nmap's raw console output.
+
+### Default (human-readable, pure-Python engine)
 
 ```text
 Network Scan — target: 192.168.1.0/24 (engine: python)
-Hosts probed: 254 — hosts up: 3
-Duration: 4.82s
+hosts probed: 254 | hosts up: 3 | duration: 4.82s
 
-192.168.1.1 (router.local) — up
-    22/tcp  ssh            — SSH-2.0-OpenSSH_9.0
-    80/tcp  http           — HTTP/1.1 200 OK
+192.168.1.1 (router.local) ------------------------------------ UP
+    PORT      STATE    SERVICE          INFO
+    ----------------------------------------
+    22/tcp    open     ssh              SSH-2.0-OpenSSH_9.0
+    80/tcp    open     http             HTTP/1.1 200 OK
 
-192.168.1.14 — up
+192.168.1.14 ---------------------------------------------------- UP
     (no open ports found)
+
+Summary: 3 host(s) up, 2 open port(s) total.
+```
+
+### With `--use-nmap` (and `--os-detection`)
+
+```text
+Network Scan — target: 192.168.1.0/24 (engine: nmap v7.94)
+hosts probed: 254 | hosts up: 2 | nmap elapsed: 11.80s | duration: 12.40s
+
+192.168.1.1 (router.local) ------------------------------------ UP
+    OS: Linux 5.X (92%)
+    PORT      STATE    SERVICE          INFO
+    ----------------------------------------
+    22/tcp    open     ssh              OpenSSH 9.0 protocol 2.0
+    80/tcp    open     http             nginx 1.18.0
+
+Summary: 2 host(s) up, 2 open port(s) total.
 ```
 
 ### JSON (`--json`)
@@ -90,22 +112,27 @@ Duration: 4.82s
 ```json
 {
   "target": "192.168.1.0/24",
-  "engine": "python",
+  "engine": "nmap",
+  "nmapVersion": "7.94",
   "hostsScanned": 254,
   "discoverOnly": false,
-  "durationSeconds": 4.82,
+  "durationSeconds": 12.4,
+  "stats": {"elapsedSeconds": 11.8, "hostsUp": 2, "hostsDown": 252},
   "hosts": [
     {
       "ip": "192.168.1.1",
       "hostname": "router.local",
       "status": "up",
+      "os": "Linux 5.X (92%)",
       "openPorts": [
-        {"port": 22, "protocol": "tcp", "state": "open", "service": "ssh", "banner": "SSH-2.0-OpenSSH_9.0"}
+        {"port": 22, "protocol": "tcp", "state": "open", "service": "ssh", "banner": "OpenSSH 9.0 protocol 2.0"}
       ]
     }
   ]
 }
 ```
+
+`nmapVersion`, `stats`, and each host's `os` field are only populated when `--use-nmap` is used (and `os` only when nmap's OS fingerprinting found a match, which requires `--os-detection` and root).
 
 ## How it works
 
@@ -114,7 +141,7 @@ Duration: 4.82s
 3. **Port scanning** (unless `--discover-only`) opens a TCP connection to each requested port on each live host, using a thread pool for concurrency.
 4. **Fingerprinting** (default on) reads whatever banner the service sends on connect, or issues a minimal `HEAD /` request for known HTTP ports.
 
-With `--use-nmap`, steps 2–4 are replaced by a single call to the system `nmap` binary (`nmap -oX -`), and its XML output is parsed into the same report shape.
+With `--use-nmap`, steps 2–4 are replaced by a single call to the system `nmap` binary (`nmap -oX -`), and its XML output — including service product/version/extrainfo, the best OS match (with `--os-detection`), and nmap's own run stats — is parsed into the same report shape used by the pure-Python engine.
 
 ## Termux setup
 

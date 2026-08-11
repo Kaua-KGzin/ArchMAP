@@ -16,6 +16,7 @@ def _base_args(**overrides) -> Namespace:
         fingerprint=True,
         use_nmap=False,
         nmap_args=None,
+        os_detection=False,
         timeout=1.0,
         concurrency=200,
         json=False,
@@ -56,8 +57,47 @@ def test_run_netscan_prints_human_report(monkeypatch, capsys) -> None:
     assert exit_code == 0
     out = capsys.readouterr().out
     assert "10.0.0.1" in out
+    assert "PORT" in out and "STATE" in out and "SERVICE" in out
     assert "22/tcp" in out
     assert "ssh" in out
+
+
+def test_run_netscan_prints_nmap_engine_extras(monkeypatch, capsys) -> None:
+    report = {
+        "target": "10.0.0.1",
+        "engine": "nmap",
+        "nmapVersion": "7.94",
+        "hostsScanned": 1,
+        "discoverOnly": False,
+        "durationSeconds": 3.2,
+        "stats": {"elapsedSeconds": 2.9, "hostsUp": 1, "hostsDown": 0},
+        "hosts": [
+            {
+                "ip": "10.0.0.1",
+                "hostname": None,
+                "status": "up",
+                "os": "Linux 5.X (92%)",
+                "openPorts": [
+                    {
+                        "port": 22,
+                        "protocol": "tcp",
+                        "state": "open",
+                        "service": "ssh",
+                        "banner": "OpenSSH 9.0",
+                    }
+                ],
+            }
+        ],
+    }
+    monkeypatch.setattr(cli_commands, "_scan_network", lambda target, **kwargs: report)
+
+    exit_code = cli_commands.run_netscan(_base_args(use_nmap=True))
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "nmap v7.94" in out
+    assert "OS: Linux 5.X (92%)" in out
+    assert "Summary: 1 host(s) up, 1 open port(s) total." in out
 
 
 def test_run_netscan_json_output(monkeypatch, capsys) -> None:
