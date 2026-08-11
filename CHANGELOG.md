@@ -35,6 +35,18 @@ All notable changes to this project are documented in this file.
   and shown indented under each port in the human-readable output, with a
   risky-port count added to the summary footer.
 
+### Fixed
+- **Web UI (`archmap serve`) mobile/Termux layout** — the desktop toolbar
+  (fixed-width search box, spacer-pushed buttons) no longer gets squeezed
+  into an unreadable single row once the workspace collapses to its
+  single-column mobile layout (≤960px, e.g. tablets and phones in
+  landscape). The toolbar now wraps into title/tabs/search/action rows,
+  export/refresh buttons go icon-only with accessible labels, the nav rail
+  scrolls horizontally with larger touch targets instead of overflowing
+  off-screen, and the mini-map shrinks (then hides below 460px) instead of
+  overlapping graph content. Verified at common phone/tablet/landscape
+  viewport sizes.
+
 ## [1.0.3] - 2026-06-11
 
 Tree-sitter engine overhaul. Tree-sitter becomes a resilient *primary* parser

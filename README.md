@@ -121,6 +121,8 @@ archmap serve <path> --host 0.0.0.0 --port 3000
 > regardless of `--host`. Only the read-only graph/health endpoints are
 > reachable from other hosts when you bind to `0.0.0.0`.
 
+The web UI is responsive — the nav rail, side panels, and toolbar reflow into a single-column, touch-friendly layout on phones and tablets, so `archmap serve` works the same way in a Termux browser as it does on desktop.
+
 ### Diff
 
 ```bash
