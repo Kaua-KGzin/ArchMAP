@@ -172,18 +172,17 @@ Parses `git log` and ranks file pairs by co-change frequency + coupling strength
 > **Only scan networks and hosts you own or are explicitly authorized to test.** Unauthorized scanning may be illegal in your jurisdiction.
 
 ```bash
-archmap netscan 192.168.1.0/24                              # discover hosts + scan top 20 ports
-archmap netscan 192.168.1.10 --ports 22,80,443               # scan specific ports on one host
-archmap netscan 192.168.1.0/24 --discover-only               # just find which hosts are up
-archmap netscan 10.0.0.1-50 --top-ports 100 --json            # scan a range, machine-readable output
-archmap netscan 192.168.1.0/24 --use-nmap --nmap-args="-sV"   # delegate to nmap for version detection
+archmap netscan 192.168.1.0/24                       # discover hosts + scan top 20 ports
+archmap netscan 192.168.1.10 --ports 22,80,443        # scan specific ports on one host
+archmap netscan 192.168.1.0/24 --discover-only        # just find which hosts are up
+archmap netscan 10.0.0.1-50 --top-ports 100 --json    # scan a range, machine-readable output
+archmap netscan 192.168.1.0/24 --nmap-args="-sV"      # pass extra flags through to nmap
+archmap netscan 192.168.1.0/24 --no-nmap              # force the built-in scanner instead
 ```
 
-A lightweight, stdlib-only host/port scanner — no root and no extra dependencies required, so it runs the same way on a laptop or in Termux on Android. Accepts a single IP/hostname, a CIDR block, a dash range (`192.168.1.1-50`), or a comma-separated combination.
+Two scan engines, one report format. If `nmap` is installed, ArchMAP uses it automatically as the engine — it's simply a more capable scanner than a from-scratch one. Pass `--no-nmap` to force the built-in stdlib-only scanner instead (no root, no extra dependencies — works the same way on a laptop or in Termux on Android), or `--use-nmap` to require nmap and fail loudly if it's missing. Either way, the target spec accepts a single IP/hostname, a CIDR block, a dash range (`192.168.1.1-50`), or a comma-separated combination.
 
-Host discovery tries ICMP ping first, then falls back to TCP connect probes on common ports (ICMP is often filtered on real networks). Open ports are found with a threaded TCP connect scan, with optional service banner grabbing (`--no-fingerprint` to disable).
-
-Pass `--use-nmap` to shell out to a real `nmap` install instead of the built-in scanner. Both engines report through the same clean, aligned table — `--use-nmap` just fills in more of it (service version/extrainfo from `-sV`, an OS guess when `--os-detection` succeeds, and nmap's own scan stats), instead of nmap's raw scrolling console output:
+The built-in engine discovers hosts via ICMP ping with a TCP connect-probe fallback (ICMP is often filtered on real networks), then does a threaded TCP connect port scan with optional banner grabbing (`--no-fingerprint` to disable). Both engines report through the same clean, aligned table — nmap just fills in more of it (service version/extrainfo from `-sV`, an OS guess when `--os-detection` succeeds, and nmap's own scan stats), instead of nmap's raw scrolling console output:
 
 ```text
   Network Scan — target: 192.168.1.0/24 (engine: nmap v7.94)
@@ -199,7 +198,7 @@ Pass `--use-nmap` to shell out to a real `nmap` install instead of the built-in 
   Summary: 2 host(s) up, 2 open port(s) total.
 ```
 
-`--os-detection` adds nmap's `-O` OS fingerprinting (requires `--use-nmap` and root).
+`--os-detection` adds nmap's `-O` OS fingerprinting (requires the nmap engine and root).
 
 **Termux setup:**
 
@@ -207,7 +206,7 @@ Pass `--use-nmap` to shell out to a real `nmap` install instead of the built-in 
 pkg install python
 pip install KG-ARCHMAP
 archmap netscan 192.168.1.0/24
-# optional, for --use-nmap:
+# optional, to use the nmap engine instead of the built-in one:
 pkg install nmap
 ```
 

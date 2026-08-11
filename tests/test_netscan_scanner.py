@@ -15,7 +15,7 @@ def test_run_netscan_pure_python(monkeypatch) -> None:
         ],
     )
 
-    result = netscan_scanner.run_netscan("10.0.0.0/30", ports_spec="22")
+    result = netscan_scanner.run_netscan("10.0.0.0/30", ports_spec="22", use_nmap=False)
 
     assert result["target"] == "10.0.0.0/30"
     assert result["engine"] == "python"
@@ -37,7 +37,7 @@ def test_run_netscan_discover_only_skips_port_scan(monkeypatch) -> None:
 
     monkeypatch.setattr(netscan_scanner, "scan_ports", _fail_scan_ports)
 
-    result = netscan_scanner.run_netscan("10.0.0.1", discover_only=True)
+    result = netscan_scanner.run_netscan("10.0.0.1", discover_only=True, use_nmap=False)
 
     assert result["discoverOnly"] is True
     assert result["hosts"][0]["openPorts"] == []
@@ -53,7 +53,9 @@ def test_run_netscan_no_discover_scans_every_target(monkeypatch) -> None:
     monkeypatch.setattr(netscan_scanner, "reverse_lookup", lambda ip: None)
     monkeypatch.setattr(netscan_scanner, "scan_ports", lambda ip, ports, **kw: [])
 
-    result = netscan_scanner.run_netscan("10.0.0.1,10.0.0.2", ports_spec="22", no_discover=True)
+    result = netscan_scanner.run_netscan(
+        "10.0.0.1,10.0.0.2", ports_spec="22", no_discover=True, use_nmap=False
+    )
 
     assert [h["ip"] for h in result["hosts"]] == ["10.0.0.1", "10.0.0.2"]
 
@@ -71,6 +73,59 @@ def test_run_netscan_use_nmap_delegates(monkeypatch) -> None:
     assert result["engine"] == "nmap"
     assert result["hostsScanned"] == 1
     assert result["discoverOnly"] is False
+
+
+def test_run_netscan_auto_uses_nmap_when_available(monkeypatch) -> None:
+    monkeypatch.setattr(netscan_scanner, "parse_targets", lambda spec: ["10.0.0.1"])
+    monkeypatch.setattr(netscan_scanner, "is_nmap_available", lambda: True)
+    monkeypatch.setattr(
+        netscan_scanner,
+        "run_nmap",
+        lambda target, ports, **kw: {"engine": "nmap", "hosts": []},
+    )
+
+    def _fail_discover(*_a, **_k):
+        raise AssertionError("pure-Python discovery should not run when nmap is auto-selected")
+
+    monkeypatch.setattr(netscan_scanner, "discover_hosts", _fail_discover)
+
+    result = netscan_scanner.run_netscan("10.0.0.1", ports_spec="22")
+
+    assert result["engine"] == "nmap"
+
+
+def test_run_netscan_auto_falls_back_to_python_when_nmap_missing(monkeypatch) -> None:
+    monkeypatch.setattr(netscan_scanner, "parse_targets", lambda spec: ["10.0.0.1"])
+    monkeypatch.setattr(netscan_scanner, "is_nmap_available", lambda: False)
+    monkeypatch.setattr(netscan_scanner, "discover_hosts", lambda ips, **kw: ["10.0.0.1"])
+    monkeypatch.setattr(netscan_scanner, "reverse_lookup", lambda ip: None)
+    monkeypatch.setattr(netscan_scanner, "scan_ports", lambda ip, ports, **kw: [])
+
+    def _fail_run_nmap(*_a, **_k):
+        raise AssertionError("nmap should not be invoked when it isn't available")
+
+    monkeypatch.setattr(netscan_scanner, "run_nmap", _fail_run_nmap)
+
+    result = netscan_scanner.run_netscan("10.0.0.1", ports_spec="22")
+
+    assert result["engine"] == "python"
+
+
+def test_run_netscan_no_nmap_forces_python_even_when_available(monkeypatch) -> None:
+    monkeypatch.setattr(netscan_scanner, "parse_targets", lambda spec: ["10.0.0.1"])
+    monkeypatch.setattr(netscan_scanner, "is_nmap_available", lambda: True)
+    monkeypatch.setattr(netscan_scanner, "discover_hosts", lambda ips, **kw: ["10.0.0.1"])
+    monkeypatch.setattr(netscan_scanner, "reverse_lookup", lambda ip: None)
+    monkeypatch.setattr(netscan_scanner, "scan_ports", lambda ip, ports, **kw: [])
+
+    def _fail_run_nmap(*_a, **_k):
+        raise AssertionError("nmap should not be invoked when use_nmap=False forces Python")
+
+    monkeypatch.setattr(netscan_scanner, "run_nmap", _fail_run_nmap)
+
+    result = netscan_scanner.run_netscan("10.0.0.1", ports_spec="22", use_nmap=False)
+
+    assert result["engine"] == "python"
 
 
 def test_run_netscan_passes_detect_os_to_nmap(monkeypatch) -> None:

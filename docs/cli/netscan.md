@@ -1,6 +1,6 @@
 # archmap netscan
 
-Discovers live hosts and open ports on a network — an nmap-style scanner built into ArchMAP. Pure Python (stdlib-only) by default, so it needs no root and no extra dependencies, which makes it work the same way on a laptop or inside Termux on Android. Optionally delegates to a real `nmap` install for deeper scans.
+Discovers live hosts and open ports on a network — an nmap-style scanner built into ArchMAP. Two engines share the same clean report format: a system `nmap` install (used automatically when present — nmap is simply a more capable scanner) or a built-in, stdlib-only Python engine that needs no root and no extra dependencies, so it works the same way on a laptop or inside Termux on Android.
 
 !!! warning "Authorized use only"
     Only scan networks and hosts you own or are explicitly authorized to test. Unauthorized scanning may be illegal in your jurisdiction.
@@ -27,6 +27,14 @@ Accepted target formats:
 | Shorthand range | `192.168.1.1-50` |
 | Comma-separated combination | `192.168.1.10,192.168.1.0/28` |
 
+## Engine selection
+
+| Flag | Behavior |
+|---|---|
+| *(none)* | Auto: use `nmap` if it's installed, otherwise the built-in Python engine |
+| `--use-nmap` | Require the nmap engine; error out if `nmap` isn't on `PATH` |
+| `--no-nmap` | Force the built-in Python engine even if `nmap` is installed |
+
 ## Options
 
 | Option | Default | Description |
@@ -35,19 +43,19 @@ Accepted target formats:
 | `--top-ports N` | — | Scan the N most common ports instead of `--ports` |
 | `--discover-only` | off | Only discover which hosts are up; skip port scanning |
 | `--no-discover` | off | Skip host discovery and port-scan every address directly |
-| `--fingerprint` / `--no-fingerprint` | on | Grab service banners on open ports |
-| `--use-nmap` | off | Delegate scanning to the system `nmap` binary |
-| `--nmap-args ARGS` | — | Extra raw arguments passed through to nmap (only with `--use-nmap`) |
-| `--os-detection` | off | Attempt OS fingerprinting via nmap `-O` (requires `--use-nmap` and root) |
+| `--fingerprint` / `--no-fingerprint` | on | Grab service banners on open ports (Python engine only) |
+| `--use-nmap` / `--no-nmap` | auto | See [Engine selection](#engine-selection) |
+| `--nmap-args ARGS` | — | Extra raw arguments passed through to nmap (nmap engine only) |
+| `--os-detection` | off | Attempt OS fingerprinting via nmap `-O` (nmap engine + root required) |
 | `--timeout SECS` | `1.0` | Per-connection timeout in seconds |
-| `--concurrency N` | `200` | Max concurrent connections for discovery/port scanning |
+| `--concurrency N` | `200` | Max concurrent connections for discovery/port scanning (Python engine only) |
 | `--json` | off | Output results as JSON |
 | `--out PATH` | — | Write the JSON scan report to a file |
 
 ## Examples
 
 ```bash
-# Discover hosts and scan the top 20 ports on a /24
+# Discover hosts and scan the top 20 ports on a /24 (nmap if installed, Python otherwise)
 archmap netscan 192.168.1.0/24
 
 # Scan specific ports on a single host
@@ -62,8 +70,11 @@ archmap netscan 10.0.0.1-50 --top-ports 100 --json
 # Skip discovery entirely and port-scan a single known-up host directly
 archmap netscan 192.168.1.10 --no-discover --ports 1-1024
 
-# Delegate to a real nmap install for a version/OS-detection scan
-archmap netscan 192.168.1.0/24 --use-nmap --nmap-args="-sV"
+# Pass extra flags through to nmap for a version-detection scan
+archmap netscan 192.168.1.0/24 --nmap-args="-sV"
+
+# Force the built-in scanner even though nmap is installed
+archmap netscan 192.168.1.0/24 --no-nmap
 
 # Save the report to disk
 archmap netscan 192.168.1.0/24 --out scan.json
@@ -71,9 +82,9 @@ archmap netscan 192.168.1.0/24 --out scan.json
 
 ## Output
 
-Both engines print through the same clean, aligned report — `--use-nmap` just fills in more of it (service version/extrainfo, an OS guess, nmap's own scan stats and version) instead of dumping nmap's raw console output.
+Both engines print through the same clean, aligned report — nmap just fills in more of it (service version/extrainfo, an OS guess, nmap's own scan stats and version) instead of dumping its own raw console output.
 
-### Default (human-readable, pure-Python engine)
+### Python engine (auto-selected when nmap isn't installed, or `--no-nmap`)
 
 ```text
 Network Scan — target: 192.168.1.0/24 (engine: python)
@@ -91,7 +102,7 @@ hosts probed: 254 | hosts up: 3 | duration: 4.82s
 Summary: 3 host(s) up, 2 open port(s) total.
 ```
 
-### With `--use-nmap` (and `--os-detection`)
+### nmap engine (auto-selected when installed, with `--os-detection`)
 
 ```text
 Network Scan — target: 192.168.1.0/24 (engine: nmap v7.94)
@@ -132,16 +143,16 @@ Summary: 2 host(s) up, 2 open port(s) total.
 }
 ```
 
-`nmapVersion`, `stats`, and each host's `os` field are only populated when `--use-nmap` is used (and `os` only when nmap's OS fingerprinting found a match, which requires `--os-detection` and root).
+`nmapVersion`, `stats`, and each host's `os` field are only populated when the nmap engine ran (and `os` only when nmap's OS fingerprinting found a match, which requires `--os-detection` and root). The `engine` field always reflects what actually ran, which matters when the choice was automatic.
 
 ## How it works
 
 1. **Target parsing** expands the target spec (single host, CIDR, or range) into a flat list of IPs/hostnames.
-2. **Host discovery** (unless `--no-discover`) tries an ICMP ping first, then falls back to TCP connect probes on a handful of common ports — ICMP is frequently filtered on real networks, so this keeps discovery working without root.
-3. **Port scanning** (unless `--discover-only`) opens a TCP connection to each requested port on each live host, using a thread pool for concurrency.
-4. **Fingerprinting** (default on) reads whatever banner the service sends on connect, or issues a minimal `HEAD /` request for known HTTP ports.
+2. **Engine resolution**: if `--use-nmap`/`--no-nmap` wasn't passed, ArchMAP checks whether `nmap` is on `PATH` and uses it if so; otherwise (or with `--no-nmap`) it falls back to the built-in engine.
+3. Built-in engine only — **host discovery** (unless `--no-discover`) tries an ICMP ping first, then falls back to TCP connect probes on a handful of common ports — ICMP is frequently filtered on real networks, so this keeps discovery working without root.
+4. Built-in engine only — **port scanning** (unless `--discover-only`) opens a TCP connection to each requested port on each live host, using a thread pool for concurrency, with optional banner grabbing.
 
-With `--use-nmap`, steps 2–4 are replaced by a single call to the system `nmap` binary (`nmap -oX -`), and its XML output — including service product/version/extrainfo, the best OS match (with `--os-detection`), and nmap's own run stats — is parsed into the same report shape used by the pure-Python engine.
+When the nmap engine is used, steps 3–4 are replaced by a single call to the system `nmap` binary (`nmap -oX -`), and its XML output — including service product/version/extrainfo, the best OS match (with `--os-detection`), and nmap's own run stats — is parsed into the same report shape used by the built-in engine.
 
 ## Termux setup
 
@@ -150,12 +161,12 @@ pkg install python
 pip install KG-ARCHMAP
 archmap netscan 192.168.1.0/24
 
-# optional, only needed for --use-nmap:
+# optional, to use the nmap engine instead of the built-in one:
 pkg install nmap
 ```
 
-No root is required for the default pure-Python engine.
+No root is required for the built-in Python engine. `--os-detection` needs root even with nmap installed.
 
 ## Requirements
 
-Pure-Python engine: none — stdlib only. `--use-nmap` requires `nmap` on `PATH`.
+Built-in engine: none — stdlib only. nmap engine (auto-selected when present, or forced with `--use-nmap`) requires `nmap` on `PATH`.

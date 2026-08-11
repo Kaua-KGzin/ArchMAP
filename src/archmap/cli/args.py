@@ -491,19 +491,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     netscan_parser.add_argument(
         "--use-nmap",
+        dest="use_nmap",
         action="store_true",
-        help="delegate scanning to the system nmap binary instead of the built-in scanner",
+        default=None,
+        help=(
+            "force the system nmap binary as the scan engine "
+            "(default: used automatically when nmap is installed)"
+        ),
+    )
+    netscan_parser.add_argument(
+        "--no-nmap",
+        dest="use_nmap",
+        action="store_false",
+        help="force the built-in Python scanner even if nmap is installed",
     )
     netscan_parser.add_argument(
         "--nmap-args",
         default=None,
         metavar="ARGS",
-        help="extra raw arguments passed through to nmap (only with --use-nmap)",
+        help="extra raw arguments passed through to nmap (only when the nmap engine is used)",
     )
     netscan_parser.add_argument(
         "--os-detection",
         action="store_true",
-        help="attempt OS fingerprinting via nmap -O (requires --use-nmap and root)",
+        help="attempt OS fingerprinting via nmap -O (requires the nmap engine and root)",
     )
     netscan_parser.add_argument(
         "--timeout",

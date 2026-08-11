@@ -740,7 +740,7 @@ def run_netscan(args: argparse.Namespace) -> int:
             discover_only=getattr(args, "discover_only", False),
             no_discover=getattr(args, "no_discover", False),
             fingerprint=getattr(args, "fingerprint", True),
-            use_nmap=getattr(args, "use_nmap", False),
+            use_nmap=getattr(args, "use_nmap", None),
             nmap_args=getattr(args, "nmap_args", None),
             detect_os=getattr(args, "os_detection", False),
             timeout=getattr(args, "timeout", 1.0),
@@ -749,6 +749,12 @@ def run_netscan(args: argparse.Namespace) -> int:
     except (ValueError, RuntimeError, OSError) as exc:
         print(f"[error] {exc}", file=sys.stderr)
         return 1
+
+    if getattr(args, "os_detection", False) and result.get("engine") != "nmap":
+        print(
+            "[warning] --os-detection ignored: OS fingerprinting needs the nmap engine.",
+            file=sys.stderr,
+        )
 
     if getattr(args, "out", None):
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)

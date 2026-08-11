@@ -4,7 +4,7 @@ import time
 from typing import Any
 
 from archmap.core.netscan.hosts import discover_hosts, parse_targets, reverse_lookup
-from archmap.core.netscan.nmap_wrapper import run_nmap
+from archmap.core.netscan.nmap_wrapper import is_nmap_available, run_nmap
 from archmap.core.netscan.ports import parse_ports
 from archmap.core.netscan.portscan import scan_ports
 
@@ -17,21 +17,27 @@ def run_netscan(
     discover_only: bool = False,
     no_discover: bool = False,
     fingerprint: bool = True,
-    use_nmap: bool = False,
+    use_nmap: bool | None = None,
     nmap_args: str | None = None,
     detect_os: bool = False,
     timeout: float = 1.0,
     concurrency: int = 200,
 ) -> dict[str, Any]:
     """Discover live hosts on `target_spec` and, unless --discover-only, scan
-    their open ports. Pure Python (stdlib-only) by default, or delegates to
-    the system `nmap` binary when `use_nmap` is set.
+    their open ports.
+
+    Uses the system `nmap` binary as the engine whenever it's installed
+    (nmap is a far more capable scanner than the built-in one) — pass
+    `use_nmap=False` to force the stdlib-only Python engine instead, or
+    `use_nmap=True` to require nmap and fail loudly if it's missing.
     """
     started_at = time.time()
     ips = parse_targets(target_spec)
     ports = [] if discover_only else parse_ports(ports_spec, top=top_ports)
 
-    if use_nmap:
+    resolved_use_nmap = is_nmap_available() if use_nmap is None else use_nmap
+
+    if resolved_use_nmap:
         result = _run_with_nmap(
             target_spec,
             ips,

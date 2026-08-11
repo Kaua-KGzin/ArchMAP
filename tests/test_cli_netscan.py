@@ -136,6 +136,17 @@ def test_run_netscan_handles_errors(monkeypatch, capsys) -> None:
     assert "nmap not found" in err
 
 
+def test_run_netscan_warns_when_os_detection_ignored(monkeypatch, capsys) -> None:
+    report = {"target": "10.0.0.1", "engine": "python", "hosts": [], "durationSeconds": 0.0}
+    monkeypatch.setattr(cli_commands, "_scan_network", lambda target, **kwargs: report)
+
+    exit_code = cli_commands.run_netscan(_base_args(os_detection=True))
+
+    assert exit_code == 0
+    err = capsys.readouterr().err
+    assert "--os-detection ignored" in err
+
+
 def test_run_netscan_no_hosts_found(monkeypatch, capsys) -> None:
     report = {"target": "10.0.0.1", "engine": "python", "hosts": [], "durationSeconds": 0.0}
     monkeypatch.setattr(cli_commands, "_scan_network", lambda target, **kwargs: report)

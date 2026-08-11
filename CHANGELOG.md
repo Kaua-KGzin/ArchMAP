@@ -16,8 +16,12 @@ All notable changes to this project are documented in this file.
   aligned table (PORT/STATE/SERVICE/INFO per host, plus an up/duration summary
   line and a totals footer) instead of a flat list, so it reads the same way
   regardless of engine. New `--os-detection` flag surfaces nmap's `-O` OS guess
-  when `--use-nmap` is set; nmap's own scan stats, version, and richer service
+  when the nmap engine runs; nmap's own scan stats, version, and richer service
   info (product/version/extrainfo) are now parsed and shown too.
+- **nmap is now the default `netscan` engine when installed** — it's simply a
+  more capable scanner than a from-scratch one. `--use-nmap` now only forces
+  it (erroring if missing) instead of opting in; pass `--no-nmap` to fall back
+  to the built-in stdlib-only scanner even when nmap is present.
 
 ## [1.0.3] - 2026-06-11
 

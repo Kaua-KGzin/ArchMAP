@@ -154,7 +154,7 @@ def test_build_parser_sets_netscan_defaults() -> None:
     assert args.discover_only is False
     assert args.no_discover is False
     assert args.fingerprint is True
-    assert args.use_nmap is False
+    assert args.use_nmap is None
     assert args.nmap_args is None
     assert args.os_detection is False
     assert args.timeout == 1.0
@@ -193,3 +193,11 @@ def test_build_parser_netscan_accepts_overrides() -> None:
     assert args.concurrency == 50
     assert args.json is True
     assert args.out == "report.json"
+
+
+def test_build_parser_netscan_no_nmap_forces_python_engine() -> None:
+    parser = cli_args.build_parser()
+
+    args = parser.parse_args(["netscan", "10.0.0.1", "--no-nmap"])
+
+    assert args.use_nmap is False
