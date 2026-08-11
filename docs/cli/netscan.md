@@ -1,6 +1,6 @@
 # archmap netscan
 
-Discovers live hosts and open ports on a network — an nmap-style scanner built into ArchMAP. Two engines share the same clean report format: a system `nmap` install (used automatically when present — nmap is simply a more capable scanner) or a built-in, stdlib-only Python engine that needs no root and no extra dependencies, so it works the same way on a laptop or inside Termux on Android.
+Discovers live hosts and open ports on a network — an nmap-style scanner built into ArchMAP. Two engines share the same clean report format: a system `nmap` install (used automatically when present — nmap is simply a more capable scanner) or a built-in, stdlib-only Python engine that needs no root and no extra dependencies, so it works the same way on a laptop or inside Termux on Android. Every open port is also analyzed, not just marked open — see [Port analysis](#port-analysis).
 
 !!! warning "Authorized use only"
     Only scan networks and hosts you own or are explicitly authorized to test. Unauthorized scanning may be illegal in your jurisdiction.
@@ -43,14 +43,25 @@ Accepted target formats:
 | `--top-ports N` | — | Scan the N most common ports instead of `--ports` |
 | `--discover-only` | off | Only discover which hosts are up; skip port scanning |
 | `--no-discover` | off | Skip host discovery and port-scan every address directly |
-| `--fingerprint` / `--no-fingerprint` | on | Grab service banners on open ports (Python engine only) |
+| `--fingerprint` / `--no-fingerprint` | on | Probe open ports for banners/HTTP title/headers (Python engine only) |
 | `--use-nmap` / `--no-nmap` | auto | See [Engine selection](#engine-selection) |
 | `--nmap-args ARGS` | — | Extra raw arguments passed through to nmap (nmap engine only) |
 | `--os-detection` | off | Attempt OS fingerprinting via nmap `-O` (nmap engine + root required) |
+| `--scripts` | off | Run nmap's default scripts + version detection, `-sC -sV` (nmap engine only) |
 | `--timeout SECS` | `1.0` | Per-connection timeout in seconds |
 | `--concurrency N` | `200` | Max concurrent connections for discovery/port scanning (Python engine only) |
 | `--json` | off | Output results as JSON |
 | `--out PATH` | — | Write the JSON scan report to a file |
+
+## Port analysis
+
+Every open port found is analyzed, not just listed:
+
+- **Risk classification** — checked against a static table of ports/services that are frequent attack targets or commonly deployed without authentication (Telnet, SMB, RDP, VNC, exposed Redis/MongoDB/Elasticsearch/Memcached, an unauthenticated Docker API, etc.). Flagged ports get a `[LEVEL RISK]` tag in the report and a one-line reason — this runs on both engines, it's just a port-number lookup.
+- **Deeper fingerprinting** (Python engine, on by default) — for HTTP(S) ports (including over TLS on 443/8443/...), issues a real `GET /` and extracts the status line, `Server` header, and page `<title>`; for everything else it reads the raw connect banner. Disable with `--no-fingerprint`.
+- **nmap NSE scripts** (`--scripts`, nmap engine only) — runs nmap's default script set plus version detection (`-sC -sV`): page titles, TLS certificate info, banner grabbing, and checks for a number of known misconfigurations, surfaced per-port (and per-host for host-wide scripts like NetBIOS name lookups).
+
+None of this is a vulnerability scanner — it's signal to help you decide what's worth a closer look.
 
 ## Examples
 
@@ -70,7 +81,10 @@ archmap netscan 10.0.0.1-50 --top-ports 100 --json
 # Skip discovery entirely and port-scan a single known-up host directly
 archmap netscan 192.168.1.10 --no-discover --ports 1-1024
 
-# Pass extra flags through to nmap for a version-detection scan
+# Deeper per-port analysis via nmap's scripts + version detection
+archmap netscan 192.168.1.0/24 --scripts
+
+# Pass extra flags through to nmap directly
 archmap netscan 192.168.1.0/24 --nmap-args="-sV"
 
 # Force the built-in scanner even though nmap is installed
@@ -82,7 +96,7 @@ archmap netscan 192.168.1.0/24 --out scan.json
 
 ## Output
 
-Both engines print through the same clean, aligned report — nmap just fills in more of it (service version/extrainfo, an OS guess, nmap's own scan stats and version) instead of dumping its own raw console output.
+Both engines print through the same clean, aligned report — nmap just fills in more of it (service version/extrainfo, an OS guess, NSE script output, nmap's own scan stats and version) instead of dumping its own raw console output.
 
 ### Python engine (auto-selected when nmap isn't installed, or `--no-nmap`)
 
@@ -95,14 +109,18 @@ hosts probed: 254 | hosts up: 3 | duration: 4.82s
     ----------------------------------------
     22/tcp    open     ssh              SSH-2.0-OpenSSH_9.0
     80/tcp    open     http             HTTP/1.1 200 OK
+        server: nginx/1.18.0
+        title: Welcome to nginx!
+    6379/tcp  open     redis              [HIGH RISK]
+        ! Redis is frequently deployed with no authentication
 
 192.168.1.14 ---------------------------------------------------- UP
     (no open ports found)
 
-Summary: 3 host(s) up, 2 open port(s) total.
+Summary: 3 host(s) up, 3 open port(s) total, 1 high/critical-risk port(s) flagged.
 ```
 
-### nmap engine (auto-selected when installed, with `--os-detection`)
+### nmap engine (auto-selected when installed, with `--os-detection --scripts`)
 
 ```text
 Network Scan — target: 192.168.1.0/24 (engine: nmap v7.94)
@@ -114,6 +132,8 @@ hosts probed: 254 | hosts up: 2 | nmap elapsed: 11.80s | duration: 12.40s
     ----------------------------------------
     22/tcp    open     ssh              OpenSSH 9.0 protocol 2.0
     80/tcp    open     http             nginx 1.18.0
+        [http-title] Welcome page
+        [http-server-header] nginx/1.18.0
 
 Summary: 2 host(s) up, 2 open port(s) total.
 ```
@@ -135,24 +155,48 @@ Summary: 2 host(s) up, 2 open port(s) total.
       "hostname": "router.local",
       "status": "up",
       "os": "Linux 5.X (92%)",
+      "scripts": [],
       "openPorts": [
-        {"port": 22, "protocol": "tcp", "state": "open", "service": "ssh", "banner": "OpenSSH 9.0 protocol 2.0"}
+        {
+          "port": 22,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "ssh",
+          "banner": "OpenSSH 9.0 protocol 2.0",
+          "details": null,
+          "scripts": [],
+          "risk": null
+        },
+        {
+          "port": 6379,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "redis",
+          "banner": null,
+          "details": null,
+          "scripts": [],
+          "risk": {
+            "level": "high",
+            "reason": "Redis is frequently deployed with no authentication"
+          }
+        }
       ]
     }
   ]
 }
 ```
 
-`nmapVersion`, `stats`, and each host's `os` field are only populated when the nmap engine ran (and `os` only when nmap's OS fingerprinting found a match, which requires `--os-detection` and root). The `engine` field always reflects what actually ran, which matters when the choice was automatic.
+`nmapVersion` and `stats` are only populated when the nmap engine ran. Per host: `os` is only set with `--os-detection` (nmap engine + root); `scripts` (host-level, e.g. NetBIOS lookups) only with `--scripts`. Per port: `details` (Python engine's HTTP title/`Server` header) is only set with fingerprinting on; `scripts` (per-port NSE output) only with `--scripts`; `risk` is a `{level, reason}` object whenever the port number matches a known-risky service, on either engine, otherwise `null`. The `engine` field always reflects what actually ran, which matters when the choice was automatic.
 
 ## How it works
 
 1. **Target parsing** expands the target spec (single host, CIDR, or range) into a flat list of IPs/hostnames.
 2. **Engine resolution**: if `--use-nmap`/`--no-nmap` wasn't passed, ArchMAP checks whether `nmap` is on `PATH` and uses it if so; otherwise (or with `--no-nmap`) it falls back to the built-in engine.
 3. Built-in engine only — **host discovery** (unless `--no-discover`) tries an ICMP ping first, then falls back to TCP connect probes on a handful of common ports — ICMP is frequently filtered on real networks, so this keeps discovery working without root.
-4. Built-in engine only — **port scanning** (unless `--discover-only`) opens a TCP connection to each requested port on each live host, using a thread pool for concurrency, with optional banner grabbing.
+4. Built-in engine only — **port scanning** (unless `--discover-only`) opens a TCP connection to each requested port on each live host, using a thread pool for concurrency, then fingerprints each open one (HTTP(S) GET + title/header parsing, or a raw banner read).
+5. **Risk classification** looks up every open port's number against a static table of known-risky services — independent of engine.
 
-When the nmap engine is used, steps 3–4 are replaced by a single call to the system `nmap` binary (`nmap -oX -`), and its XML output — including service product/version/extrainfo, the best OS match (with `--os-detection`), and nmap's own run stats — is parsed into the same report shape used by the built-in engine.
+When the nmap engine is used, steps 3–4 are replaced by a single call to the system `nmap` binary (`nmap -oX -`, plus `-O` with `--os-detection` and `-sC -sV` with `--scripts`), and its XML output — service product/version/extrainfo, the best OS match, per-port and per-host NSE script output, and nmap's own run stats — is parsed into the same report shape used by the built-in engine.
 
 ## Termux setup
 

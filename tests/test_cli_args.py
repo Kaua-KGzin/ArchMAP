@@ -157,6 +157,7 @@ def test_build_parser_sets_netscan_defaults() -> None:
     assert args.use_nmap is None
     assert args.nmap_args is None
     assert args.os_detection is False
+    assert args.scripts is False
     assert args.timeout == 1.0
     assert args.concurrency == 200
     assert args.json is False
@@ -176,6 +177,7 @@ def test_build_parser_netscan_accepts_overrides() -> None:
             "--use-nmap",
             "--nmap-args=-sV",
             "--os-detection",
+            "--scripts",
             "--timeout", "2.5",
             "--concurrency", "50",
             "--json",
@@ -189,6 +191,7 @@ def test_build_parser_netscan_accepts_overrides() -> None:
     assert args.use_nmap is True
     assert args.nmap_args == "-sV"
     assert args.os_detection is True
+    assert args.scripts is True
     assert args.timeout == 2.5
     assert args.concurrency == 50
     assert args.json is True

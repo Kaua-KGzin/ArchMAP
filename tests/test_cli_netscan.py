@@ -17,6 +17,7 @@ def _base_args(**overrides) -> Namespace:
         use_nmap=False,
         nmap_args=None,
         os_detection=False,
+        scripts=False,
         timeout=1.0,
         concurrency=200,
         json=False,
@@ -77,6 +78,7 @@ def test_run_netscan_prints_nmap_engine_extras(monkeypatch, capsys) -> None:
                 "hostname": None,
                 "status": "up",
                 "os": "Linux 5.X (92%)",
+                "scripts": [{"id": "nbstat", "output": "NetBIOS name: BOX"}],
                 "openPorts": [
                     {
                         "port": 22,
@@ -84,6 +86,9 @@ def test_run_netscan_prints_nmap_engine_extras(monkeypatch, capsys) -> None:
                         "state": "open",
                         "service": "ssh",
                         "banner": "OpenSSH 9.0",
+                        "details": None,
+                        "scripts": [],
+                        "risk": None,
                     }
                 ],
             }
@@ -97,7 +102,75 @@ def test_run_netscan_prints_nmap_engine_extras(monkeypatch, capsys) -> None:
     out = capsys.readouterr().out
     assert "nmap v7.94" in out
     assert "OS: Linux 5.X (92%)" in out
+    assert "[nbstat] NetBIOS name: BOX" in out
     assert "Summary: 1 host(s) up, 1 open port(s) total." in out
+
+
+def test_run_netscan_prints_risk_details_and_scripts(monkeypatch, capsys) -> None:
+    report = {
+        "target": "10.0.0.1",
+        "engine": "python",
+        "hostsScanned": 1,
+        "discoverOnly": False,
+        "durationSeconds": 0.5,
+        "hosts": [
+            {
+                "ip": "10.0.0.1",
+                "hostname": None,
+                "status": "up",
+                "openPorts": [
+                    {
+                        "port": 6379,
+                        "protocol": "tcp",
+                        "state": "open",
+                        "service": "redis",
+                        "banner": None,
+                        "details": None,
+                        "scripts": [],
+                        "risk": {
+                            "level": "high",
+                            "reason": "Redis is frequently deployed with no authentication",
+                        },
+                    },
+                    {
+                        "port": 8080,
+                        "protocol": "tcp",
+                        "state": "open",
+                        "service": "http-proxy",
+                        "banner": "HTTP/1.1 200 OK",
+                        "details": {"server": "nginx/1.18.0", "title": "Welcome"},
+                        "scripts": [],
+                        "risk": None,
+                    },
+                ],
+            }
+        ],
+    }
+    monkeypatch.setattr(cli_commands, "_scan_network", lambda target, **kwargs: report)
+
+    exit_code = cli_commands.run_netscan(_base_args())
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "[HIGH RISK]" in out
+    assert "! Redis is frequently deployed with no authentication" in out
+    assert "server: nginx/1.18.0" in out
+    assert "title: Welcome" in out
+    assert (
+        "Summary: 1 host(s) up, 2 open port(s) total, 1 high/critical-risk port(s) flagged."
+        in out
+    )
+
+
+def test_run_netscan_warns_when_scripts_ignored(monkeypatch, capsys) -> None:
+    report = {"target": "10.0.0.1", "engine": "python", "hosts": [], "durationSeconds": 0.0}
+    monkeypatch.setattr(cli_commands, "_scan_network", lambda target, **kwargs: report)
+
+    exit_code = cli_commands.run_netscan(_base_args(scripts=True))
+
+    assert exit_code == 0
+    err = capsys.readouterr().err
+    assert "--scripts ignored" in err
 
 
 def test_run_netscan_json_output(monkeypatch, capsys) -> None:

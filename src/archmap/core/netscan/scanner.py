@@ -20,6 +20,7 @@ def run_netscan(
     use_nmap: bool | None = None,
     nmap_args: str | None = None,
     detect_os: bool = False,
+    scripts: bool = False,
     timeout: float = 1.0,
     concurrency: int = 200,
 ) -> dict[str, Any]:
@@ -44,6 +45,7 @@ def run_netscan(
             ports,
             nmap_args=nmap_args,
             detect_os=detect_os,
+            scripts=scripts,
             timeout=timeout,
         )
     else:
@@ -94,6 +96,7 @@ def _run_pure_python(
                 "hostname": reverse_lookup(ip),
                 "status": "up",
                 "os": None,
+                "scripts": [],
                 "openPorts": open_ports,
             }
         )
@@ -113,6 +116,7 @@ def _run_with_nmap(
     *,
     nmap_args: str | None,
     detect_os: bool,
+    scripts: bool,
     timeout: float,
 ) -> dict[str, Any]:
     nmap_timeout = max(timeout * 60, 300.0)
@@ -121,6 +125,7 @@ def _run_with_nmap(
         ports,
         extra_args=nmap_args,
         detect_os=detect_os,
+        scripts=scripts,
         timeout=nmap_timeout,
     )
     nmap_result["hostsScanned"] = len(ips)

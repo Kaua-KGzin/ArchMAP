@@ -743,6 +743,7 @@ def run_netscan(args: argparse.Namespace) -> int:
             use_nmap=getattr(args, "use_nmap", None),
             nmap_args=getattr(args, "nmap_args", None),
             detect_os=getattr(args, "os_detection", False),
+            scripts=getattr(args, "scripts", False),
             timeout=getattr(args, "timeout", 1.0),
             concurrency=getattr(args, "concurrency", 200),
         )
@@ -750,11 +751,17 @@ def run_netscan(args: argparse.Namespace) -> int:
         print(f"[error] {exc}", file=sys.stderr)
         return 1
 
-    if getattr(args, "os_detection", False) and result.get("engine") != "nmap":
-        print(
-            "[warning] --os-detection ignored: OS fingerprinting needs the nmap engine.",
-            file=sys.stderr,
-        )
+    if result.get("engine") != "nmap":
+        if getattr(args, "os_detection", False):
+            print(
+                "[warning] --os-detection ignored: OS fingerprinting needs the nmap engine.",
+                file=sys.stderr,
+            )
+        if getattr(args, "scripts", False):
+            print(
+                "[warning] --scripts ignored: nmap script analysis needs the nmap engine.",
+                file=sys.stderr,
+            )
 
     if getattr(args, "out", None):
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
@@ -794,13 +801,19 @@ def _print_netscan_report(result: dict[str, Any]) -> None:
 
     discover_only = bool(result.get("discoverOnly"))
     total_open_ports = 0
+    total_risky_ports = 0
     for host in hosts:
-        total_open_ports += _print_netscan_host(host, discover_only=discover_only)
+        opened, risky = _print_netscan_host(host, discover_only=discover_only)
+        total_open_ports += opened
+        total_risky_ports += risky
 
-    print(f"  Summary: {len(hosts)} host(s) up, {total_open_ports} open port(s) total.\n")
+    summary = f"  Summary: {len(hosts)} host(s) up, {total_open_ports} open port(s) total"
+    if total_risky_ports:
+        summary += f", {total_risky_ports} high/critical-risk port(s) flagged"
+    print(summary + ".\n")
 
 
-def _print_netscan_host(host: dict[str, Any], *, discover_only: bool) -> int:
+def _print_netscan_host(host: dict[str, Any], *, discover_only: bool) -> tuple[int, int]:
     label = host["ip"]
     if host.get("hostname"):
         label = f"{host['ip']} ({host['hostname']})"
@@ -811,23 +824,40 @@ def _print_netscan_host(host: dict[str, Any], *, discover_only: bool) -> int:
 
     if host.get("os"):
         print(f"    OS: {host['os']}")
+    for script in host.get("scripts") or []:
+        print(f"    [{script['id']}] {script['output']}")
 
     open_ports = host.get("openPorts", [])
     if not open_ports:
         msg = "port scan skipped (--discover-only)" if discover_only else "no open ports found"
         print(f"    ({msg})\n")
-        return 0
+        return 0, 0
 
     col_header = f"    {'PORT':<10}{'STATE':<9}{'SERVICE':<17}{'INFO'}"
     print(col_header)
     print("    " + "-" * (len(col_header) - 4))
+    risky_count = 0
     for port_info in open_ports:
-        port_label = f"{port_info['port']}/{port_info.get('protocol', 'tcp')}"
-        print(
-            f"    {port_label:<10}"
-            f"{port_info.get('state', 'open'):<9}"
-            f"{port_info.get('service', 'unknown'):<17}"
-            f"{port_info.get('banner') or ''}"
-        )
+        risky_count += _print_netscan_port(port_info)
     print()
-    return len(open_ports)
+    return len(open_ports), risky_count
+
+
+def _print_netscan_port(port_info: dict[str, Any]) -> int:
+    port_label = f"{port_info['port']}/{port_info.get('protocol', 'tcp')}"
+    risk = port_info.get("risk")
+    risk_tag = f"  [{risk['level'].upper()} RISK]" if risk else ""
+    print(
+        f"    {port_label:<10}"
+        f"{port_info.get('state', 'open'):<9}"
+        f"{port_info.get('service', 'unknown'):<17}"
+        f"{port_info.get('banner') or ''}{risk_tag}"
+    )
+    if risk:
+        print(f"        ! {risk['reason']}")
+    for key, value in (port_info.get("details") or {}).items():
+        print(f"        {key}: {value}")
+    for script in port_info.get("scripts") or []:
+        print(f"        [{script['id']}] {script['output']}")
+
+    return 1 if risk and risk["level"] in ("high", "critical") else 0

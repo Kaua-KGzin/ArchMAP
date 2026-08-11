@@ -517,6 +517,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="attempt OS fingerprinting via nmap -O (requires the nmap engine and root)",
     )
     netscan_parser.add_argument(
+        "--scripts",
+        action="store_true",
+        help=(
+            "run nmap's default scripts + version detection (-sC -sV) for deeper "
+            "per-port analysis: page titles, TLS cert info, known misconfigurations, "
+            "etc. (requires the nmap engine)"
+        ),
+    )
+    netscan_parser.add_argument(
         "--timeout",
         type=float,
         default=1.0,

@@ -23,6 +23,7 @@ def test_run_netscan_pure_python(monkeypatch) -> None:
     assert result["discoverOnly"] is False
     assert len(result["hosts"]) == 1
     assert result["hosts"][0]["ip"] == "10.0.0.1"
+    assert result["hosts"][0]["scripts"] == []
     assert result["hosts"][0]["openPorts"][0]["port"] == 22
     assert "durationSeconds" in result
 
@@ -141,3 +142,18 @@ def test_run_netscan_passes_detect_os_to_nmap(monkeypatch) -> None:
     netscan_scanner.run_netscan("10.0.0.1", ports_spec="22", use_nmap=True, detect_os=True)
 
     assert captured["detect_os"] is True
+
+
+def test_run_netscan_passes_scripts_to_nmap(monkeypatch) -> None:
+    monkeypatch.setattr(netscan_scanner, "parse_targets", lambda spec: ["10.0.0.1"])
+    captured: dict = {}
+
+    def fake_run_nmap(target, ports, **kw):
+        captured.update(kw)
+        return {"engine": "nmap", "hosts": []}
+
+    monkeypatch.setattr(netscan_scanner, "run_nmap", fake_run_nmap)
+
+    netscan_scanner.run_netscan("10.0.0.1", ports_spec="22", use_nmap=True, scripts=True)
+
+    assert captured["scripts"] is True

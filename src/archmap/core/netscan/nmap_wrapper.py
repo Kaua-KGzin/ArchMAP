@@ -5,6 +5,8 @@ import subprocess
 import xml.etree.ElementTree as ET
 from typing import Any
 
+from archmap.core.netscan.risk import classify_port
+
 
 def is_nmap_available() -> bool:
     return shutil.which("nmap") is not None
@@ -20,6 +22,7 @@ def run_nmap(
     *,
     extra_args: str | None = None,
     detect_os: bool = False,
+    scripts: bool = False,
     timeout: float = 300.0,
 ) -> dict[str, Any]:
     """Shell out to the system `nmap` binary and parse its XML output.
@@ -41,6 +44,11 @@ def run_nmap(
     if detect_os:
         # -O (OS fingerprinting) needs raw sockets, i.e. root.
         command.insert(-1, "-O")
+    if scripts:
+        # Default NSE scripts + version detection, for per-port analysis
+        # (page titles, SSL cert info, banners, known misconfigurations, ...).
+        command.insert(-1, "-sC")
+        command.insert(-1, "-sV")
     if extra_args:
         command.extend(extra_args.split())
 
@@ -78,6 +86,16 @@ def _parse_os_guess(host_el: ET.Element) -> str | None:
         return None
     name = best_match.get("name")
     return f"{name} ({best_accuracy}%)" if name else None
+
+
+def _parse_scripts(elements: list[ET.Element]) -> list[dict[str, str]]:
+    scripts: list[dict[str, str]] = []
+    for script_el in elements:
+        script_id = script_el.get("id")
+        output = script_el.get("output")
+        if script_id and output:
+            scripts.append({"id": script_id, "output": " ".join(output.split())[:300]})
+    return scripts
 
 
 def _parse_runstats(root: ET.Element) -> dict[str, Any] | None:
@@ -121,13 +139,17 @@ def _parse_nmap_xml(xml_text: str) -> dict[str, Any]:
                 continue
 
             service, banner = _parse_service_info(port_el.find("service"))
+            port_num = int(port_el.get("portid"))
             open_ports.append(
                 {
-                    "port": int(port_el.get("portid")),
+                    "port": port_num,
                     "protocol": port_el.get("protocol", "tcp"),
                     "state": "open",
                     "service": service,
                     "banner": banner,
+                    "details": None,
+                    "scripts": _parse_scripts(port_el.findall("script")),
+                    "risk": classify_port(port_num),
                 }
             )
 
@@ -137,6 +159,7 @@ def _parse_nmap_xml(xml_text: str) -> dict[str, Any]:
                 "hostname": hostname,
                 "status": "up" if state == "up" else "down",
                 "os": _parse_os_guess(host_el),
+                "scripts": _parse_scripts(host_el.findall("hostscript/script")),
                 "openPorts": open_ports,
             }
         )

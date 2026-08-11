@@ -22,6 +22,18 @@ All notable changes to this project are documented in this file.
   more capable scanner than a from-scratch one. `--use-nmap` now only forces
   it (erroring if missing) instead of opting in; pass `--no-nmap` to fall back
   to the built-in stdlib-only scanner even when nmap is present.
+- **Per-port analysis** — every open port is now checked against a static
+  table of known-risky ports/services (Telnet, SMB, RDP, VNC, exposed
+  Redis/MongoDB/Elasticsearch/Memcached, unauthenticated Docker API, etc.)
+  and flagged with a `[LEVEL RISK]` tag and reason in the report, on either
+  engine. The Python engine's fingerprinting now does a real HTTP(S) `GET`
+  (including over TLS on 443/8443/...) to extract the page title and
+  `Server` header instead of just the first response line. New `--scripts`
+  flag runs nmap's default NSE scripts + version detection (`-sC -sV`) for
+  deeper per-port and per-host analysis (page titles, TLS cert info, known
+  misconfigurations); script and risk info are parsed into the JSON report
+  and shown indented under each port in the human-readable output, with a
+  risky-port count added to the summary footer.
 
 ## [1.0.3] - 2026-06-11
 

@@ -182,7 +182,9 @@ archmap netscan 192.168.1.0/24 --no-nmap              # force the built-in scann
 
 Two scan engines, one report format. If `nmap` is installed, ArchMAP uses it automatically as the engine — it's simply a more capable scanner than a from-scratch one. Pass `--no-nmap` to force the built-in stdlib-only scanner instead (no root, no extra dependencies — works the same way on a laptop or in Termux on Android), or `--use-nmap` to require nmap and fail loudly if it's missing. Either way, the target spec accepts a single IP/hostname, a CIDR block, a dash range (`192.168.1.1-50`), or a comma-separated combination.
 
-The built-in engine discovers hosts via ICMP ping with a TCP connect-probe fallback (ICMP is often filtered on real networks), then does a threaded TCP connect port scan with optional banner grabbing (`--no-fingerprint` to disable). Both engines report through the same clean, aligned table — nmap just fills in more of it (service version/extrainfo from `-sV`, an OS guess when `--os-detection` succeeds, and nmap's own scan stats), instead of nmap's raw scrolling console output:
+The built-in engine discovers hosts via ICMP ping with a TCP connect-probe fallback (ICMP is often filtered on real networks), then does a threaded TCP connect port scan. Every open port gets analyzed, not just marked open: it's checked against a table of known-risky ports/services (Telnet, exposed Redis/Mongo/Elasticsearch, unauthenticated Docker API, RDP, VNC, SMB, ...) and, with fingerprinting on (`--no-fingerprint` to disable), a deeper probe — HTTP(S) title/`Server` header (over TLS for 443/8443/...), or the raw service banner otherwise.
+
+Both engines report through the same clean, aligned table — nmap just fills in more of it: service version/extrainfo from `-sV`, an OS guess with `--os-detection`, nmap's own NSE scripts with `--scripts` (page titles, TLS cert info, known misconfigurations...), and its own scan stats — instead of nmap's raw scrolling console output:
 
 ```text
   Network Scan — target: 192.168.1.0/24 (engine: nmap v7.94)
@@ -194,11 +196,14 @@ The built-in engine discovers hosts via ICMP ping with a TCP connect-probe fallb
     ----------------------------------------
     22/tcp    open     ssh              OpenSSH 9.0
     80/tcp    open     http             nginx 1.18.0
+        [http-title] Welcome page
+    6379/tcp  open     redis              [HIGH RISK]
+        ! Redis is frequently deployed with no authentication
 
-  Summary: 2 host(s) up, 2 open port(s) total.
+  Summary: 2 host(s) up, 3 open port(s) total, 1 high/critical-risk port(s) flagged.
 ```
 
-`--os-detection` adds nmap's `-O` OS fingerprinting (requires the nmap engine and root).
+`--os-detection` adds nmap's `-O` OS fingerprinting; `--scripts` adds nmap's default NSE scripts + version detection (`-sC -sV`). Both require the nmap engine (and `--os-detection` needs root).
 
 **Termux setup:**
 
