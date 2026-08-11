@@ -167,6 +167,32 @@ archmap temporal . --top 30 --json    # machine-readable output
 
 Parses `git log` and ranks file pairs by co-change frequency + coupling strength. Zero new dependencies (stdlib only).
 
+### Netscan (network discovery)
+
+> **Only scan networks and hosts you own or are explicitly authorized to test.** Unauthorized scanning may be illegal in your jurisdiction.
+
+```bash
+archmap netscan 192.168.1.0/24                      # discover hosts + scan top 20 ports
+archmap netscan 192.168.1.10 --ports 22,80,443       # scan specific ports on one host
+archmap netscan 192.168.1.0/24 --discover-only       # just find which hosts are up
+archmap netscan 10.0.0.1-50 --top-ports 100 --json   # scan a range, machine-readable output
+archmap netscan 192.168.1.0/24 --use-nmap            # delegate to the system nmap binary
+```
+
+A lightweight, stdlib-only host/port scanner — no root and no extra dependencies required, so it runs the same way on a laptop or in Termux on Android. Accepts a single IP/hostname, a CIDR block, a dash range (`192.168.1.1-50`), or a comma-separated combination.
+
+Host discovery tries ICMP ping first, then falls back to TCP connect probes on common ports (ICMP is often filtered on real networks). Open ports are found with a threaded TCP connect scan, with optional service banner grabbing (`--no-fingerprint` to disable). Pass `--use-nmap` to shell out to a real `nmap` install instead — useful for `-sV`/`-O`-style deeper scans via `--nmap-args`.
+
+**Termux setup:**
+
+```bash
+pkg install python
+pip install KG-ARCHMAP
+archmap netscan 192.168.1.0/24
+# optional, for --use-nmap:
+pkg install nmap
+```
+
 ### MCP server (AI assistant integration)
 
 ```bash

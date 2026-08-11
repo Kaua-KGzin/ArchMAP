@@ -50,6 +50,7 @@ from archmap.core.analyzer import (
     suggest_architecture,
     trace_reachability,
 )
+from archmap.core.netscan import run_netscan as _scan_network
 from archmap.utils.file_utils import normalize_file_id
 
 
@@ -722,3 +723,79 @@ def _print_watch_diff(old: dict, new: dict) -> None:
         print(f"  Added: {len(added)} files")
     if removed:
         print(f"  Removed: {len(removed)} files")
+
+
+def run_netscan(args: argparse.Namespace) -> int:
+    print(
+        "[warning] Only scan networks and hosts you own or are explicitly "
+        "authorized to test. Unauthorized scanning may be illegal.",
+        file=sys.stderr,
+    )
+
+    try:
+        result = _scan_network(
+            args.target,
+            ports_spec=getattr(args, "ports", None),
+            top_ports=getattr(args, "top_ports", None),
+            discover_only=getattr(args, "discover_only", False),
+            no_discover=getattr(args, "no_discover", False),
+            fingerprint=getattr(args, "fingerprint", True),
+            use_nmap=getattr(args, "use_nmap", False),
+            nmap_args=getattr(args, "nmap_args", None),
+            timeout=getattr(args, "timeout", 1.0),
+            concurrency=getattr(args, "concurrency", 200),
+        )
+    except (ValueError, RuntimeError, OSError) as exc:
+        print(f"[error] {exc}", file=sys.stderr)
+        return 1
+
+    if getattr(args, "out", None):
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(json.dumps(result, indent=2), encoding="utf-8")
+        print(f"[info] Report written to {args.out}")
+
+    if getattr(args, "json", False):
+        print(json.dumps(result, indent=2))
+        return 0
+
+    _print_netscan_report(result)
+    return 0
+
+
+def _print_netscan_report(result: dict[str, Any]) -> None:
+    hosts = result.get("hosts", [])
+    engine = result.get("engine", "python")
+    scanned = result.get("hostsScanned")
+
+    print(f"\n  Network Scan — target: {result.get('target')} (engine: {engine})")
+    if scanned is not None:
+        print(f"  Hosts probed: {scanned} — hosts up: {len(hosts)}")
+    print(f"  Duration: {result.get('durationSeconds', 0):.2f}s\n")
+
+    if not hosts:
+        print("  No live hosts found.")
+        return
+
+    for host in hosts:
+        label = host.get("hostname") or host.get("ip")
+        if host.get("hostname"):
+            label = f"{host['ip']} ({host['hostname']})"
+        print(f"  {label} — {host.get('status', 'up')}")
+
+        open_ports = host.get("openPorts", [])
+        if not open_ports:
+            msg = (
+                "port scan skipped (--discover-only)"
+                if result.get("discoverOnly")
+                else "no open ports found"
+            )
+            print(f"      ({msg})")
+            continue
+
+        for port_info in open_ports:
+            banner = f" — {port_info['banner']}" if port_info.get("banner") else ""
+            print(
+                f"      {port_info['port']}/{port_info.get('protocol', 'tcp'):<3} "
+                f"{port_info.get('service', 'unknown'):<15}{banner}"
+            )
+        print()

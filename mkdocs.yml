@@ -92,6 +92,7 @@ nav:
       - init: cli/init.md
       - advise: cli/advise.md
       - temporal: cli/temporal.md
+      - netscan: cli/netscan.md
       - mcp: cli/mcp.md
       - watch: cli/watch.md
   - Internals:

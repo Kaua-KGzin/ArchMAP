@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **`archmap netscan`** — nmap-style network discovery and port scanning, built
+  stdlib-only so it runs without root on Termux (Android) as well as on regular
+  Linux/macOS/Windows. Accepts single hosts, CIDR blocks, or dash ranges;
+  supports host discovery (ping with TCP-probe fallback), threaded TCP port
+  scanning, service banner fingerprinting, and JSON output. `--use-nmap`
+  delegates to a system `nmap` install for deeper scans (`-sV`, `-O`, etc. via
+  `--nmap-args`). First step toward ArchMAP mapping more than just source code.
+
 ## [1.0.3] - 2026-06-11
 
 Tree-sitter engine overhaul. Tree-sitter becomes a resilient *primary* parser

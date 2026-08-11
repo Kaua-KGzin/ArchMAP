@@ -13,6 +13,7 @@ from archmap.cli.commands import run_history as _run_history
 from archmap.cli.commands import run_improve as _run_improve
 from archmap.cli.commands import run_init as _run_init
 from archmap.cli.commands import run_mcp as _run_mcp
+from archmap.cli.commands import run_netscan as _run_netscan
 from archmap.cli.commands import run_risk as _run_risk
 from archmap.cli.commands import run_serve as _run_serve
 from archmap.cli.commands import run_temporal as _run_temporal
@@ -60,6 +61,7 @@ def _resolve_command_handler(command: str | None):
         "advise": _run_advise,
         "mcp": _run_mcp,
         "temporal": _run_temporal,
+        "netscan": _run_netscan,
     }
     return handlers.get(command)
 

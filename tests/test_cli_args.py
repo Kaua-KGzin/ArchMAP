@@ -140,3 +140,53 @@ def test_build_parser_sets_improve_defaults() -> None:
     assert args.max_groups == 8
     assert args.out_script is None
     assert args.parallel is True
+
+
+def test_build_parser_sets_netscan_defaults() -> None:
+    parser = cli_args.build_parser()
+
+    args = parser.parse_args(["netscan", "192.168.1.0/24"])
+
+    assert args.command == "netscan"
+    assert args.target == "192.168.1.0/24"
+    assert args.ports is None
+    assert args.top_ports is None
+    assert args.discover_only is False
+    assert args.no_discover is False
+    assert args.fingerprint is True
+    assert args.use_nmap is False
+    assert args.nmap_args is None
+    assert args.timeout == 1.0
+    assert args.concurrency == 200
+    assert args.json is False
+    assert args.out is None
+
+
+def test_build_parser_netscan_accepts_overrides() -> None:
+    parser = cli_args.build_parser()
+
+    args = parser.parse_args(
+        [
+            "netscan",
+            "10.0.0.1",
+            "--ports", "22,80",
+            "--discover-only",
+            "--no-fingerprint",
+            "--use-nmap",
+            "--nmap-args=-sV",
+            "--timeout", "2.5",
+            "--concurrency", "50",
+            "--json",
+            "--out", "report.json",
+        ]
+    )
+
+    assert args.ports == "22,80"
+    assert args.discover_only is True
+    assert args.fingerprint is False
+    assert args.use_nmap is True
+    assert args.nmap_args == "-sV"
+    assert args.timeout == 2.5
+    assert args.concurrency == 50
+    assert args.json is True
+    assert args.out == "report.json"

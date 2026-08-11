@@ -442,6 +442,86 @@ def build_parser() -> argparse.ArgumentParser:
     )
     temporal_parser.add_argument("--json", action="store_true")
 
+    netscan_parser = subparsers.add_parser(
+        "netscan",
+        help="discover hosts and open ports on a network (nmap-style, works in Termux, no root)",
+        description=(
+            "Discover live hosts and scan open ports on a network. Pure Python by "
+            "default (no root/dependencies needed — works in Termux), or delegate "
+            "to the system nmap binary with --use-nmap. "
+            "Only scan networks and hosts you own or are explicitly authorized to test."
+        ),
+    )
+    netscan_parser.add_argument(
+        "target",
+        help=(
+            "host/IP, hostname, CIDR block, or range to scan "
+            "(e.g. 192.168.1.10, 192.168.1.0/24, 192.168.1.1-50). "
+            "Comma-separate multiple targets."
+        ),
+    )
+    netscan_parser.add_argument(
+        "--ports",
+        default=None,
+        metavar="SPEC",
+        help="ports to scan, e.g. '22,80,443' or '1-1024' (default: top 20 common ports)",
+    )
+    netscan_parser.add_argument(
+        "--top-ports",
+        type=int,
+        default=None,
+        metavar="N",
+        help="scan the N most common ports instead of an explicit --ports spec",
+    )
+    netscan_parser.add_argument(
+        "--discover-only",
+        action="store_true",
+        help="only discover which hosts are up; skip port scanning",
+    )
+    netscan_parser.add_argument(
+        "--no-discover",
+        action="store_true",
+        help="skip host discovery and port-scan every address in the target directly",
+    )
+    netscan_parser.add_argument(
+        "--fingerprint",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="grab service banners on open ports (default: on)",
+    )
+    netscan_parser.add_argument(
+        "--use-nmap",
+        action="store_true",
+        help="delegate scanning to the system nmap binary instead of the built-in scanner",
+    )
+    netscan_parser.add_argument(
+        "--nmap-args",
+        default=None,
+        metavar="ARGS",
+        help="extra raw arguments passed through to nmap (only with --use-nmap)",
+    )
+    netscan_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=1.0,
+        metavar="SECS",
+        help="per-connection timeout in seconds (default: 1.0)",
+    )
+    netscan_parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=200,
+        metavar="N",
+        help="max concurrent connections for discovery/port scanning (default: 200)",
+    )
+    netscan_parser.add_argument("--json", action="store_true")
+    netscan_parser.add_argument(
+        "--out",
+        metavar="PATH",
+        default=None,
+        help="write the JSON scan report to file",
+    )
+
     subparsers.add_parser("version", help="print tool version")
     return parser
 
