@@ -2,6 +2,11 @@
 
 ## Released
 
+### v1.1.0 (2026-08-12)
+- **`archmap netscan`** — nmap-style network discovery and port scanning built into ArchMAP: host discovery, threaded TCP port scanning, service fingerprinting, and per-port risk classification, all stdlib-only so it runs on Termux/Android without root. Uses a system `nmap` install automatically when present (`--no-nmap`/`--use-nmap` to override), adding OS detection (`--os-detection`) and NSE scripts (`--scripts`). First step past static-code-only analysis.
+- **Web UI mobile/Termux fixes** — responsive toolbar/nav-rail layout at tablet and phone widths, and the "Open project" button now falls back to a manual path prompt instead of doing nothing when no native folder picker is available (the common case on Termux).
+- **Fail-fast on a nonexistent project path** — `analyze`/`serve`/etc. now error clearly instead of silently reporting a "successful" 0-file scan, which was masking real Termux shared-storage permission issues.
+
 ### v1.0.3 (2026-06-11)
 - **Tree-sitter as resilient primary parser** — per-language grammar availability + automatic per-file fallback to regex (`try_extract`) when a parse fails or is unreliable (no more dropped files).
 - **Structured C# extraction** (aliases, `global using`, `static`) via typed AST nodes.

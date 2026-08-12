@@ -2,6 +2,77 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.0] - 2026-08-12
+
+Network mapping release. ArchMAP grows past static code analysis with a
+built-in network scanner, plus a round of mobile/Termux fixes found while
+dogfooding the web UI and CLI on Android.
+
+### Added
+- **`archmap netscan`** — nmap-style network discovery and port scanning, built
+  stdlib-only so it runs without root on Termux (Android) as well as on regular
+  Linux/macOS/Windows. Accepts single hosts, CIDR blocks, or dash ranges;
+  supports host discovery (ping with TCP-probe fallback), threaded TCP port
+  scanning, service banner fingerprinting, and JSON output. `--use-nmap`
+  delegates to a system `nmap` install for deeper scans (`-sV`, `-O`, etc. via
+  `--nmap-args`). First step toward ArchMAP mapping more than just source code.
+- **`archmap netscan` report redesign** — human-readable output is now a clean
+  aligned table (PORT/STATE/SERVICE/INFO per host, plus an up/duration summary
+  line and a totals footer) instead of a flat list, so it reads the same way
+  regardless of engine. New `--os-detection` flag surfaces nmap's `-O` OS guess
+  when the nmap engine runs; nmap's own scan stats, version, and richer service
+  info (product/version/extrainfo) are now parsed and shown too.
+- **nmap is now the default `netscan` engine when installed** — it's simply a
+  more capable scanner than a from-scratch one. `--use-nmap` now only forces
+  it (erroring if missing) instead of opting in; pass `--no-nmap` to fall back
+  to the built-in stdlib-only scanner even when nmap is present.
+- **Per-port analysis** — every open port is now checked against a static
+  table of known-risky ports/services (Telnet, SMB, RDP, VNC, exposed
+  Redis/MongoDB/Elasticsearch/Memcached, unauthenticated Docker API, etc.)
+  and flagged with a `[LEVEL RISK]` tag and reason in the report, on either
+  engine. The Python engine's fingerprinting now does a real HTTP(S) `GET`
+  (including over TLS on 443/8443/...) to extract the page title and
+  `Server` header instead of just the first response line. New `--scripts`
+  flag runs nmap's default NSE scripts + version detection (`-sC -sV`) for
+  deeper per-port and per-host analysis (page titles, TLS cert info, known
+  misconfigurations); script and risk info are parsed into the JSON report
+  and shown indented under each port in the human-readable output, with a
+  risky-port count added to the summary footer.
+
+### Fixed
+- **Web UI (`archmap serve`) mobile/Termux layout** — the desktop toolbar
+  (fixed-width search box, spacer-pushed buttons) no longer gets squeezed
+  into an unreadable single row once the workspace collapses to its
+  single-column mobile layout (≤960px, e.g. tablets and phones in
+  landscape). The toolbar now wraps into title/tabs/search/action rows,
+  export/refresh buttons go icon-only with accessible labels, the nav rail
+  scrolls horizontally with larger touch targets instead of overflowing
+  off-screen, and the mini-map shrinks (then hides below 460px) instead of
+  overlapping graph content. Verified at common phone/tablet/landscape
+  viewport sizes.
+- **Web UI "Open project" button doing nothing on Termux/headless servers** —
+  the native folder picker (`/api/open`) needs `tkinter` and a display, which
+  Termux doesn't have; the server already detected this and returned a
+  `manual_path` fallback response, but the frontend silently ignored anything
+  that wasn't a 200 and dropped it on the floor. It now prompts for the path
+  directly and posts it to `/api/project`, with a visible error message on
+  failure instead of nothing happening. `/api/project` also now expands `~`
+  in the entered path (previously only worked with absolute paths).
+- **Silent "0 files analyzed" on a nonexistent project path** — `analyze`,
+  `serve`, and every other command now fail fast with
+  `project path does not exist: ...` when given a path that isn't actually
+  there, instead of quietly reporting a "successful" scan with 0 files and
+  100/100 health. This was the confusing symptom behind a real Termux issue:
+  Android's scoped storage can make a project folder look empty (or the
+  path resolve to nothing at all) from Termux's side even though the files
+  are genuinely on the device — see the new Termux setup docs.
+
+### Docs
+- Added a Termux (Android) shared-storage troubleshooting section
+  (`termux-setup-storage`, the separate Android "All files access"
+  permission, and copying into Termux's own home directory as the most
+  reliable fix) to the installation guide, linked from the README.
+
 ## [1.0.3] - 2026-06-11
 
 Tree-sitter engine overhaul. Tree-sitter becomes a resilient *primary* parser

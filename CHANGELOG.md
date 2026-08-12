@@ -2,7 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [1.1.0] - 2026-08-12
+
+Network mapping release. ArchMAP grows past static code analysis with a
+built-in network scanner, plus a round of mobile/Termux fixes found while
+dogfooding the web UI and CLI on Android.
 
 ### Added
 - **`archmap netscan`** — nmap-style network discovery and port scanning, built

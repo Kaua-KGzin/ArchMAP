@@ -101,9 +101,13 @@ archmap serve .
 | [`temporal`](cli/temporal.md) | Temporal coupling via git history |
 | [`mcp`](cli/mcp.md) | MCP server for AI assistant integration |
 | [`watch`](cli/watch.md) | Continuous analysis on file change |
+| [`netscan`](cli/netscan.md) | Network host discovery + port scanning, nmap-style |
 
-## What's new in 1.0.x
+## What's new
 
+- **1.1.0** — `archmap netscan`: nmap-style network discovery, port scanning,
+  and per-port risk classification, stdlib-only (works on Termux without root).
+  Web UI mobile/Termux fixes, and fail-fast on a nonexistent project path.
 - **1.0.3** — tree-sitter becomes a resilient *primary* parser with automatic
   per-file fallback to the regex path; structured C# extraction.
 - **1.0.2** — comment-aware parsing and configuration-aware resolution

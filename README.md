@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/>
   </a>
   <a href="./CHANGELOG.md">
-    <img src="https://img.shields.io/badge/version-1.0.3-brightgreen" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-1.1.0-brightgreen" alt="Version"/>
   </a>
   <a href="https://pypi.org/project/KG-ARCHMAP/">
     <img src="https://img.shields.io/badge/PyPI-KG--ARCHMAP-orange?logo=pypi&logoColor=white" alt="PyPI"/>
@@ -34,7 +34,7 @@ ArchMAP scans source code, builds dependency graphs, detects cycles, reports arc
 
 | | |
 |---|---|
-| Release | `v1.0.3` |
+| Release | `v1.1.0` |
 | Runtime | Python `>=3.11` |
 | UI | built-in static UI + Node dev server |
 | Distribution | PyPI (`KG-ARCHMAP`) + Windows `.exe` |
