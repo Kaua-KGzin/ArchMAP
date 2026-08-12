@@ -50,8 +50,7 @@ def parse_ports(spec: str | None, *, top: int | None = None) -> list[int]:
     """
     if not spec:
         count = top if top and top > 0 else 20
-        ports = TOP_PORTS[:count]
-        return sorted(set(ports))
+        return sorted(set(TOP_PORTS[:count]))
 
     ports: set[int] = set()
     for chunk in spec.split(","):

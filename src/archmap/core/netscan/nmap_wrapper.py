@@ -138,8 +138,12 @@ def _parse_nmap_xml(xml_text: str) -> dict[str, Any]:
             if port_state != "open":
                 continue
 
+            portid = port_el.get("portid")
+            if portid is None:
+                continue
+
             service, banner = _parse_service_info(port_el.find("service"))
-            port_num = int(port_el.get("portid"))
+            port_num = int(portid)
             open_ports.append(
                 {
                     "port": port_num,
