@@ -188,6 +188,13 @@ def _tool_get_network_exposure(
     )
 
 
+def _tool_get_project_memory(project_path: str) -> dict:
+    from archmap.core.memory import generate_memory_digest
+
+    result = _get_analysis(project_path)
+    return {"memory": generate_memory_digest(result)}
+
+
 def _tool_run_checks(project_path: str) -> dict:
     result = _get_analysis(project_path)
     risks = result.get("risks", {})
@@ -219,11 +226,37 @@ def _tool_run_checks(project_path: str) -> dict:
 
 _TOOLS = [
     {
+        "name": "get_project_memory",
+        "description": (
+            "Returns a compact markdown digest of the project's architecture — health "
+            "score, top risk files, cycles, layer/rule violations — the same content "
+            "'archmap memory' writes to .archmap/memory.md. Call this first, before "
+            "exploring the codebase with file reads or grep: it's a pre-computed "
+            "snapshot that answers 'what's the state of this codebase' in one call "
+            "instead of many, and stays cheap on repeat calls via the same fingerprint "
+            "cache 'archmap analyze' uses."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_path": {
+                    "type": "string",
+                    "description": (
+                        "Absolute path to the project root "
+                        "(default: server startup path)."
+                    ),
+                }
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "get_architecture_summary",
         "description": (
-            "Returns a high-level architectural health summary for the project: "
-            "health score, file count, cycle count, god modules, layer violations, "
-            "and the top 5 riskiest files. Call this first to orient yourself."
+            "Returns a high-level architectural health summary for the project as "
+            "structured JSON: health score, file count, cycle count, god modules, "
+            "layer violations, and the top 5 riskiest files. Prefer 'get_project_memory' "
+            "for a broader prose digest; use this when you need the numbers as data."
         ),
         "inputSchema": {
             "type": "object",
@@ -475,7 +508,9 @@ def _dispatch(message: dict, default_path: str) -> dict | None:
         project_path = str(args.get("project_path") or default_path)
 
         try:
-            if tool_name == "get_architecture_summary":
+            if tool_name == "get_project_memory":
+                data = _tool_get_project_memory(project_path)
+            elif tool_name == "get_architecture_summary":
                 data = _tool_get_architecture_summary(project_path)
             elif tool_name == "get_file_context":
                 file = args.get("file", "")

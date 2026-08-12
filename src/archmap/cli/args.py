@@ -472,6 +472,42 @@ def build_parser() -> argparse.ArgumentParser:
         help="project root to correlate against (default: current directory)",
     )
 
+    memory_parser = subparsers.add_parser(
+        "memory",
+        help="generate a compact architecture digest for AI coding agents (Claude Code, etc.)",
+        description=(
+            "Renders the project's health, risks, cycles, and rule violations into a "
+            "compact markdown snapshot (default: .archmap/memory.md) an AI coding agent "
+            "can read at session start instead of re-exploring the codebase from "
+            "scratch. Cheap to re-run: it reuses archmap's own analysis cache, so a "
+            "no-op call after an unrelated edit is nearly instant. See docs/cli/memory.md "
+            "for ready-to-paste Claude Code hook snippets that keep it fresh automatically."
+        ),
+    )
+    memory_parser.add_argument("path", nargs="?", default=".")
+    memory_parser.add_argument(
+        "--out",
+        default=None,
+        help="output file path (default: <path>/.archmap/memory.md)",
+    )
+    memory_parser.add_argument(
+        "--print",
+        dest="print_only",
+        action="store_true",
+        help="print the digest to stdout instead of writing a file",
+    )
+    memory_parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="suppress the confirmation line (for use in hooks)",
+    )
+    memory_parser.add_argument(
+        "--parallel",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="enable parallel file parsing for speedup",
+    )
+
     subparsers.add_parser("version", help="print tool version")
     return parser
 

@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **`archmap memory`** — renders the project's architecture (health score,
+  top risk files, cycles, layer/rule violations) into a compact markdown
+  digest (default `.archmap/memory.md`) meant for AI coding agents to read
+  at session start instead of re-exploring the codebase from scratch.
+  Reuses `archmap analyze`'s own fingerprint cache, so repeat calls after a
+  no-op edit are nearly instant, and writes are idempotent (a call that
+  finds no architectural change skips rewriting the file rather than
+  touching its mtime over a timestamp-only diff). `--print` prints the
+  digest instead of writing a file (for a Claude Code `SessionStart` hook
+  to inject straight into context); the default write behavior pairs with
+  a `PostToolUse` hook to keep the file fresh after every edit — see
+  `docs/cli/memory.md` for ready-to-paste hook config. Also exposed as a
+  new `get_project_memory` MCP tool (8 tools total) for agents that use MCP
+  instead of hooks.
 - **`archmap expose` confidence scoring** — every finding now carries a
   `confidence` (0.0–1.0) and `confidenceReasons`. A new endpoint scanner
   (`core/exposure/endpoint_scanner.py`) looks across the project (source

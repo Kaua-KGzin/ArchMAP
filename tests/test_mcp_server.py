@@ -14,6 +14,7 @@ from archmap.cli.mcp_server import (
     _tool_get_architecture_summary,
     _tool_get_file_context,
     _tool_get_network_exposure,
+    _tool_get_project_memory,
     _tool_impact_analysis,
     _tool_run_checks,
     _tool_trace_reachability,
@@ -254,6 +255,27 @@ def test_get_network_exposure_calls_scan_and_correlate(
     assert captured["analysis_result"] is _FAKE_RESULT
 
 
+def test_get_project_memory_returns_digest(mock_analysis: None) -> None:
+    result = _tool_get_project_memory("/fake/project")
+
+    assert "memory" in result
+    assert "# ArchMAP Project Memory" in result["memory"]
+    assert "src/core.py" in result["memory"]
+
+
+def test_dispatch_get_project_memory_round_trip(mock_analysis: None) -> None:
+    msg = {
+        "jsonrpc": "2.0",
+        "id": 12,
+        "method": "tools/call",
+        "params": {"name": "get_project_memory", "arguments": {}},
+    }
+    resp = _dispatch(msg, "/fake/project")
+    assert resp is not None
+    data = json.loads(resp["result"]["content"][0]["text"])
+    assert "# ArchMAP Project Memory" in data["memory"]
+
+
 def test_get_analysis_recomputes_when_fingerprint_changes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -310,7 +332,8 @@ def test_dispatch_tools_list() -> None:
     assert "trace_reachability" in names
     assert "diff_architecture" in names
     assert "get_network_exposure" in names
-    assert len(names) == 7
+    assert "get_project_memory" in names
+    assert len(names) == 8
 
 
 def test_dispatch_unknown_method() -> None:

@@ -94,6 +94,7 @@ nav:
       - temporal: cli/temporal.md
       - netscan: cli/netscan.md
       - expose: cli/expose.md
+      - memory: cli/memory.md
       - mcp: cli/mcp.md
       - watch: cli/watch.md
   - Internals:

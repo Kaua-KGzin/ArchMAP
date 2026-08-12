@@ -26,10 +26,11 @@ archmap mcp /path/to/my-project
 
 ## Tools exposed
 
-The server exposes seven tools:
+The server exposes eight tools:
 
 | Tool | Description |
 |---|---|
+| `get_project_memory` | Compact markdown digest of the whole project — health, top risks, cycles, violations — the same content [`archmap memory`](memory.md) writes to `.archmap/memory.md`. Call this first. |
 | `get_architecture_summary` | Full architecture report: health score, cycles, god modules, layer violations, top risk files |
 | `get_file_context` | Per-file detail: imports, dependents, complexity, impact radius |
 | `impact_analysis` | Transitive blast radius of a file or package (`pkg:<name>`) — returns the precomputed impacted-files set and risk tier |
@@ -53,7 +54,7 @@ Add the server to `~/.claude/claude_desktop_config.json`:
 }
 ```
 
-After restarting Claude Code, the seven tools become available in every conversation about that project.
+After restarting Claude Code, the eight tools become available in every conversation about that project.
 
 ## Registering with Cursor or Windsurf
 

@@ -53,6 +53,11 @@ from archmap.core.analyzer import (
 )
 from archmap.core.exposure import correlate_exposure
 from archmap.core.exposure.endpoint_scanner import scan_endpoint_references
+from archmap.core.memory import (
+    DEFAULT_MEMORY_RELATIVE_PATH,
+    digest_changed,
+    generate_memory_digest,
+)
 from archmap.core.netscan import run_netscan as _scan_network
 from archmap.utils.file_utils import normalize_file_id
 
@@ -895,6 +900,40 @@ def run_expose(args: argparse.Namespace) -> int:
         return 0
 
     _print_expose_report(result)
+    return 0
+
+
+def run_memory(args: argparse.Namespace) -> int:
+    project_path = getattr(args, "path", ".")
+    try:
+        report = analyze_project(project_path, parallel=getattr(args, "parallel", None))
+    except (OSError, RuntimeError, ValueError) as exc:
+        print(f"[error] {exc}", file=sys.stderr)
+        return 1
+
+    digest = generate_memory_digest(report)
+
+    if getattr(args, "print_only", False):
+        print(digest, end="")
+        return 0
+
+    root = Path(project_path).resolve()
+    out_arg = getattr(args, "out", None)
+    out_path = Path(out_arg) if out_arg else root / DEFAULT_MEMORY_RELATIVE_PATH
+    if not out_path.is_absolute():
+        out_path = root / out_path
+
+    existing = out_path.read_text(encoding="utf-8") if out_path.exists() else None
+    quiet = getattr(args, "quiet", False)
+    if not digest_changed(existing, digest):
+        if not quiet:
+            print(f"[ok] {out_path} already up to date.")
+        return 0
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(digest, encoding="utf-8")
+    if not quiet:
+        print(f"[ok] Wrote {out_path}")
     return 0
 
 

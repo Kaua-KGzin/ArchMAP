@@ -14,6 +14,7 @@ from archmap.cli.commands import run_history as _run_history
 from archmap.cli.commands import run_improve as _run_improve
 from archmap.cli.commands import run_init as _run_init
 from archmap.cli.commands import run_mcp as _run_mcp
+from archmap.cli.commands import run_memory as _run_memory
 from archmap.cli.commands import run_netscan as _run_netscan
 from archmap.cli.commands import run_risk as _run_risk
 from archmap.cli.commands import run_serve as _run_serve
@@ -64,6 +65,7 @@ def _resolve_command_handler(command: str | None):
         "temporal": _run_temporal,
         "netscan": _run_netscan,
         "expose": _run_expose,
+        "memory": _run_memory,
     }
     return handlers.get(command)
 
@@ -95,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"archmap {__version__}")
         return 0
 
-    if sys.stdout.isatty() and command != "mcp":
+    if sys.stdout.isatty() and command not in ("mcp", "memory"):
         _print_banner()
 
     handler = _resolve_command_handler(command)
