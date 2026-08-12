@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **`archmap expose` confidence scoring** — every finding now carries a
+  `confidence` (0.0–1.0) and `confidenceReasons`. A new endpoint scanner
+  (`core/exposure/endpoint_scanner.py`) looks across the project (source
+  files, `.env` files, and common config formats) for literal connection
+  endpoints — URIs with a known scheme (`redis://host:6379`) and paired
+  `*_HOST`/`*_PORT` config keys — and an exact host:port match against the
+  scanned target is much stronger evidence than the existing service-name-
+  to-package-import guess, which now only backs the lowest confidence tier.
+- **Network rules & drift detection** — `.archmap.toml` gains a
+  `[network.rules]` section (`forbid`/`allow`, same `"source-tag ->
+  target-tag"` syntax as `[architecture.rules]`) to declare which parts of
+  the codebase are expected to talk to which network services. When a
+  high-confidence connection (one ArchMAP can attribute to a specific file)
+  breaks a declared rule, `expose` flags it as a `driftViolation` on that
+  finding, bumps its severity to at least `high`, and lists it in a new
+  top-level `driftViolations` array — "declared vs. observed architecture"
+  extended past the codebase to the network boundary. `get_network_exposure`
+  (MCP) picks up both features automatically.
+- **`archmap.core.analyzer.rule_engine`** — the tag-based rule-matching
+  engine backing `[architecture.rules]` was extracted into its own reusable
+  module (no behavior change for existing architecture rules) so the new
+  network rules could reuse it instead of duplicating the matching logic.
+
 ## [1.1.1] - 2026-08-12
 
 ### Added

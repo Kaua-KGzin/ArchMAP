@@ -19,6 +19,10 @@ allow = ["controller -> service", "service -> repository"]
 [risks.layer_order]
 platform = 6
 core = 3
+
+[network.rules]
+forbid = ["frontend -> postgresql"]
+allow = ["backend -> postgresql"]
 """.strip(),
         encoding="utf-8",
     )
@@ -36,6 +40,14 @@ core = 3
         "service -> repository",
     ]
     assert config["risks"]["layer_order"] == {"platform": 6, "core": 3}
+    assert config["network"]["rules"]["forbid"] == ["frontend -> postgresql"]
+    assert config["network"]["rules"]["allow"] == ["backend -> postgresql"]
+
+
+def test_load_project_config_defaults_network_rules_when_absent(tmp_path) -> None:
+    config = load_project_config(tmp_path)
+
+    assert config["network"]["rules"] == {"forbid": [], "allow": []}
 
 
 def test_parse_project_honors_archmap_toml_ignore_dirs(tmp_path) -> None:

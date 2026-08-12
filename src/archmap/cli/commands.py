@@ -40,6 +40,7 @@ from archmap.cli.server import (
     can_open_browser,
     resolve_static_dir,
 )
+from archmap.config import load_project_config
 from archmap.core import analyze_project
 from archmap.core.advisor import advise_architecture
 from archmap.core.analyzer import (
@@ -51,6 +52,7 @@ from archmap.core.analyzer import (
     trace_reachability,
 )
 from archmap.core.exposure import correlate_exposure
+from archmap.core.exposure.endpoint_scanner import scan_endpoint_references
 from archmap.core.netscan import run_netscan as _scan_network
 from archmap.utils.file_utils import normalize_file_id
 
@@ -870,13 +872,18 @@ def run_expose(args: argparse.Namespace) -> int:
         print(f"[error] {exc}", file=sys.stderr)
         return 1
 
+    project_path = getattr(args, "path", ".")
     try:
-        analysis_result = analyze_project(getattr(args, "path", "."))
+        analysis_result = analyze_project(project_path)
     except (OSError, RuntimeError, ValueError) as exc:
         print(f"[error] {exc}", file=sys.stderr)
         return 1
 
-    result = correlate_exposure(scan_result, analysis_result)
+    config = load_project_config(project_path)
+    endpoint_refs = scan_endpoint_references(project_path, config)
+    result = correlate_exposure(
+        scan_result, analysis_result, endpoint_refs, config["network"]["rules"]
+    )
 
     if getattr(args, "out", None):
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
@@ -899,14 +906,15 @@ def _print_expose_report(result: dict[str, Any]) -> None:
     print(
         f"  open ports: {summary.get('openPorts', 0)} | "
         f"matched to code: {summary.get('matchedToCode', 0)} | "
-        f"high/critical: {summary.get('highSeverity', 0)}\n"
+        f"high/critical: {summary.get('highSeverity', 0)} | "
+        f"drift violations: {summary.get('driftViolations', 0)}\n"
     )
 
     if not findings:
         print("  No open ports found.")
         return
 
-    col_header = f"  {'HOST':<20}  {'PORT':<9}  {'SERVICE':<14}  {'SEVERITY'}"
+    col_header = f"  {'HOST':<20}  {'PORT':<9}  {'SERVICE':<14}  {'CONF':<6}  {'SEVERITY'}"
     print(col_header)
     print("  " + "-" * (len(col_header) - 2))
     for finding in findings:
@@ -915,19 +923,30 @@ def _print_expose_report(result: dict[str, Any]) -> None:
             host_label = f"{finding['host']} ({finding['hostname']})"
         port_label = f"{finding['port']}/{finding.get('protocol', 'tcp')}"
         severity = str(finding.get("severity", "info")).upper()
+        confidence_label = f"{round(finding.get('confidence', 0.0) * 100)}%"
 
         service = finding.get("service", "unknown")
-        print(f"  {host_label:<20}  {port_label:<9}  {service:<14}  {severity}")
+        print(
+            f"  {host_label:<20}  {port_label:<9}  {service:<14}  "
+            f"{confidence_label:<6}  {severity}"
+        )
 
         network_risk = finding.get("networkRisk")
         if network_risk:
             print(f"      ! network: {network_risk['reason']}")
+
+        for reason in finding.get("confidenceReasons", []):
+            print(f"      confidence: {reason}")
 
         for match in finding.get("matchedPackages", []):
             print(
                 f"      code: pkg:{match['package']} — {match['impactCount']} file(s) "
                 f"depend on it (risk: {match['risk']})"
             )
+
+        drift = finding.get("driftViolation")
+        if drift:
+            print(f"      ✗ drift: {drift['message']}")
     print()
 
 

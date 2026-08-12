@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
+from archmap.core.analyzer.rule_engine import detect_rule_violations, file_tags
 from archmap.utils.file_utils import normalize_file_id
 from archmap.utils.layers import DEFAULT_LAYER_ORDER
 
 GROUP_WRAPPERS = {"src", "app", "lib", "packages", "services"}
 SERVICE_ENTRYPOINT_NAMES = {"main", "app", "server", "api", "service"}
-TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 
 
 def analyze_architecture(
@@ -34,7 +33,7 @@ def analyze_architecture(
     active_layer_order = _build_layer_order(layer_order)
     detected_layers = _detect_layers(file_nodes, active_layer_order)
     style = _detect_style(file_nodes, file_edges, groups_by_file, detected_layers)
-    rule_violations = _detect_rule_violations(
+    rule_violations = detect_rule_violations(
         file_edges,
         forbidden_rules or [],
         allowed_rules or [],
@@ -75,7 +74,7 @@ def _detect_layers(file_nodes: list[dict], layer_order: dict[str, int]) -> list[
     detected: set[str] = set()
     known_layers = set(layer_order)
     for node in file_nodes:
-        detected.update(tag for tag in _file_tags(node["id"]) if tag in known_layers)
+        detected.update(tag for tag in file_tags(node["id"]) if tag in known_layers)
 
     return sorted(detected, key=lambda item: (-layer_order[item], item))
 
@@ -127,50 +126,6 @@ def _detect_style(
         "confidence": round(confidence, 2),
         "reasons": reasons,
     }
-
-
-def _detect_rule_violations(
-    file_edges: list[dict],
-    forbidden_rules: list[str],
-    allowed_rules: list[str],
-) -> list[dict]:
-    parsed_forbidden_rules = [_parse_rule(rule) for rule in forbidden_rules]
-    active_forbidden_rules = [
-        rule for rule in parsed_forbidden_rules if rule is not None
-    ]
-    parsed_allowed_rules = [_parse_rule(rule) for rule in allowed_rules]
-    active_allowed_rules = [rule for rule in parsed_allowed_rules if rule is not None]
-    violations: list[dict] = []
-
-    allow_map = _build_allow_rule_map(active_allowed_rules)
-    if not active_forbidden_rules and not allow_map:
-        return violations
-
-    for edge in file_edges:
-        source_tags = _file_tags(edge["source"])
-        target_tags = _file_tags(edge["target"])
-        for source_rule, target_rule, rule_label in active_forbidden_rules:
-            if not source_rule.issubset(source_tags):
-                continue
-            if not target_rule.issubset(target_tags):
-                continue
-            violations.append(
-                {
-                    "source": edge["source"],
-                    "target": edge["target"],
-                    "kind": "forbid",
-                    "sourceTag": " ".join(sorted(source_rule)),
-                    "targetTag": " ".join(sorted(target_rule)),
-                    "rule": rule_label,
-                    "message": (
-                        f"{rule_label} is forbidden but {edge['source']} depends on "
-                        f"{edge['target']}"
-                    ),
-                }
-            )
-        violations.extend(_allow_rule_violations(edge, source_tags, target_tags, allow_map))
-
-    return violations
 
 
 def _compute_health(
@@ -253,100 +208,6 @@ def _cross_group_ratio(file_edges: list[dict], groups_by_file: dict[str, str]) -
         if groups_by_file.get(edge["source"]) != groups_by_file.get(edge["target"])
     )
     return cross_group_edges / len(file_edges)
-
-
-def _file_tags(file_id: str) -> set[str]:
-    normalized = normalize_file_id(file_id).casefold()
-    parts = [part for part in normalized.split("/") if part and part != "."]
-    tags: set[str] = set(parts)
-
-    for part in parts:
-        tags.update(TOKEN_PATTERN.findall(part))
-        stem = Path(part).stem.casefold()
-        if stem:
-            tags.add(stem)
-            tags.update(TOKEN_PATTERN.findall(stem))
-
-    return tags
-
-
-def _parse_rule(rule: str) -> tuple[set[str], set[str], str] | None:
-    if "->" not in rule:
-        return None
-
-    source, target = rule.split("->", 1)
-    source_tag = source.strip().casefold()
-    target_tag = target.strip().casefold()
-    if not source_tag or not target_tag:
-        return None
-
-    source_tokens = _rule_tokens(source_tag)
-    target_tokens = _rule_tokens(target_tag)
-    if not source_tokens or not target_tokens:
-        return None
-
-    return source_tokens, target_tokens, f"{source_tag} -> {target_tag}"
-
-
-def _build_allow_rule_map(
-    allowed_rules: list[tuple[set[str], set[str], str]]
-) -> dict[str, list[tuple[set[str], set[str], str]]]:
-    grouped: dict[str, list[tuple[set[str], set[str], str]]] = {}
-    for source_rule, target_rule, rule_label in allowed_rules:
-        key = " ".join(sorted(source_rule))
-        grouped.setdefault(key, []).append((source_rule, target_rule, rule_label))
-    return grouped
-
-
-def _allow_rule_violations(
-    edge: dict,
-    source_tags: set[str],
-    target_tags: set[str],
-    allow_map: dict[str, list[tuple[set[str], set[str], str]]],
-) -> list[dict]:
-    violations: list[dict] = []
-    matched_source_groups = [
-        source_rules
-        for source_rules in allow_map.values()
-        if source_rules and source_rules[0][0].issubset(source_tags)
-    ]
-
-    for source_rule_group in matched_source_groups:
-        if any(target_rule.issubset(target_tags) for _, target_rule, _ in source_rule_group):
-            continue
-
-        allowed_targets = sorted(
-            {
-                " ".join(sorted(target_rule))
-                for _, target_rule, _ in source_rule_group
-            }
-        )
-        rule_labels = sorted({rule_label for _, _, rule_label in source_rule_group})
-        source_rule = source_rule_group[0][0]
-        violations.append(
-            {
-                "source": edge["source"],
-                "target": edge["target"],
-                "kind": "allow",
-                "sourceTag": " ".join(sorted(source_rule)),
-                "targetTag": " ".join(sorted(target_tags)),
-                "rule": " | ".join(rule_labels),
-                "message": (
-                    f"{edge['source']} should only depend on {', '.join(allowed_targets)} "
-                    f"but currently depends on {edge['target']}"
-                ),
-                "allowedTargets": allowed_targets,
-            }
-        )
-
-    return violations
-
-
-def _rule_tokens(value: str) -> set[str]:
-    tokens = set(TOKEN_PATTERN.findall(value.casefold()))
-    if value:
-        tokens.add(value.casefold())
-    return {token for token in tokens if token}
 
 
 def _grade_for_score(score: int) -> str:

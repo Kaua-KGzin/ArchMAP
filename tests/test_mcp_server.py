@@ -228,13 +228,21 @@ def test_get_network_exposure_calls_scan_and_correlate(
         captured["timeout"] = timeout
         return {"hosts": []}
 
-    def fake_correlate_exposure(scan_result: dict, analysis_result: dict) -> dict:
+    def fake_correlate_exposure(
+        scan_result: dict, analysis_result: dict, endpoint_refs: list, network_rules: dict
+    ) -> dict:
         captured["scan_result"] = scan_result
         captured["analysis_result"] = analysis_result
+        captured["endpoint_refs"] = endpoint_refs
+        captured["network_rules"] = network_rules
         return {"findings": [], "summary": {"openPorts": 0}}
 
     monkeypatch.setattr("archmap.core.netscan.run_netscan", fake_run_netscan)
     monkeypatch.setattr("archmap.core.exposure.correlate_exposure", fake_correlate_exposure)
+    monkeypatch.setattr(
+        "archmap.core.exposure.endpoint_scanner.scan_endpoint_references",
+        lambda path, config: [],
+    )
 
     result = _tool_get_network_exposure(
         "/fake/project", "192.168.1.10", "22,80", None, None, 0.5
@@ -439,7 +447,14 @@ def test_dispatch_get_network_exposure_round_trip(
     )
     monkeypatch.setattr(
         "archmap.core.exposure.correlate_exposure",
-        lambda scan_result, analysis_result: {"findings": [], "summary": {"openPorts": 0}},
+        lambda scan_result, analysis_result, endpoint_refs, network_rules: {
+            "findings": [],
+            "summary": {"openPorts": 0},
+        },
+    )
+    monkeypatch.setattr(
+        "archmap.core.exposure.endpoint_scanner.scan_endpoint_references",
+        lambda path, config: [],
     )
     msg = {
         "jsonrpc": "2.0",

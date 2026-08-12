@@ -36,7 +36,7 @@ The server exposes seven tools:
 | `run_checks` | Quality gate results: cycle count, god modules, layer violations, resolution rate |
 | `trace_reachability` | BFS from an entrypoint file through outgoing dependency edges — everything it transitively pulls in, plus coverage stats and dead-code detection |
 | `diff_architecture` | Architecture diff between two git refs (default `HEAD~1` vs `HEAD`): health/complexity/cycle deltas and per-file changes |
-| `get_network_exposure` | Live network scan of a target, correlated against the project's dependency graph — surfaces which open ports/services map to code the project actually imports, and that code's blast radius (see [`archmap expose`](expose.md)) |
+| `get_network_exposure` | Live network scan of a target, correlated against the project's dependency graph — surfaces which open ports/services map to code the project actually imports, that code's blast radius, a confidence score per finding, and any `[network.rules]` drift violations (see [`archmap expose`](expose.md)) |
 
 ## Registering with Claude Code
 

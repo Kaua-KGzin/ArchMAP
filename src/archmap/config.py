@@ -11,6 +11,8 @@ __all__ = [
     "ArchitectureConfig",
     "ArchitectureRulesConfig",
     "BudgetsConfig",
+    "NetworkConfig",
+    "NetworkRulesConfig",
     "ProjectConfig",
     "RiskConfig",
     "default_project_config",
@@ -48,10 +50,20 @@ class RiskConfig(TypedDict):
     layer_order: dict[str, int]
 
 
+class NetworkRulesConfig(TypedDict):
+    forbid: list[str]
+    allow: list[str]
+
+
+class NetworkConfig(TypedDict):
+    rules: NetworkRulesConfig
+
+
 class ProjectConfig(TypedDict):
     analysis: AnalysisConfig
     architecture: ArchitectureConfig
     risks: RiskConfig
+    network: NetworkConfig
 
 
 DEFAULT_MAX_FILE_SIZE_BYTES = 1_048_576
@@ -69,6 +81,7 @@ def default_project_config() -> ProjectConfig:
         },
         "architecture": {"rules": {"forbid": [], "allow": []}},
         "risks": {"layer_order": {}},
+        "network": {"rules": {"forbid": [], "allow": []}},
     }
 
 
@@ -89,7 +102,11 @@ def load_project_config(
     architecture_section = parsed.get("architecture", {})
     risk_section = parsed.get("risk", {})
     risks_section = parsed.get("risks", {})
+    network_section = parsed.get("network", {})
     rules_section = architecture_section.get("rules", {})
+    network_rules_section = (
+        network_section.get("rules", {}) if isinstance(network_section, dict) else {}
+    )
     layer_section = risks_section.get("layer_order", risk_section.get("layer_order", {}))
     budgets_section = (
         analysis_section.get("budgets", {}) if isinstance(analysis_section, dict) else {}
@@ -111,6 +128,12 @@ def load_project_config(
         },
         "risks": {
             "layer_order": _normalize_layer_order(layer_section),
+        },
+        "network": {
+            "rules": {
+                "forbid": _normalize_rule_list(network_rules_section, "forbid"),
+                "allow": _normalize_rule_list(network_rules_section, "allow"),
+            }
         },
     }
 

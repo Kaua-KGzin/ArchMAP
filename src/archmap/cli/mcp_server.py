@@ -168,7 +168,9 @@ def _tool_get_network_exposure(
     use_nmap: bool | None,
     timeout: float,
 ) -> dict:
+    from archmap.config import load_project_config
     from archmap.core.exposure import correlate_exposure
+    from archmap.core.exposure.endpoint_scanner import scan_endpoint_references
     from archmap.core.netscan import run_netscan
 
     scan_result = run_netscan(
@@ -179,7 +181,11 @@ def _tool_get_network_exposure(
         timeout=timeout,
     )
     analysis_result = _get_analysis(project_path)
-    return correlate_exposure(scan_result, analysis_result)
+    config = load_project_config(project_path)
+    endpoint_refs = scan_endpoint_references(project_path, config)
+    return correlate_exposure(
+        scan_result, analysis_result, endpoint_refs, config["network"]["rules"]
+    )
 
 
 def _tool_run_checks(project_path: str) -> dict:
@@ -381,9 +387,13 @@ _TOOLS = [
             "Scans a network target and cross-references open ports/services against "
             "this project's dependency graph: if an open port's service (e.g. Redis, "
             "PostgreSQL, MongoDB) matches a package the code actually imports, returns "
-            "that package's blast radius alongside the port's network risk rating. "
-            "IMPORTANT: only scan networks/hosts you own or are explicitly authorized "
-            "to test — unauthorized scanning may be illegal."
+            "that package's blast radius alongside the port's network risk rating. Each "
+            "finding carries a confidence score — an exact host:port literal found in "
+            "the codebase (env files, connection URIs) scores much higher than a bare "
+            "service-name-to-import guess — and, when '.archmap.toml' declares "
+            "'[network.rules]', flags drift when a high-confidence connection violates "
+            "a declared forbid/allow rule. IMPORTANT: only scan networks/hosts you own "
+            "or are explicitly authorized to test — unauthorized scanning may be illegal."
         ),
         "inputSchema": {
             "type": "object",

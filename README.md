@@ -235,7 +235,7 @@ pkg install nmap
 archmap expose 192.168.1.0/24 .
 ```
 
-Runs a netscan and cross-references the results against your codebase's dependency graph: if an open port's service (say, Redis on `6379`) matches a package your code actually imports, ArchMAP surfaces that package's already-computed blast radius (how many files depend on it) right next to the port's network risk rating — combined into one severity. Accepts every `archmap netscan` option (`--ports`, `--use-nmap`, `--scripts`, etc.) plus the project path to analyze. See [`archmap expose`](docs/cli/expose.md) for the full option list and JSON schema.
+Runs a netscan and cross-references the results against your codebase's dependency graph: if an open port's service (say, Redis on `6379`) matches a package your code actually imports, ArchMAP surfaces that package's already-computed blast radius (how many files depend on it) right next to the port's network risk rating — combined into one severity. Each finding also carries a `confidence` score: an exact host:port literal found in a `.env` file or connection string scores far higher than a bare service-name guess. Declare expected consumer→service relationships in `.archmap.toml`'s `[network.rules]` (same `forbid`/`allow` syntax as `[architecture.rules]`) and a high-confidence connection that breaks a rule is flagged as a drift violation. Accepts every `archmap netscan` option (`--ports`, `--use-nmap`, `--scripts`, etc.) plus the project path to analyze. See [`archmap expose`](docs/cli/expose.md) for the full option list and JSON schema.
 
 ### MCP server (AI assistant integration)
 
@@ -243,7 +243,7 @@ Runs a netscan and cross-references the results against your codebase's dependen
 archmap mcp .
 ```
 
-Starts a JSON-RPC 2.0 server over stdio exposing 4 tools: `get_architecture_summary`, `get_file_context`, `impact_analysis`, `run_checks`. Register in `~/.claude/claude_desktop_config.json` to let Claude Code, Cursor, or Windsurf query your project's structure before making changes.
+Starts a JSON-RPC 2.0 server over stdio exposing 7 tools: `get_architecture_summary`, `get_file_context`, `impact_analysis`, `run_checks`, `trace_reachability`, `diff_architecture`, `get_network_exposure`. Register in `~/.claude/claude_desktop_config.json` to let Claude Code, Cursor, or Windsurf query your project's structure — and now its network exposure — before making changes. See [`archmap mcp`](docs/cli/mcp.md) for the full tool list.
 
 ### Tree-sitter parser (optional)
 
