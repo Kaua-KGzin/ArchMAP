@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [1.2.0] - 2026-08-12
 
 ### Added
 - **`archmap memory`** — renders the project's architecture (health score,
