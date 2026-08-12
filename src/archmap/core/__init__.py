@@ -18,6 +18,9 @@ def analyze_project(
     use_cache: bool = True,
 ) -> dict[str, Any]:
     project_root = Path(project_path).resolve()
+    if not project_root.exists():
+        raise FileNotFoundError(f"project path does not exist: {project_root}")
+
     config = load_project_config(project_root)
 
     if use_cache:

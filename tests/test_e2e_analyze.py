@@ -23,3 +23,10 @@ def test_analyze_empty_git_repo(tmp_git_repo):
     # No commits, just git init
     report = analyze_project(tmp_git_repo.root)
     assert report["metrics"]["filesAnalyzed"] == 0
+
+
+def test_analyze_project_rejects_nonexistent_path(tmp_path):
+    missing = tmp_path / "does-not-exist"
+
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        analyze_project(missing)

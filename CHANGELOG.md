@@ -54,6 +54,20 @@ All notable changes to this project are documented in this file.
   directly and posts it to `/api/project`, with a visible error message on
   failure instead of nothing happening. `/api/project` also now expands `~`
   in the entered path (previously only worked with absolute paths).
+- **Silent "0 files analyzed" on a nonexistent project path** — `analyze`,
+  `serve`, and every other command now fail fast with
+  `project path does not exist: ...` when given a path that isn't actually
+  there, instead of quietly reporting a "successful" scan with 0 files and
+  100/100 health. This was the confusing symptom behind a real Termux issue:
+  Android's scoped storage can make a project folder look empty (or the
+  path resolve to nothing at all) from Termux's side even though the files
+  are genuinely on the device — see the new Termux setup docs.
+
+### Docs
+- Added a Termux (Android) shared-storage troubleshooting section
+  (`termux-setup-storage`, the separate Android "All files access"
+  permission, and copying into Termux's own home directory as the most
+  reliable fix) to the installation guide, linked from the README.
 
 ## [1.0.3] - 2026-06-11
 

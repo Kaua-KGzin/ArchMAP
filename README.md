@@ -55,6 +55,18 @@ cd ArchMAP
 python -m pip install -e ".[dev]"
 ```
 
+### Termux (Android)
+
+```bash
+pkg install python
+pip install KG-ARCHMAP
+```
+
+If you're analyzing a project stored in Android's shared storage (e.g.
+`Download/`) and ArchMAP reports "0 files analyzed" on a project that clearly
+has files, that's almost always Termux not having real access to that
+folder yet, not a bug in the scan — see [Termux setup](https://kaua-kgzin.github.io/ArchMAP/getting-started/installation/#termux-android) for the fix (`termux-setup-storage` + Android's "All files access" permission, or copying the project into Termux's own home directory).
+
 ## Quick demo
 
 ```bash
