@@ -9,10 +9,14 @@ import pytest
 
 from archmap.cli.mcp_server import (
     _dispatch,
+    _get_analysis,
+    _tool_diff_architecture,
     _tool_get_architecture_summary,
     _tool_get_file_context,
+    _tool_get_network_exposure,
     _tool_impact_analysis,
     _tool_run_checks,
+    _tool_trace_reachability,
 )
 
 # ---------------------------------------------------------------------------
@@ -150,6 +154,129 @@ def test_run_checks_with_issues(mock_analysis: None) -> None:
     assert result["healthScore"] == 72
 
 
+def test_trace_reachability_calls_analyzer(
+    mock_analysis: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_trace(report: dict, entrypoint: str, max_depth: int | None = None) -> dict:
+        captured["report"] = report
+        captured["entrypoint"] = entrypoint
+        captured["max_depth"] = max_depth
+        return {"entrypoint": entrypoint, "reachable": ["src/app.py"], "reachableCount": 1}
+
+    monkeypatch.setattr(
+        "archmap.core.analyzer.reachability_analyzer.trace_reachability", fake_trace
+    )
+    result = _tool_trace_reachability("/fake/project", "src/app.py", 3)
+    assert result["reachableCount"] == 1
+    assert captured["entrypoint"] == "src/app.py"
+    assert captured["max_depth"] == 3
+    assert captured["report"] is _FAKE_RESULT
+
+
+def test_diff_architecture_uses_repo_and_refs(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_analyze_git_ref(repo_path: str, ref: str) -> dict:
+        captured.setdefault("refs", []).append((repo_path, ref))
+        return {"ref": ref, "metrics": {}}
+
+    def fake_diff_reports(base_report: dict, head_report: dict) -> dict:
+        captured["base_report"] = base_report
+        captured["head_report"] = head_report
+        return {"healthScoreDelta": 0}
+
+    monkeypatch.setattr("archmap.core.analyzer.analyze_git_ref", fake_analyze_git_ref)
+    monkeypatch.setattr("archmap.core.analyzer.diff_reports", fake_diff_reports)
+
+    result = _tool_diff_architecture("/fake/project", "/fake/repo", "HEAD~1", "HEAD")
+    assert result == {"healthScoreDelta": 0}
+    assert captured["refs"] == [("/fake/repo", "HEAD~1"), ("/fake/repo", "HEAD")]
+    assert captured["base_report"]["ref"] == "HEAD~1"
+    assert captured["head_report"]["ref"] == "HEAD"
+
+
+def test_diff_architecture_defaults_repo_to_project_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen_repos: list[str] = []
+
+    def fake_analyze_git_ref(repo_path: str, ref: str) -> dict:
+        seen_repos.append(repo_path)
+        return {}
+
+    monkeypatch.setattr("archmap.core.analyzer.analyze_git_ref", fake_analyze_git_ref)
+    monkeypatch.setattr("archmap.core.analyzer.diff_reports", lambda base, head: {})
+
+    _tool_diff_architecture("/fake/project", "", "HEAD~1", "HEAD")
+    assert seen_repos == ["/fake/project", "/fake/project"]
+
+
+def test_get_network_exposure_calls_scan_and_correlate(
+    mock_analysis: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_run_netscan(
+        target: str,
+        ports_spec: str | None = None,
+        top_ports: int | None = None,
+        use_nmap: bool | None = None,
+        timeout: float = 1.0,
+    ) -> dict:
+        captured["target"] = target
+        captured["ports_spec"] = ports_spec
+        captured["timeout"] = timeout
+        return {"hosts": []}
+
+    def fake_correlate_exposure(scan_result: dict, analysis_result: dict) -> dict:
+        captured["scan_result"] = scan_result
+        captured["analysis_result"] = analysis_result
+        return {"findings": [], "summary": {"openPorts": 0}}
+
+    monkeypatch.setattr("archmap.core.netscan.run_netscan", fake_run_netscan)
+    monkeypatch.setattr("archmap.core.exposure.correlate_exposure", fake_correlate_exposure)
+
+    result = _tool_get_network_exposure(
+        "/fake/project", "192.168.1.10", "22,80", None, None, 0.5
+    )
+    assert result == {"findings": [], "summary": {"openPorts": 0}}
+    assert captured["target"] == "192.168.1.10"
+    assert captured["ports_spec"] == "22,80"
+    assert captured["timeout"] == 0.5
+    assert captured["analysis_result"] is _FAKE_RESULT
+
+
+def test_get_analysis_recomputes_when_fingerprint_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    fingerprints = iter(["fp1", "fp1", "fp2"])
+
+    monkeypatch.setattr(
+        "archmap.cli.mcp_server._fingerprint", lambda _path: next(fingerprints)
+    )
+
+    def fake_analyze_project(path: str) -> dict:
+        calls.append(path)
+        return {"call": len(calls)}
+
+    monkeypatch.setattr("archmap.analyze_project", fake_analyze_project)
+
+    import archmap.cli.mcp_server as mcp_server
+
+    mcp_server._cache.clear()
+    mcp_server._cache_key.clear()
+
+    first = _get_analysis("/fake/project-fp-test")
+    second = _get_analysis("/fake/project-fp-test")
+    assert first is second
+    assert len(calls) == 1
+
+    third = _get_analysis("/fake/project-fp-test")
+    assert len(calls) == 2
+    assert third["call"] == 2
+
+
 # ---------------------------------------------------------------------------
 # Dispatch / protocol tests
 # ---------------------------------------------------------------------------
@@ -172,6 +299,10 @@ def test_dispatch_tools_list() -> None:
     assert "get_file_context" in names
     assert "impact_analysis" in names
     assert "run_checks" in names
+    assert "trace_reachability" in names
+    assert "diff_architecture" in names
+    assert "get_network_exposure" in names
+    assert len(names) == 7
 
 
 def test_dispatch_unknown_method() -> None:
@@ -227,3 +358,96 @@ def test_dispatch_tools_call_summary(mock_analysis: None) -> None:
     assert len(content) == 1
     data = json.loads(content[0]["text"])
     assert data["healthScore"] == 72
+
+
+def test_dispatch_trace_reachability_missing_entrypoint(mock_analysis: None) -> None:
+    msg = {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "tools/call",
+        "params": {"name": "trace_reachability", "arguments": {}},
+    }
+    resp = _dispatch(msg, "/fake/project")
+    assert resp is not None
+    assert resp["error"]["code"] == -32602
+
+
+def test_dispatch_trace_reachability_round_trip(
+    mock_analysis: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "archmap.core.analyzer.reachability_analyzer.trace_reachability",
+        lambda report, entrypoint, max_depth=None: {
+            "entrypoint": entrypoint,
+            "reachableCount": 2,
+        },
+    )
+    msg = {
+        "jsonrpc": "2.0",
+        "id": 8,
+        "method": "tools/call",
+        "params": {
+            "name": "trace_reachability",
+            "arguments": {"entrypoint": "src/app.py"},
+        },
+    }
+    resp = _dispatch(msg, "/fake/project")
+    assert resp is not None
+    data = json.loads(resp["result"]["content"][0]["text"])
+    assert data["reachableCount"] == 2
+
+
+def test_dispatch_diff_architecture_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "archmap.core.analyzer.analyze_git_ref",
+        lambda repo_path, ref: {"ref": ref},
+    )
+    monkeypatch.setattr(
+        "archmap.core.analyzer.diff_reports",
+        lambda base, head: {"healthScoreDelta": -1},
+    )
+    msg = {
+        "jsonrpc": "2.0",
+        "id": 9,
+        "method": "tools/call",
+        "params": {"name": "diff_architecture", "arguments": {}},
+    }
+    resp = _dispatch(msg, "/fake/project")
+    assert resp is not None
+    data = json.loads(resp["result"]["content"][0]["text"])
+    assert data["healthScoreDelta"] == -1
+
+
+def test_dispatch_get_network_exposure_missing_target(mock_analysis: None) -> None:
+    msg = {
+        "jsonrpc": "2.0",
+        "id": 10,
+        "method": "tools/call",
+        "params": {"name": "get_network_exposure", "arguments": {}},
+    }
+    resp = _dispatch(msg, "/fake/project")
+    assert resp is not None
+    assert resp["error"]["code"] == -32602
+
+
+def test_dispatch_get_network_exposure_round_trip(
+    mock_analysis: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "archmap.core.netscan.run_netscan",
+        lambda target, **kwargs: {"hosts": [{"ip": target, "openPorts": []}]},
+    )
+    monkeypatch.setattr(
+        "archmap.core.exposure.correlate_exposure",
+        lambda scan_result, analysis_result: {"findings": [], "summary": {"openPorts": 0}},
+    )
+    msg = {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "method": "tools/call",
+        "params": {"name": "get_network_exposure", "arguments": {"target": "127.0.0.1"}},
+    }
+    resp = _dispatch(msg, "/fake/project")
+    assert resp is not None
+    data = json.loads(resp["result"]["content"][0]["text"])
+    assert data["summary"]["openPorts"] == 0

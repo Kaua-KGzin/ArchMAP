@@ -35,28 +35,29 @@ from archmap.core.parser.ts_engine import HAS_TREE_SITTER
 # ---------------------------------------------------------------------------
 
 _cache: dict[str, Any] = {}
-_cache_key: dict[str, float] = {}
+_cache_key: dict[str, str] = {}
 
 
-def _config_mtime(project_path: str) -> float:
-    try:
-        return (Path(project_path) / ".archmap.toml").stat().st_mtime
-    except OSError:
-        return 0.0
+def _fingerprint(project_path: str) -> str:
+    # Same fingerprint archmap's on-disk cache uses (config + every source
+    # file's mtime/size) — catches source edits, not just .archmap.toml
+    # changes, so a long-lived MCP session doesn't serve stale data after
+    # the AI assistant edits files.
+    from archmap.cache import compute_fingerprint
+    from archmap.config import load_project_config
+
+    root = Path(project_path).resolve()
+    config = load_project_config(root)
+    return compute_fingerprint(root, config)
 
 
 def _get_analysis(project_path: str) -> Any:
-    mtime = _config_mtime(project_path)
-    if project_path not in _cache or _cache_key.get(project_path) != mtime:
+    fingerprint = _fingerprint(project_path)
+    if project_path not in _cache or _cache_key.get(project_path) != fingerprint:
         from archmap import analyze_project
         _cache[project_path] = analyze_project(project_path)
-        _cache_key[project_path] = mtime
+        _cache_key[project_path] = fingerprint
     return _cache[project_path]
-
-
-def _invalidate(project_path: str) -> None:
-    _cache.pop(project_path, None)
-    _cache_key.pop(project_path, None)
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +117,6 @@ def _tool_get_file_context(project_path: str, file: str) -> dict:
 def _tool_impact_analysis(project_path: str, file: str) -> dict:
     result = _get_analysis(project_path)
     nodes: list[dict] = result.get("nodes", [])
-    edges: list[dict] = result.get("edges", [])
 
     node = next((n for n in nodes if n["id"] == file or n["label"] == file), None)
     if node is None:
@@ -124,8 +124,9 @@ def _tool_impact_analysis(project_path: str, file: str) -> dict:
     if node is None:
         return {"error": f"File '{file}' not found in the dependency graph."}
 
-    from archmap.core.analyzer.impact_analyzer import calculate_impact
-    impact = calculate_impact(node["id"], edges)
+    # Every node — file or package — already carries a precomputed impact
+    # field from analyze_graph(); no need to recompute it here.
+    impact = node.get("impact") or {"impactedFiles": [], "impactCount": 0, "risk": "low"}
 
     return {
         "file": node["id"],
@@ -137,6 +138,48 @@ def _tool_impact_analysis(project_path: str, file: str) -> dict:
             f"other file(s) — risk level: {impact['risk']}."
         ),
     }
+
+
+def _tool_trace_reachability(project_path: str, entrypoint: str, max_depth: int | None) -> dict:
+    result = _get_analysis(project_path)
+    from archmap.core.analyzer.reachability_analyzer import trace_reachability
+
+    return trace_reachability(result, entrypoint, max_depth=max_depth)
+
+
+def _tool_diff_architecture(
+    project_path: str, repo: str, base_ref: str, head_ref: str
+) -> dict:
+    from archmap.core.analyzer import analyze_git_ref, diff_reports
+
+    repo_path = repo or project_path
+    base_report = analyze_git_ref(repo_path, base_ref)
+    base_report["ref"] = base_ref
+    head_report = analyze_git_ref(repo_path, head_ref)
+    head_report["ref"] = head_ref
+    return diff_reports(base_report, head_report)
+
+
+def _tool_get_network_exposure(
+    project_path: str,
+    target: str,
+    ports: str | None,
+    top_ports: int | None,
+    use_nmap: bool | None,
+    timeout: float,
+) -> dict:
+    from archmap.core.exposure import correlate_exposure
+    from archmap.core.netscan import run_netscan
+
+    scan_result = run_netscan(
+        target,
+        ports_spec=ports,
+        top_ports=top_ports,
+        use_nmap=use_nmap,
+        timeout=timeout,
+    )
+    analysis_result = _get_analysis(project_path)
+    return correlate_exposure(scan_result, analysis_result)
 
 
 def _tool_run_checks(project_path: str) -> dict:
@@ -220,14 +263,18 @@ _TOOLS = [
         "description": (
             "Computes the transitive blast radius of changing a file: all files that "
             "depend on it (directly or transitively). Use before refactoring to know "
-            "what else might break."
+            "what else might break. Also works on external package dependencies "
+            "(pass e.g. 'pkg:redis') to see which files depend on that package."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "file": {
                     "type": "string",
-                    "description": "Relative or absolute path of the file to analyze.",
+                    "description": (
+                        "Relative or absolute path of the file to analyze, or a "
+                        "package node id like 'pkg:redis'."
+                    ),
                 },
                 "project_path": {
                     "type": "string",
@@ -259,6 +306,123 @@ _TOOLS = [
                 }
             },
             "required": [],
+        },
+    },
+    {
+        "name": "trace_reachability",
+        "description": (
+            "BFS from an entrypoint file through all its outgoing dependency edges: "
+            "every file that entrypoint transitively pulls in, plus coverage stats. "
+            "Use to understand what a given entrypoint actually depends on, or to spot "
+            "dead code (files never reached from any known entrypoint)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "entrypoint": {
+                    "type": "string",
+                    "description": "Relative path or name of the entrypoint file.",
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "description": "Only include files reachable within this many hops.",
+                },
+                "project_path": {
+                    "type": "string",
+                    "description": (
+                        "Absolute path to the project root "
+                        "(default: server startup path)."
+                    ),
+                },
+            },
+            "required": ["entrypoint"],
+        },
+    },
+    {
+        "name": "diff_architecture",
+        "description": (
+            "Compares architecture between two git refs (default HEAD~1 vs HEAD): "
+            "health/complexity/cycle deltas, added/removed dependency edges, and "
+            "per-file changes. Use before opening a PR to check whether a change "
+            "degrades the architecture relative to its base."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "base_ref": {
+                    "type": "string",
+                    "description": "Base git ref to compare from (default: HEAD~1).",
+                },
+                "head_ref": {
+                    "type": "string",
+                    "description": "Head git ref to compare to (default: HEAD).",
+                },
+                "repo": {
+                    "type": "string",
+                    "description": (
+                        "Path to the git repository (default: project_path/server "
+                        "startup path)."
+                    ),
+                },
+                "project_path": {
+                    "type": "string",
+                    "description": (
+                        "Absolute path to the project root "
+                        "(default: server startup path)."
+                    ),
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "get_network_exposure",
+        "description": (
+            "Scans a network target and cross-references open ports/services against "
+            "this project's dependency graph: if an open port's service (e.g. Redis, "
+            "PostgreSQL, MongoDB) matches a package the code actually imports, returns "
+            "that package's blast radius alongside the port's network risk rating. "
+            "IMPORTANT: only scan networks/hosts you own or are explicitly authorized "
+            "to test — unauthorized scanning may be illegal."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "description": (
+                        "Host/IP, hostname, CIDR block, or range to scan "
+                        "(e.g. 192.168.1.10, 192.168.1.0/24, 192.168.1.1-50)."
+                    ),
+                },
+                "ports": {
+                    "type": "string",
+                    "description": "Ports to scan, e.g. '22,80,443' or '1-1024'.",
+                },
+                "top_ports": {
+                    "type": "integer",
+                    "description": "Scan the N most common ports instead of 'ports'.",
+                },
+                "use_nmap": {
+                    "type": "boolean",
+                    "description": (
+                        "Force the system nmap binary as the scan engine. "
+                        "Default: used automatically when nmap is installed."
+                    ),
+                },
+                "timeout": {
+                    "type": "number",
+                    "description": "Per-connection timeout in seconds (default: 1.0).",
+                },
+                "project_path": {
+                    "type": "string",
+                    "description": (
+                        "Absolute path to the project root "
+                        "(default: server startup path)."
+                    ),
+                },
+            },
+            "required": ["target"],
         },
     },
 ]
@@ -315,6 +479,30 @@ def _dispatch(message: dict, default_path: str) -> dict | None:
                 data = _tool_impact_analysis(project_path, file)
             elif tool_name == "run_checks":
                 data = _tool_run_checks(project_path)
+            elif tool_name == "trace_reachability":
+                entrypoint = args.get("entrypoint", "")
+                if not entrypoint:
+                    return _err(req_id, -32602, "'entrypoint' argument is required")
+                data = _tool_trace_reachability(project_path, entrypoint, args.get("max_depth"))
+            elif tool_name == "diff_architecture":
+                data = _tool_diff_architecture(
+                    project_path,
+                    args.get("repo") or project_path,
+                    args.get("base_ref") or "HEAD~1",
+                    args.get("head_ref") or "HEAD",
+                )
+            elif tool_name == "get_network_exposure":
+                target = args.get("target", "")
+                if not target:
+                    return _err(req_id, -32602, "'target' argument is required")
+                data = _tool_get_network_exposure(
+                    project_path,
+                    target,
+                    args.get("ports"),
+                    args.get("top_ports"),
+                    args.get("use_nmap"),
+                    args.get("timeout", 1.0),
+                )
             else:
                 return _err(req_id, -32601, f"Unknown tool: '{tool_name}'")
         except Exception as exc:  # noqa: BLE001

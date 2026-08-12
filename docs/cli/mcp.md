@@ -26,14 +26,17 @@ archmap mcp /path/to/my-project
 
 ## Tools exposed
 
-The server exposes four tools:
+The server exposes seven tools:
 
 | Tool | Description |
 |---|---|
 | `get_architecture_summary` | Full architecture report: health score, cycles, god modules, layer violations, top risk files |
 | `get_file_context` | Per-file detail: imports, dependents, complexity, impact radius |
-| `impact_analysis` | Files affected if a given file changes (BFS reachability) |
+| `impact_analysis` | Transitive blast radius of a file or package (`pkg:<name>`) — returns the precomputed impacted-files set and risk tier |
 | `run_checks` | Quality gate results: cycle count, god modules, layer violations, resolution rate |
+| `trace_reachability` | BFS from an entrypoint file through outgoing dependency edges — everything it transitively pulls in, plus coverage stats and dead-code detection |
+| `diff_architecture` | Architecture diff between two git refs (default `HEAD~1` vs `HEAD`): health/complexity/cycle deltas and per-file changes |
+| `get_network_exposure` | Live network scan of a target, correlated against the project's dependency graph — surfaces which open ports/services map to code the project actually imports, and that code's blast radius (see [`archmap expose`](expose.md)) |
 
 ## Registering with Claude Code
 
@@ -50,7 +53,7 @@ Add the server to `~/.claude/claude_desktop_config.json`:
 }
 ```
 
-After restarting Claude Code, the four tools become available in every conversation about that project.
+After restarting Claude Code, the seven tools become available in every conversation about that project.
 
 ## Registering with Cursor or Windsurf
 
@@ -66,6 +69,22 @@ The server reads JSON-RPC 2.0 requests from stdin and writes responses to stdout
 
 ## Notes
 
-- The server re-analyzes the project on each tool call (uses the incremental cache, so repeated calls are fast).
-- Only one project path is supported per server instance. Start a separate instance for each project.
-- The server does not open any network ports — communication is exclusively over stdio.
+- Analysis results are cached in memory per `project_path`, keyed by the same
+  content fingerprint (config + every source file's mtime/size) the on-disk
+  cache uses. A tool call only re-analyzes when a source file actually
+  changed since the last call in this session — edits made by the AI
+  assistant mid-conversation are picked up automatically, without a stale
+  read and without re-analyzing on every single call.
+- `project_path` is a per-call argument, not a server-wide setting: passing a
+  different path than the one the server started with just adds a second
+  cache entry, so one running instance can already answer about more than
+  one project. Starting the server pointed at a specific project (`archmap
+  mcp /path/to/project`) is a convention for the common case, not a
+  hard limit.
+- `get_network_exposure` runs a real network scan against whatever `target`
+  it's given. Only use it against hosts you own or are explicitly authorized
+  to test — the same rule as [`archmap netscan`](netscan.md) and
+  [`archmap expose`](expose.md).
+- The server does not open any network ports of its own — communication with
+  the MCP client is exclusively over stdio; only `get_network_exposure`
+  makes outbound connections, and only when explicitly invoked.

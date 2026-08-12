@@ -14,6 +14,30 @@ All notable changes to this project are documented in this file.
   Accepts every `netscan` option plus a project path. No new graph analysis —
   every package node already carries a precomputed impact field, this just
   cross-references two things ArchMAP already computes separately.
+- **3 new MCP tools** — `archmap mcp` now exposes 7 tools instead of 4:
+  - `trace_reachability` — BFS from an entrypoint through outgoing dependency
+    edges, wrapping the same analyzer `archmap trace` uses, for dead-code
+    detection and understanding what an entrypoint actually pulls in.
+  - `diff_architecture` — architecture diff between two git refs (default
+    `HEAD~1` vs `HEAD`), wrapping the same analyzer `archmap diff` uses, so
+    an AI agent can check whether a change degrades architecture before
+    proposing a commit.
+  - `get_network_exposure` — runs a live `archmap expose`-style scan/
+    correlation against a target and the analyzed project, so an agent can
+    ask whether an open port maps to code it depends on.
+
+### Fixed
+- **MCP server stale-cache bug** — the in-memory analysis cache only
+  invalidated on `.archmap.toml` mtime changes, so a long-lived MCP session
+  could keep serving stale `impact_analysis`/`get_file_context` results
+  after the AI assistant edited source files. It now keys on the same
+  content fingerprint (config + every source file's mtime/size) the
+  on-disk cache already uses, so any source change is detected. The dead
+  `_invalidate()` function (never called) was removed.
+- **MCP `impact_analysis` recomputed data that was already free** — it now
+  reads the node's precomputed `impact` field directly instead of rebuilding
+  the dependents map from scratch on every call. This also makes it explicit
+  that the tool works on any node id, including `pkg:<name>` package nodes.
 
 ## [1.1.0] - 2026-08-12
 
