@@ -229,6 +229,14 @@ archmap netscan 192.168.1.0/24
 pkg install nmap
 ```
 
+### Expose (network × code correlation)
+
+```bash
+archmap expose 192.168.1.0/24 .
+```
+
+Runs a netscan and cross-references the results against your codebase's dependency graph: if an open port's service (say, Redis on `6379`) matches a package your code actually imports, ArchMAP surfaces that package's already-computed blast radius (how many files depend on it) right next to the port's network risk rating — combined into one severity. Accepts every `archmap netscan` option (`--ports`, `--use-nmap`, `--scripts`, etc.) plus the project path to analyze. See [`archmap expose`](docs/cli/expose.md) for the full option list and JSON schema.
+
 ### MCP server (AI assistant integration)
 
 ```bash

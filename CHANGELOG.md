@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **`archmap expose`** — correlates `archmap netscan` results with the
+  codebase's dependency graph: for each open port whose service (Redis,
+  PostgreSQL, MongoDB, Elasticsearch, etc.) has a known client library, finds
+  matching `pkg:<name>` nodes in the analyzed project and surfaces their
+  already-computed blast radius (`impactCount`/`impactedFiles`/`risk`)
+  alongside the port's network-side risk rating, combined into one severity.
+  Accepts every `netscan` option plus a project path. No new graph analysis —
+  every package node already carries a precomputed impact field, this just
+  cross-references two things ArchMAP already computes separately.
+
 ## [1.1.0] - 2026-08-12
 
 Network mapping release. ArchMAP grows past static code analysis with a

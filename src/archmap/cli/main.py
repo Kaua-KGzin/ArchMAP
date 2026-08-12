@@ -9,6 +9,7 @@ from archmap.cli.commands import run_advise as _run_advise
 from archmap.cli.commands import run_analyze as _run_analyze
 from archmap.cli.commands import run_diff as _run_diff
 from archmap.cli.commands import run_explain as _run_explain
+from archmap.cli.commands import run_expose as _run_expose
 from archmap.cli.commands import run_history as _run_history
 from archmap.cli.commands import run_improve as _run_improve
 from archmap.cli.commands import run_init as _run_init
@@ -62,6 +63,7 @@ def _resolve_command_handler(command: str | None):
         "mcp": _run_mcp,
         "temporal": _run_temporal,
         "netscan": _run_netscan,
+        "expose": _run_expose,
     }
     return handlers.get(command)
 

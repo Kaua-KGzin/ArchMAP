@@ -452,7 +452,32 @@ def build_parser() -> argparse.ArgumentParser:
             "Only scan networks and hosts you own or are explicitly authorized to test."
         ),
     )
-    netscan_parser.add_argument(
+    _add_netscan_arguments(netscan_parser)
+
+    expose_parser = subparsers.add_parser(
+        "expose",
+        help="correlate open network ports/services with your codebase's dependency graph",
+        description=(
+            "Scan a network target, analyze a codebase, and cross-reference the two: "
+            "for each open port whose service has a known client library, find matching "
+            "package dependencies in the code and surface their blast radius. "
+            "Only scan networks and hosts you own or are explicitly authorized to test."
+        ),
+    )
+    _add_netscan_arguments(expose_parser)
+    expose_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="project root to correlate against (default: current directory)",
+    )
+
+    subparsers.add_parser("version", help="print tool version")
+    return parser
+
+
+def _add_netscan_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
         "target",
         help=(
             "host/IP, hostname, CIDR block, or range to scan "
@@ -460,36 +485,36 @@ def build_parser() -> argparse.ArgumentParser:
             "Comma-separate multiple targets."
         ),
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--ports",
         default=None,
         metavar="SPEC",
         help="ports to scan, e.g. '22,80,443' or '1-1024' (default: top 20 common ports)",
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--top-ports",
         type=int,
         default=None,
         metavar="N",
         help="scan the N most common ports instead of an explicit --ports spec",
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--discover-only",
         action="store_true",
         help="only discover which hosts are up; skip port scanning",
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--no-discover",
         action="store_true",
         help="skip host discovery and port-scan every address in the target directly",
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--fingerprint",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="grab service banners on open ports (default: on)",
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--use-nmap",
         dest="use_nmap",
         action="store_true",
@@ -499,24 +524,24 @@ def build_parser() -> argparse.ArgumentParser:
             "(default: used automatically when nmap is installed)"
         ),
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--no-nmap",
         dest="use_nmap",
         action="store_false",
         help="force the built-in Python scanner even if nmap is installed",
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--nmap-args",
         default=None,
         metavar="ARGS",
         help="extra raw arguments passed through to nmap (only when the nmap engine is used)",
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--os-detection",
         action="store_true",
         help="attempt OS fingerprinting via nmap -O (requires the nmap engine and root)",
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--scripts",
         action="store_true",
         help=(
@@ -525,30 +550,27 @@ def build_parser() -> argparse.ArgumentParser:
             "etc. (requires the nmap engine)"
         ),
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--timeout",
         type=float,
         default=1.0,
         metavar="SECS",
         help="per-connection timeout in seconds (default: 1.0)",
     )
-    netscan_parser.add_argument(
+    parser.add_argument(
         "--concurrency",
         type=int,
         default=200,
         metavar="N",
         help="max concurrent connections for discovery/port scanning (default: 200)",
     )
-    netscan_parser.add_argument("--json", action="store_true")
-    netscan_parser.add_argument(
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument(
         "--out",
         metavar="PATH",
         default=None,
-        help="write the JSON scan report to file",
+        help="write the JSON report to file",
     )
-
-    subparsers.add_parser("version", help="print tool version")
-    return parser
 
 
 def _add_export_arguments(parser: argparse.ArgumentParser, *, default_format: str) -> None:

@@ -50,6 +50,7 @@ from archmap.core.analyzer import (
     suggest_architecture,
     trace_reachability,
 )
+from archmap.core.exposure import correlate_exposure
 from archmap.core.netscan import run_netscan as _scan_network
 from archmap.utils.file_utils import normalize_file_id
 
@@ -841,6 +842,93 @@ def _print_netscan_host(host: dict[str, Any], *, discover_only: bool) -> tuple[i
         risky_count += _print_netscan_port(port_info)
     print()
     return len(open_ports), risky_count
+
+
+def run_expose(args: argparse.Namespace) -> int:
+    print(
+        "[warning] Only scan networks and hosts you own or are explicitly "
+        "authorized to test. Unauthorized scanning may be illegal.",
+        file=sys.stderr,
+    )
+
+    try:
+        scan_result = _scan_network(
+            args.target,
+            ports_spec=getattr(args, "ports", None),
+            top_ports=getattr(args, "top_ports", None),
+            discover_only=getattr(args, "discover_only", False),
+            no_discover=getattr(args, "no_discover", False),
+            fingerprint=getattr(args, "fingerprint", True),
+            use_nmap=getattr(args, "use_nmap", None),
+            nmap_args=getattr(args, "nmap_args", None),
+            detect_os=getattr(args, "os_detection", False),
+            scripts=getattr(args, "scripts", False),
+            timeout=getattr(args, "timeout", 1.0),
+            concurrency=getattr(args, "concurrency", 200),
+        )
+    except (ValueError, RuntimeError, OSError) as exc:
+        print(f"[error] {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        analysis_result = analyze_project(getattr(args, "path", "."))
+    except (OSError, RuntimeError, ValueError) as exc:
+        print(f"[error] {exc}", file=sys.stderr)
+        return 1
+
+    result = correlate_exposure(scan_result, analysis_result)
+
+    if getattr(args, "out", None):
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(json.dumps(result, indent=2), encoding="utf-8")
+        print(f"[info] Report written to {args.out}")
+
+    if getattr(args, "json", False):
+        print(json.dumps(result, indent=2))
+        return 0
+
+    _print_expose_report(result)
+    return 0
+
+
+def _print_expose_report(result: dict[str, Any]) -> None:
+    findings = result.get("findings", [])
+    summary = result.get("summary", {})
+
+    print(f"\n  Exposure Report — target: {result.get('target')} vs {result.get('projectRoot')}")
+    print(
+        f"  open ports: {summary.get('openPorts', 0)} | "
+        f"matched to code: {summary.get('matchedToCode', 0)} | "
+        f"high/critical: {summary.get('highSeverity', 0)}\n"
+    )
+
+    if not findings:
+        print("  No open ports found.")
+        return
+
+    col_header = f"  {'HOST':<20}  {'PORT':<9}  {'SERVICE':<14}  {'SEVERITY'}"
+    print(col_header)
+    print("  " + "-" * (len(col_header) - 2))
+    for finding in findings:
+        host_label = finding.get("host") or "?"
+        if finding.get("hostname"):
+            host_label = f"{finding['host']} ({finding['hostname']})"
+        port_label = f"{finding['port']}/{finding.get('protocol', 'tcp')}"
+        severity = str(finding.get("severity", "info")).upper()
+
+        service = finding.get("service", "unknown")
+        print(f"  {host_label:<20}  {port_label:<9}  {service:<14}  {severity}")
+
+        network_risk = finding.get("networkRisk")
+        if network_risk:
+            print(f"      ! network: {network_risk['reason']}")
+
+        for match in finding.get("matchedPackages", []):
+            print(
+                f"      code: pkg:{match['package']} — {match['impactCount']} file(s) "
+                f"depend on it (risk: {match['risk']})"
+            )
+    print()
 
 
 def _print_netscan_port(port_info: dict[str, Any]) -> int:
