@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [1.1.1] - 2026-08-12
 
 ### Added
 - **`archmap expose`** — correlates `archmap netscan` results with the
