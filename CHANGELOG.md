@@ -46,6 +46,14 @@ All notable changes to this project are documented in this file.
   off-screen, and the mini-map shrinks (then hides below 460px) instead of
   overlapping graph content. Verified at common phone/tablet/landscape
   viewport sizes.
+- **Web UI "Open project" button doing nothing on Termux/headless servers** —
+  the native folder picker (`/api/open`) needs `tkinter` and a display, which
+  Termux doesn't have; the server already detected this and returned a
+  `manual_path` fallback response, but the frontend silently ignored anything
+  that wasn't a 200 and dropped it on the floor. It now prompts for the path
+  directly and posts it to `/api/project`, with a visible error message on
+  failure instead of nothing happening. `/api/project` also now expands `~`
+  in the entered path (previously only worked with absolute paths).
 
 ## [1.0.3] - 2026-06-11
 

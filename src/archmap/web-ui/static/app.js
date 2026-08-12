@@ -422,10 +422,48 @@ function bindControls() {
     el.openProjectBtn.classList.add("loading");
     try {
       const res = await fetch("/api/open", { method: "POST" });
-      if (res.status === 200) await init();
-    } catch { /* ignored */ }
-    finally { el.openProjectBtn.classList.remove("loading"); }
+
+      if (res.status === 200) { await init(); return; }
+      if (res.status === 204) return; // native picker was cancelled
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 501 && data.mode === "manual_path") {
+        // No native folder picker available in this environment (e.g. a
+        // headless server, or a mobile/Termux browser session) — fall back
+        // to asking for the path directly instead of doing nothing.
+        const manualPath = window.prompt(
+          data.message || t("openProjectManualPrompt"),
+        );
+        if (manualPath && manualPath.trim()) await setProjectPath(manualPath.trim());
+        return;
+      }
+
+      window.alert(data.message || t("openProjectFailed"));
+    } catch {
+      window.alert(t("openProjectFailed"));
+    } finally {
+      el.openProjectBtn.classList.remove("loading");
+    }
   });
+
+  async function setProjectPath(path) {
+    el.openProjectBtn.classList.add("loading");
+    try {
+      const res = await fetch("/api/project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 200) await init();
+      else window.alert(data.message || t("openProjectFailed"));
+    } catch {
+      window.alert(t("openProjectFailed"));
+    } finally {
+      el.openProjectBtn.classList.remove("loading");
+    }
+  }
 
   // Nav rail — left panel view switching
   document.getElementById("exportBtn")?.addEventListener("click", exportGraphPng);
@@ -1044,6 +1082,7 @@ const _TRANSLATIONS = {
     heatmapLegend:"Heatmap legend",heatmapDesc:'Toggle "Heatmap mode" to color nodes by import complexity.',heatLow:"Low",heatMid:"Medium",heatHigh:"High",
     statusFile:"File",statusPkg:"Package",statusCycle:"Cycle",loading:"Loading…",
     insResolutionRate:"Resolution rate",exportPng:"PNG",exportSvg:"SVG",
+    openProjectManualPrompt:"Enter the project folder path:",openProjectFailed:"Could not open that folder.",
   },
   pt: {
     navGraph:"Grafo",navInsights:"Insights",navRules:"Regras & Camadas",navTrace:"Rastrear dependências",navAdvisor:"Consultor IA",navOpenProject:"Abrir projeto",navToggleTheme:"Alternar tema",navSettings:"Configurações",
@@ -1076,6 +1115,7 @@ const _TRANSLATIONS = {
     heatmapLegend:"Legenda do mapa de calor",heatmapDesc:'Ative o "Modo mapa de calor" para colorir nós por complexidade.',heatLow:"Baixo",heatMid:"Médio",heatHigh:"Alto",
     statusFile:"Arquivo",statusPkg:"Pacote",statusCycle:"Ciclo",loading:"Carregando…",
     insResolutionRate:"Taxa de resolução",exportPng:"PNG",exportSvg:"SVG",
+    openProjectManualPrompt:"Digite o caminho da pasta do projeto:",openProjectFailed:"Não foi possível abrir essa pasta.",
   },
   es: {
     navGraph:"Vista de grafo",navInsights:"Perspectivas",navRules:"Reglas y Capas",navTrace:"Rastrear dependencias",navAdvisor:"Asesor IA",navOpenProject:"Abrir proyecto",navToggleTheme:"Cambiar tema",navSettings:"Configuración",
@@ -1108,6 +1148,7 @@ const _TRANSLATIONS = {
     heatmapLegend:"Leyenda del mapa de calor",heatmapDesc:'Activa el "Modo mapa de calor" para colorear nodos por complejidad.',heatLow:"Bajo",heatMid:"Medio",heatHigh:"Alto",
     statusFile:"Archivo",statusPkg:"Paquete",statusCycle:"Ciclo",loading:"Cargando…",
     insResolutionRate:"Tasa de resolución",exportPng:"PNG",exportSvg:"SVG",
+    openProjectManualPrompt:"Ingresa la ruta de la carpeta del proyecto:",openProjectFailed:"No se pudo abrir esa carpeta.",
   },
   fr: {
     navGraph:"Vue graphe",navInsights:"Insights",navRules:"Règles & Couches",navTrace:"Tracer les dépendances",navAdvisor:"Conseiller IA",navOpenProject:"Ouvrir le projet",navToggleTheme:"Changer le thème",navSettings:"Paramètres",
@@ -1140,6 +1181,7 @@ const _TRANSLATIONS = {
     heatmapLegend:"Légende de la carte de chaleur",heatmapDesc:"Activez le mode carte de chaleur pour colorier les nœuds par complexité.",heatLow:"Bas",heatMid:"Moyen",heatHigh:"Élevé",
     statusFile:"Fichier",statusPkg:"Paquet",statusCycle:"Cycle",loading:"Chargement…",
     insResolutionRate:"Taux de résolution",exportPng:"PNG",exportSvg:"SVG",
+    openProjectManualPrompt:"Entrez le chemin du dossier du projet :",openProjectFailed:"Impossible d'ouvrir ce dossier.",
   },
   de: {
     navGraph:"Graphansicht",navInsights:"Einblicke",navRules:"Regeln & Schichten",navTrace:"Abhängigkeiten verfolgen",navAdvisor:"KI-Berater",navOpenProject:"Projekt öffnen",navToggleTheme:"Design wechseln",navSettings:"Einstellungen",
@@ -1172,6 +1214,7 @@ const _TRANSLATIONS = {
     heatmapLegend:"Heatmap-Legende",heatmapDesc:'Aktivieren Sie den "Heatmap-Modus" um Knoten nach Importkomplexität zu färben.',heatLow:"Niedrig",heatMid:"Mittel",heatHigh:"Hoch",
     statusFile:"Datei",statusPkg:"Paket",statusCycle:"Zyklus",loading:"Wird geladen…",
     insResolutionRate:"Auflösungsrate",exportPng:"PNG",exportSvg:"SVG",
+    openProjectManualPrompt:"Geben Sie den Projektordnerpfad ein:",openProjectFailed:"Dieser Ordner konnte nicht geöffnet werden.",
   },
   zh: {
     navGraph:"依赖图",navInsights:"洞察",navRules:"规则与层",navTrace:"追踪依赖",navAdvisor:"AI 顾问",navOpenProject:"打开项目",navToggleTheme:"切换主题",navSettings:"设置",
@@ -1204,6 +1247,7 @@ const _TRANSLATIONS = {
     heatmapLegend:"热力图图例",heatmapDesc:"切换热力图模式以按导入复杂度为节点着色。",heatLow:"低",heatMid:"中",heatHigh:"高",
     statusFile:"文件",statusPkg:"包",statusCycle:"循环",loading:"加载中…",
     insResolutionRate:"解析率",exportPng:"PNG",exportSvg:"SVG",
+    openProjectManualPrompt:"输入项目文件夹路径：",openProjectFailed:"无法打开该文件夹。",
   },
 };
 

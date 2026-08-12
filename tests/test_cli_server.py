@@ -308,6 +308,28 @@ def test_build_http_handler_opens_selected_file_node(tmp_path, monkeypatch) -> N
     assert opened_paths == [target_file.resolve()]
 
 
+def test_build_http_handler_set_project_expands_tilde(tmp_path, monkeypatch) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    fake_home = tmp_path / "home"
+    project_dir = fake_home / "myproject"
+    project_dir.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(fake_home))
+    state = StubState(tmp_path / "project")
+    handler = cli_server.build_http_handler(state, static_dir)
+
+    with run_handler_server(handler) as base_url:
+        status, payload = request_json(
+            f"{base_url}/api/project",
+            method="POST",
+            payload={"path": "~/myproject"},
+        )
+
+    assert status == 200
+    assert payload == {"status": "success", "path": str(project_dir.resolve())}
+    assert state.path == project_dir.resolve()
+
+
 def test_build_http_handler_rejects_nonexistent_path_in_set_project(tmp_path) -> None:
     static_dir = tmp_path / "static"
     static_dir.mkdir()

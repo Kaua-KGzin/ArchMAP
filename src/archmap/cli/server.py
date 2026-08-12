@@ -191,11 +191,11 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
                 )
                 return
 
-            resolved = Path(next_path).resolve()
+            resolved = Path(next_path).expanduser().resolve()
             if not resolved.is_dir():
                 self._write_json(
                     HTTPStatus.BAD_REQUEST,
-                    {"status": "error", "message": "path must be an existing directory"},
+                    {"status": "error", "message": f"not a directory: {resolved}"},
                 )
                 return
 
