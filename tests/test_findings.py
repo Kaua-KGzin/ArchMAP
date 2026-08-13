@@ -132,7 +132,10 @@ def test_build_code_findings_rule_violation() -> None:
                 "sourceTag": "controller",
                 "targetTag": "model",
                 "rule": "controller -> model",
-                "message": "controller -> model is forbidden but src/controller.py depends on src/model.py",
+                "message": (
+                    "controller -> model is forbidden but "
+                    "src/controller.py depends on src/model.py"
+                ),
             }
         ]
     }
@@ -190,7 +193,8 @@ def test_build_code_findings_all_types_deterministic_order() -> None:
     findings = build_code_findings(cycle_details, risks, architecture)
 
     assert len(findings) == 5
-    assert [f["id"] for f in findings] == ["ARCH-001", "ARCH-002", "ARCH-003", "ARCH-004", "ARCH-005"]
+    expected_ids = ["ARCH-001", "ARCH-002", "ARCH-003", "ARCH-004", "ARCH-005"]
+    assert [f["id"] for f in findings] == expected_ids
     assert findings[0]["category"] == "circular_dependency"
     assert findings[1]["category"] == "god_module"
     assert findings[2]["category"] == "layer_violation"
