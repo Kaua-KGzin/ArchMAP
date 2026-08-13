@@ -26,6 +26,7 @@ from archmap.types import (
     CycleDetail,
     DependencyExplosionEntry,
     EdgeResult,
+    Finding,
     GodModuleEntry,
     ImpactResult,
     LayerViolationEntry,
@@ -38,7 +39,7 @@ from archmap.types import (
     UnresolvedImportEntry,
 )
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 
 def analyze_project(
@@ -75,6 +76,7 @@ __all__ = [
     "ImpactResult",
     "CycleDetail",
     "RisksResult",
+    "Finding",
     "GodModuleEntry",
     "LayerViolationEntry",
     "DependencyExplosionEntry",

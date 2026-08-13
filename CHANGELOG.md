@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.3.0] - 2026-08-13
+
+### Added
+- **Unified findings model** — consolidates code-side architectural risks
+  (god modules, layer violations, dependency explosions, custom rule
+  violations) and network-side findings (open ports, drift violations) into
+  one stable `Finding` shape with consistent `id`, `domain`, `category`,
+  `severity`, `confidence`, and `evidence` fields. Code findings get
+  deterministic IDs (`ARCH-001`, `ARCH-002`, ...) and all inherit
+  `confidence: 1.0` (static analysis is deterministic). Network findings
+  get `NET-*` IDs and retain their variable confidence scores from endpoint
+  scanning. Existing `risks`, `architecture.ruleViolations`, and
+  `expose.findings` consumers remain unchanged; the new unified
+  `AnalysisResult.findings` list is additive and ready for follow-on roadmap
+  items (memory network section, network diff, web UI rule panels) without
+  breaking any current integration.
+- **`archmap.core.analyzer.findings` module** — new `build_code_findings()`
+  transforms architecture/risk/cycle data into the unified Finding list, and
+  exports `SEVERITY_LEVELS` and `max_severity()` helper (deduplicating prior
+  ad hoc severity ranking from correlate.py). Public API: stable Finding
+  TypedDict in `archmap.types`.
+
+### Fixed
+- **`archmap init --from-analysis` layer hints** — was reading
+  nonexistent `fromLayer`/`toLayer` fields off layer-violation entries,
+  always silently returning empty strings. Now correctly reads
+  `sourceLayer`/`targetLayer` (the actual keys produced by risk_analyzer)
+  so derived `archmap.toml` hints reflect observed layer violations.
+
 ## [1.2.0] - 2026-08-12
 
 ### Added
