@@ -148,6 +148,71 @@ score = incoming×2 + outgoing
       + 4× (layer violations count)
 ```
 
+#### 4. `architecture_analyzer.py`
+
+Runs after `risk_analyzer.py` (it consumes `risks` as an input) and produces
+the `report["architecture"]` section: detected architectural style
+(`monolith` / `modular_monolith` / `microservice_like`, with a confidence
+and reasons), detected layer names, and a `health` score (`0`–`100`, `A`–`F`)
+computed from cycles, layer/rule violations, god modules, and cross-group
+coupling ratio (`metrics.architectureHealthScore` is this score).
+
+It also enforces user-declared `[architecture.rules]` (`forbid`/`allow`,
+`"source-tag -> target-tag"` syntax) from `.archmap.toml` — `ruleViolations`
+in its output. The tag-matching engine behind this (`file_tags`,
+`parse_rule`, `detect_rule_violations`) lives in the sibling
+`rule_engine.py` module so it can be reused outside file-to-file edges;
+`core.exposure.correlate`'s `[network.rules]` drift detection (below) is
+the other consumer.
+
+---
+
+### `archmap.core.netscan`
+
+**Entry point:** `run_netscan(target, ...) → NetscanReport`
+
+Independent from the parse → graph → analyze pipeline above — takes a
+network target (host/CIDR/range) instead of a project path. Host discovery
+(`hosts.py`, ping + TCP-probe fallback) feeds threaded TCP port scanning
+(`portscan.py`), which fingerprints services via a static port→name table
+(`ports.py`) or delegates to a system `nmap` install (`nmap_wrapper.py`,
+used automatically when present). Every open port is checked against a
+static risk table (`risk.py`) for a `[LEVEL RISK]` tag + reason. Stdlib-only
+by default, so it runs on Termux/Android without root.
+
+### `archmap.core.exposure`
+
+**Entry point:** `correlate_exposure(netscan_report, analysis_report, endpoint_refs=None, network_rules=None) → ExposureReport`
+
+Cross-references a `netscan` report against an `analyze_project` report —
+the code↔network correlation layer behind `archmap expose`:
+
+- `service_packages.py` — static table mapping a netscan service name
+  (`redis`, `postgresql`, ...) to common client-library import names, used
+  to find a matching `pkg:<name>` node in the dependency graph and pull its
+  already-computed `impact` field.
+- `endpoint_scanner.py` — regex-based scan of the project (source files,
+  `.env`, common config formats) for literal `host:port` connection
+  endpoints (URIs with a known scheme, paired `*_HOST`/`*_PORT` keys). An
+  exact match against the scanned target is the strongest correlation
+  signal and drives most of a finding's `confidence` score.
+- `correlate.py` — combines both signals into per-port findings
+  (`severity`, `confidence`, `confidenceReasons`), and checks high-confidence
+  matches against `.archmap.toml`'s `[network.rules]` via
+  `core.analyzer.rule_engine.detect_rule_violations`, flagging
+  `driftViolation`s the same way `architecture_analyzer.py` flags file-level
+  rule violations.
+
+### `archmap.core.memory`
+
+**Entry point:** `generate_memory_digest(report) → str`
+
+Pure rendering — takes an `analyze_project` report (no new analysis) and
+formats `metrics`/`risks`/`architecture`/`cycles` into a compact markdown
+digest, capping long lists (top 10). `digest_changed(existing, new)`
+compares two digests ignoring the timestamp line, so `archmap memory`'s
+file writes are idempotent — a no-op re-run doesn't touch the file's mtime.
+
 ---
 
 ### `archmap.exporters`
@@ -162,12 +227,21 @@ score = incoming×2 + outgoing
 
 ### `archmap.cli`
 
-`main.py` is the CLI entry point (registered as `archmap` and `code-arch` scripts).
+`main.py` is the CLI entry point (registered as `archmap` and `code-arch` scripts). `args.py` builds the argparse subparsers; `commands.py` holds each `run_*` handler.
 
-Commands:
-- `analyze` — parse + export, print summary
+Commands (see the [CLI Reference](index.md#cli-reference) for full docs):
+- `analyze` — parse + export, print summary, quality gates
 - `serve` — analyze + start an HTTP server serving the Web UI and `/api/graph`
-- `diff` — analyze two git refs, print delta metrics
+- `explain` / `risk` / `improve` / `history` — human-readable summary, blast radius, refactor suggestions, git evolution
+- `diff` — analyze two git refs (or two saved snapshots), print delta metrics
+- `trace` — BFS reachability from an entrypoint
+- `init` — scaffold `.archmap.toml`, optionally derived from a real analysis
+- `advise` — LLM-powered architectural advisor
+- `temporal` — temporal coupling via git history
+- `watch` — re-run analysis automatically on file change
+- `netscan` / `expose` — network discovery and code↔network correlation (see `core.netscan` / `core.exposure` above)
+- `memory` — persistent architecture digest for AI agents (see `core.memory` above)
+- `mcp` — JSON-RPC 2.0 server over stdio exposing the analysis engine as MCP tools
 - `version` — print version
 
 Static file resolution order for `serve`:

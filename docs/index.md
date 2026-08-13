@@ -69,7 +69,8 @@ archmap serve .
     ---
 
     An MCP server exposes the analysis engine to Claude Code, Cursor, and Windsurf,
-    plus an optional LLM architectural advisor.
+    a persistent `archmap memory` digest keeps agents oriented across sessions
+    without re-exploring the codebase, plus an optional LLM architectural advisor.
 
     [:octicons-arrow-right-24: MCP server](cli/mcp.md)
 
@@ -99,21 +100,29 @@ archmap serve .
 | [`init`](cli/init.md) | Generate `.archmap.toml` from a real dependency graph |
 | [`advise`](cli/advise.md) | LLM-powered architectural advisor |
 | [`temporal`](cli/temporal.md) | Temporal coupling via git history |
-| [`mcp`](cli/mcp.md) | MCP server for AI assistant integration |
+| [`mcp`](cli/mcp.md) | MCP server for AI assistant integration (8 tools) |
+| [`memory`](cli/memory.md) | Persistent architecture digest for AI coding agents |
 | [`watch`](cli/watch.md) | Continuous analysis on file change |
 | [`netscan`](cli/netscan.md) | Network host discovery + port scanning, nmap-style |
+| [`expose`](cli/expose.md) | Correlate open network ports/services with the dependency graph |
 
 ## What's new
 
-- **1.1.0** — `archmap netscan`: nmap-style network discovery, port scanning,
-  and per-port risk classification, stdlib-only (works on Termux without root).
-  Web UI mobile/Termux fixes, and fail-fast on a nonexistent project path.
+- **1.2.0** — `archmap memory`: a persistent markdown digest of the project's
+  architecture for AI coding agents to read at session start instead of
+  re-exploring the codebase, with ready-made Claude Code hook integration
+  and a new `get_project_memory` MCP tool.
+- **1.1.1** — `archmap expose` gains per-finding confidence scoring (an exact
+  host:port literal found in code beats a bare service-name guess) and
+  `[network.rules]` drift detection — declared-vs-observed architecture
+  extended to the network boundary.
+- **1.1.0** — `archmap netscan` and `archmap expose`: nmap-style network
+  discovery, port scanning, per-port risk classification (stdlib-only, works
+  on Termux without root), and correlation with the codebase's dependency
+  graph. Web UI mobile/Termux fixes, and fail-fast on a nonexistent project
+  path.
 - **1.0.3** — tree-sitter becomes a resilient *primary* parser with automatic
   per-file fallback to the regex path; structured C# extraction.
-- **1.0.2** — comment-aware parsing and configuration-aware resolution
-  (Go `replace`, PHP composer PSR-4, Java inner classes, C# aliases, C/C++ include dirs).
-- **1.0.1** — security hardening (`serve` binds to loopback by default),
-  O(V+E) impact analysis, and tsconfig/jsconfig path-alias resolution.
 
 See the full [Changelog](changelog.md) and [Roadmap](roadmap.md).
 

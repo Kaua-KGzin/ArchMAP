@@ -2,6 +2,43 @@
 
 ## Released
 
+### v1.2.0 (2026-08-12)
+- **`archmap memory`** — renders the project's already-computed architecture
+  report (health score, top risk files, cycles, layer/rule violations) into
+  a compact markdown digest (`.archmap/memory.md`) for AI coding agents to
+  read at session start instead of re-exploring the codebase. Cache-backed
+  (nearly instant on a no-op re-run) and idempotent (skips rewriting when
+  nothing architectural changed). `--print` outputs the digest for a Claude
+  Code `SessionStart` hook to inject straight into context; ships with
+  ready-to-paste `SessionStart`/`PostToolUse` hook config.
+- **`get_project_memory`** MCP tool — same digest available via `archmap mcp`
+  (8 tools total). First tool an agent should call to orient itself.
+- **`archmap expose` confidence scoring** — a new endpoint scanner detects
+  literal host:port connection strings and config (`.env`, connection URIs)
+  in the codebase; an exact match against the scanned target scores far
+  higher than the previous bare service-name-to-import guess.
+- **Network rules & drift detection** — `.archmap.toml` gains `[network.rules]`
+  (`forbid`/`allow`, same `"source-tag -> target-tag"` syntax as
+  `[architecture.rules]`). A high-confidence connection that breaks a
+  declared rule is flagged as a drift violation — declared-vs-observed
+  architecture extended past the codebase to the network boundary. The
+  tag-matching engine behind this was extracted into a shared
+  `core/analyzer/rule_engine.py` module, reused by both rule sets.
+
+### v1.1.1 (2026-08-12)
+- **`archmap expose`** — correlates `archmap netscan` results with the
+  codebase's dependency graph: for each open port whose service has a known
+  client library, surfaces the matching package's already-computed blast
+  radius alongside the port's network-side risk rating, combined into one
+  severity.
+- **3 new MCP tools** — `trace_reachability`, `diff_architecture`,
+  `get_network_exposure` (7 tools at the time; 8 after v1.2.0's
+  `get_project_memory`).
+- **MCP fixes** — the in-memory analysis cache now keys on the same content
+  fingerprint the on-disk cache uses (was mtime-only, could serve stale
+  results in a long-lived session after an edit); `impact_analysis` reads
+  the node's precomputed `impact` field instead of recomputing it.
+
 ### v1.1.0 (2026-08-12)
 - **`archmap netscan`** — nmap-style network discovery and port scanning built into ArchMAP: host discovery, threaded TCP port scanning, service fingerprinting, and per-port risk classification, all stdlib-only so it runs on Termux/Android without root. Uses a system `nmap` install automatically when present (`--no-nmap`/`--use-nmap` to override), adding OS detection (`--os-detection`) and NSE scripts (`--scripts`). First step past static-code-only analysis.
 - **Web UI mobile/Termux fixes** — responsive toolbar/nav-rail layout at tablet and phone widths, and the "Open project" button now falls back to a manual path prompt instead of doing nothing when no native folder picker is available (the common case on Termux).
@@ -84,27 +121,74 @@
 
 ---
 
-## Medium-term (v1.0.0)
+## Now (v1.3.0 candidates)
 
-- **Public Python API** — Define and document a stable programmatic surface (`from archmap import analyze_project, ArchMapConfig, AnalysisResult`). Add `__all__` to public modules, document with MkDocs examples, establish a deprecation policy (`DeprecationWarning` + semver). Unlocks IDE plugins, pytest integrations, and custom CI tooling beyond the CLI.
-- **mypy enforcement (blocking)** — Graduate mypy from non-blocking (infrastructure only, v0.8.x) to a hard CI gate. Expand typed coverage module by module until `--strict` is feasible on the full `src/archmap/` tree.
-- **Version bump to v1.0.0** — Finalize the public API contract, write a migration guide from 0.x, and tag the first stable release.
+ArchMAP's strategic direction ("Code, Architecture & Network Intelligence")
+is to correlate three domains that normally live in separate tools —
+codebase structure, declared/observed architecture, and network exposure —
+into one system a developer or an AI agent can query. v1.1.0–v1.2.0 built
+the two hardest prerequisites for that (a real network engine, and a
+code↔network correlation layer with confidence scoring); the items below
+are the next slice, each buildable directly on what's already shipped.
+
+- **Unified findings model** — Today, risks (`god_modules`, `layer_violations`,
+  ...), `architecture.ruleViolations`, and `expose`'s `driftViolations` are
+  three separately-shaped collections. Give every one of them a stable ID
+  (`ARCH-001`, `NET-001`, ...), a `severity`, a `confidence` (already exists
+  for expose findings, missing everywhere else), and an `evidence` list, so
+  `archmap memory`, the MCP tools, and CI reporting can treat "a problem" as
+  one concept instead of three ad hoc shapes. Purely a reshaping of data
+  ArchMAP already computes — no new detectors required.
+- **`archmap memory` network section** — `archmap memory` currently only
+  renders the code-side report. When a cached `archmap expose`/`netscan`
+  snapshot exists for the project, fold its `driftViolations` and
+  high-confidence findings into the digest too, so an AI agent's session-start
+  context includes network exposure without a separate MCP call.
+- **Network observation snapshots + diff** — `archmap netscan`/`expose`
+  results aren't persisted anywhere today; every run re-scans from scratch
+  and there's no way to ask "what changed since last time" the way
+  `archmap diff` already answers that for code. Add a `.archmap/network/`
+  snapshot store (mirroring the existing `.archmap/cache.json` convention)
+  and an `archmap network diff` command.
+- **Declared vs. observed, surfaced in the web UI** — `[architecture.rules]`
+  and `[network.rules]` violations are fully computed already (`archmap
+  analyze`, `archmap expose`) but only reachable via CLI/JSON/MCP. Add a
+  panel to `archmap serve` that renders them directly, so the correlation
+  work isn't CLI-only.
 
 ---
 
 ## Longer-term
 
+- **Unified System Graph** — extend the dependency graph's node/edge model
+  (currently `file`/`package` nodes with import edges) with network-side
+  node types (`host`, `port`, `service`) and typed edges (`CONNECTS_TO`,
+  `EXPOSES`), so a high-confidence `expose` match becomes a real edge in the
+  same graph structure `impact_analysis`/`trace_reachability` already
+  traverse — "what's the blast radius of this Postgres instance" answered
+  by the same BFS as "what's the blast radius of this file," instead of a
+  bolted-on correlation step. The largest, most structural item here;
+  `core/exposure/correlate.py`'s confidence-scored matching is the
+  proof-of-concept this would formalize into the graph itself.
+- **Recommendation engine / refactor planner** — turn a finding (god module,
+  boundary violation, network drift) into a concrete, ordered remediation
+  plan (`archmap refactor-plan <finding-id>`), building on the unified
+  findings model above.
+- **CI/CD PR bot** — post a structured summary (health delta, new/resolved
+  findings, network drift) as a PR comment, using the existing GitHub Action
+  (`action.yml`) and SARIF export as the delivery mechanism.
+- **Infrastructure criticality scoring** — combine a network node's
+  dependency count, centrality, and change frequency (once network
+  snapshots exist) into a single criticality score, the network-side
+  counterpart to the existing risk score for files.
 - Plugin SDK for custom parsers and analyzers via entry points.
-- Change coupling detector via `git log` analysis.
 - Multi-repo topology support.
 - WebSocket-based live UI refresh.
 - GraphML and Graphviz DOT export formats.
-- **Tree-sitter based parsers** — ✅ Done. Optional `[tree-sitter]` extra ships AST-based parsers for all 9 languages; regex fallback preserved when the extra is not installed.
 - **Property-based testing (Hypothesis)** — Add `hypothesis` to dev deps and use it on all language parsers. The parser must never crash on any valid unicode input.
 - **Mutation testing (mutmut)** — Apply mutation testing to core analysis modules (`cycle_detector.py`, `risk_analyzer.py`, `complexity_analyzer.py`).
 - **Homebrew formula** — Distribute as a Homebrew tap for macOS users (`brew install kaua-kgzin/tap/archmap`).
 - **Web UI accessibility (a11y)** — Audit and fix WCAG 2.1 AA compliance: color contrast, keyboard navigation, focus management, ARIA labels for the Cytoscape.js graph.
-- **SVG export** — Add a "Download SVG" button using Cytoscape.js's `cy.svg()` API.
 - **API stability policy** — Publish a formal versioning contract: public vs. internal modules, deprecation timeline.
 
 ---
