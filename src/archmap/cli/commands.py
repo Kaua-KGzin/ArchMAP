@@ -603,10 +603,10 @@ def _derive_blueprint(report: dict[str, Any]) -> dict[str, Any]:
 
     forbidden_hints: list[str] = []
     for v in report.get("risks", {}).get("layer_violations", [])[:5]:
-        from_layer = v.get("fromLayer", "")
-        to_layer = v.get("toLayer", "")
-        if from_layer and to_layer:
-            forbidden_hints.append(f"{from_layer} -> {to_layer}")
+        source_layer = v.get("sourceLayer", "")
+        target_layer = v.get("targetLayer", "")
+        if source_layer and target_layer:
+            forbidden_hints.append(f"{source_layer} -> {target_layer}")
 
     return {
         "layer_order": layer_order,

@@ -3,11 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 from archmap.config import NetworkRulesConfig
+from archmap.core.analyzer.findings import SEVERITY_LEVELS, max_severity
 from archmap.core.analyzer.rule_engine import detect_rule_violations, rule_tokens
 from archmap.core.exposure.endpoint_scanner import EndpointReference
 from archmap.core.exposure.service_packages import package_hints_for_service
-
-_SEVERITY_ORDER = ["info", "low", "medium", "high", "critical"]
 
 # Endpoint matches below this confidence are too weak to treat as a "this
 # file connects here" signal for drift/rule checking — only exact host:port
@@ -29,10 +28,6 @@ _CODE_IMPACT_RISK_TO_SEVERITY = {
     "warning": "medium",
     "critical": "critical",
 }
-
-
-def _max_severity(a: str, b: str) -> str:
-    return a if _SEVERITY_ORDER.index(a) >= _SEVERITY_ORDER.index(b) else b
 
 
 def _match_packages(service: str, nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -65,12 +60,12 @@ def _finding_severity(
     severity = "info"
     if network_risk:
         network_severity = _NETWORK_RISK_TO_SEVERITY.get(network_risk["level"], "info")
-        severity = _max_severity(severity, network_severity)
+        severity = max_severity(severity, network_severity)
     for match in matched_packages:
         code_severity = _CODE_IMPACT_RISK_TO_SEVERITY.get(match["risk"], "info")
-        severity = _max_severity(severity, code_severity)
+        severity = max_severity(severity, code_severity)
     if has_drift_violation:
-        severity = _max_severity(severity, "high")
+        severity = max_severity(severity, "high")
     return severity
 
 
@@ -144,6 +139,7 @@ def correlate_exposure(
     endpoint_refs = endpoint_refs or []
     findings: list[dict[str, Any]] = []
     consumer_edges: list[dict[str, Any]] = []
+    net_finding_id = 1
 
     for host in netscan_report.get("hosts", []):
         for port_info in host.get("openPorts", []):
@@ -159,6 +155,7 @@ def correlate_exposure(
             )
 
             finding: dict[str, Any] = {
+                "id": f"NET-{net_finding_id:03d}",
                 "host": host.get("ip"),
                 "hostname": host.get("hostname"),
                 "port": port,
@@ -169,8 +166,10 @@ def correlate_exposure(
                 "confidence": confidence,
                 "confidenceReasons": confidence_reasons,
                 "driftViolation": None,
+                "category": "network_port",
             }
             findings.append(finding)
+            net_finding_id += 1
 
             if endpoint_match is not None and confidence >= _CONSUMER_EDGE_MIN_CONFIDENCE:
                 consumer_edges.append(
@@ -195,6 +194,7 @@ def correlate_exposure(
             key = (violation["source"], violation["target"])
             for finding in findings_by_edge.get(key, []):
                 finding["driftViolation"] = violation
+                finding["category"] = "network_drift"
 
     for finding in findings:
         has_drift = finding["driftViolation"] is not None

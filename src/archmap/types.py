@@ -154,6 +154,32 @@ class RisksResult(TypedDict):
 
 
 # ---------------------------------------------------------------------------
+# Unified Findings (v1.3.0+)
+# ---------------------------------------------------------------------------
+
+
+class Finding(TypedDict):
+    """Unified finding object with stable ID, domain, category, severity, and confidence.
+
+    Combines code-side risks (god modules, layer violations, etc.) with
+    network-side findings (open ports, drift violations) into one shape
+    with consistent severity/confidence/evidence fields, indexed by
+    stable, deterministic IDs.
+    """
+
+    id: str
+    domain: str
+    category: str
+    severity: str
+    confidence: float
+    message: str
+    evidence: list[str]
+    file: NotRequired[str]
+    source: NotRequired[str]
+    target: NotRequired[str]
+
+
+# ---------------------------------------------------------------------------
 # Top-level result
 # ---------------------------------------------------------------------------
 
@@ -179,6 +205,7 @@ class AnalysisResult(TypedDict):
     cycleDetails: list[CycleDetail]
     risks: RisksResult
     architecture: dict
+    findings: NotRequired[list[Finding]]
     insights: dict
     explanation: dict
     simple: SimpleGraph
@@ -193,6 +220,7 @@ __all__ = [
     "CycleDetail",
     "DependencyExplosionEntry",
     "EdgeResult",
+    "Finding",
     "GodModuleEntry",
     "ImpactResult",
     "LayerViolationEntry",

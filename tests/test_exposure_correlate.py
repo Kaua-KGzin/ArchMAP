@@ -49,6 +49,8 @@ def test_correlate_matches_package_and_combines_severity() -> None:
     assert result["target"] == "192.168.1.10"
     assert result["projectRoot"] == "/app"
     finding = result["findings"][0]
+    assert finding["id"] == "NET-001"
+    assert finding["category"] == "network_port"
     assert finding["service"] == "redis"
     assert finding["networkRisk"]["level"] == "high"
     assert finding["matchedPackages"][0]["package"] == "redis"
@@ -230,6 +232,8 @@ def test_correlate_flags_drift_violation_for_forbidden_rule() -> None:
     result = correlate_exposure(netscan_report, analysis_report, endpoint_refs, network_rules)
 
     finding = result["findings"][0]
+    assert finding["id"] == "NET-001"
+    assert finding["category"] == "network_drift"
     assert finding["driftViolation"] is not None
     assert finding["severity"] == "high"
     assert result["summary"]["driftViolations"] == 1
