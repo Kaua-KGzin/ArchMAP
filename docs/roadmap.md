@@ -158,6 +158,40 @@ are the next slice, each buildable directly on what's already shipped.
 
 ---
 
+## Next (v1.4.0 candidates) — agent-native ArchMAP
+
+Derived from the [October 2026 market-trends research](research/market-trends-2026-10.md):
+GitHub's monthly trending list is dominated by tooling for AI coding agents
+(skills/plugins, persistent memory, context-window economy, verified security
+findings). ArchMAP already has the deterministic engine those tools lack; the
+items below close the distribution and ergonomics gap.
+
+- **Agent plugin + skill** — ✅ Done. `plugins/archmap/` (Claude Code plugin:
+  MCP server, `SessionStart` memory hook, `archmap` skill) and a root
+  `.claude-plugin/marketplace.json`; the same `SKILL.md` installs into other
+  agents via `npx skills add`. See [AI agent plugin](agents.md).
+- **Task-scoped context retrieval** — MCP tool `get_relevant_context(task,
+  budget_tokens)`: BM25 (stdlib `sqlite3` FTS5) over paths/symbols/imports,
+  re-ranked by graph proximity and risk, returning the minimal file set for a
+  task within a token budget.
+- **Snapshot history + observations** — persist each analysis under
+  `.archmap/history/` (generalizing the network-snapshot item above) and
+  derive trend observations ("risk rising 5 runs in a row", "cycle open for
+  40 days") for `archmap memory`.
+- **`archmap recon` + verified findings** — deterministic attack-surface map
+  (entrypoints, network-facing code, blast radius) for agentic security
+  audits; `Finding.status` (`confirmed`/`needs_validation`/`rejected`) and a
+  published JSON Schema.
+- **`archmap agents audit`** — `AGENT-*` findings for risky agent config
+  (`.mcp.json`, hooks, permissions): `curl | sh` hooks, wildcard permissions,
+  plaintext secrets, non-loopback `http://` MCP servers.
+- **Secret exposure findings** — `SEC-*` findings from the existing
+  endpoint scanner's `.env`/config pass (offline, conservative).
+- **`archmap commands --json`** — machine-readable command catalog for
+  agent-native CLI discovery.
+
+---
+
 ## Longer-term
 
 - **Unified System Graph** — extend the dependency graph's node/edge model

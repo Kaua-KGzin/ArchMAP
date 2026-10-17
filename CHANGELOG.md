@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Claude Code plugin + portable agent skill** (`plugins/archmap/`) —
+  bundles the ArchMAP MCP server, a `SessionStart` hook that injects
+  `archmap memory --print` (fail-safe when `archmap` isn't installed), and an
+  `archmap` skill telling the agent when to call each tool. Installable with
+  `/plugin marketplace add Kaua-KGzin/ArchMAP` (root
+  `.claude-plugin/marketplace.json`) or, for Cursor/Codex/OpenCode,
+  `npx skills add Kaua-KGzin/ArchMAP --skill archmap`. A new test keeps the
+  plugin version in sync with the package and fails if the skill references
+  an MCP tool that doesn't exist. See `docs/agents.md`.
+- **Market-trends research** (`docs/research/market-trends-2026-10.md`) and
+  a v1.4.0 roadmap derived from it.
+
+### Fixed
+- Lint errors (`ruff check .`) left by v1.3.0: an unused import in
+  `core/exposure/correlate.py` and two over-long lines in
+  `tests/test_findings.py`.
+
 ## [1.3.0] - 2026-08-13
 
 ### Added

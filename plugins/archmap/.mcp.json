@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "archmap": {
+      "command": "archmap",
+      "args": ["mcp", "."]
+    }
+  }
+}

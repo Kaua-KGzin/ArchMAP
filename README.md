@@ -263,6 +263,23 @@ pip install "KG-ARCHMAP[tree-sitter]"
 
 When installed, all language parsers upgrade automatically. Tree-sitter is used as a resilient *primary* parser: each grammar loads independently, and if it cannot parse a given file (or parses it unreliably), that single file transparently falls back to the regex path instead of being dropped. The regex fallback is fully preserved — no behaviour change without the extra.
 
+## AI agent plugin
+
+ArchMAP ships as a Claude Code plugin (MCP server + session-start memory hook + an `archmap` skill that tells the agent to check blast radius before editing and run quality gates before finishing) and as a portable skill for Cursor, Codex, OpenCode, and other `SKILL.md`-aware agents:
+
+```bash
+pip install KG-ARCHMAP
+
+# Claude Code
+/plugin marketplace add Kaua-KGzin/ArchMAP
+/plugin install archmap@archmap
+
+# Other agents
+npx skills add Kaua-KGzin/ArchMAP --skill archmap
+```
+
+See [AI agent plugin](docs/agents.md) for details.
+
 ## VS Code Extension
 
 <p align="center">

@@ -81,6 +81,7 @@ nav:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quickstart.md
       - Live Demo: getting-started/demo.md
+      - AI Agent Plugin: agents.md
   - CLI Reference:
       - analyze: cli/analyze.md
       - explain: cli/explain.md
@@ -111,6 +112,7 @@ nav:
   - Project:
       - Changelog: changelog.md
       - Roadmap: roadmap.md
+      - Market Trends (2026-10): research/market-trends-2026-10.md
 
 plugins:
   - search
