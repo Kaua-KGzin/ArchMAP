@@ -12,6 +12,7 @@ from archmap.core.analyzer.findings import build_code_findings
 from archmap.core.analyzer.human_analyzer import analyze_human
 from archmap.core.analyzer.impact_analyzer import build_dependents_map, calculate_impact
 from archmap.core.analyzer.project_explainer import explain_project
+from archmap.core.analyzer.quality import build_analysis_quality, build_quality_findings
 from archmap.core.analyzer.risk_analyzer import detect_architectural_risks
 
 
@@ -72,8 +73,11 @@ def analyze_graph(
     metrics["architectureHealthScore"] = architecture["health"]["score"]
     metrics["architectureStyle"] = architecture["detectedStyle"]["name"]
     metrics["architectureRuleViolations"] = len(architecture["ruleViolations"])
+    quality = build_analysis_quality(graph.get("diagnostics"), graph.get("parsedFiles", []))
+    metrics["analysisQuality"] = quality
 
     findings = build_code_findings(enriched, risks, architecture)
+    findings.extend(build_quality_findings(quality))
 
     return {
         "projectRoot": graph["projectRoot"],

@@ -87,8 +87,10 @@
 ## Next (v1.4.0) — agent-native ArchMAP
 
 See `docs/roadmap.md` and `docs/research/market-trends-2026-10.md` for the
-full list. Shipped so far: the Claude Code plugin + portable `archmap` agent
-skill (`plugins/archmap/`, `.claude-plugin/marketplace.json`).
+full list. Shipped in v1.4.0: the Claude Code plugin + portable `archmap`
+agent skill, `archmap context`, `archmap inspect`/`hexdump`/`strings`
+(static reverse engineering), `archmap audit` (secrets and agent config),
+analysis-quality metrics, and 7 new MCP tools.
 
 ---
 

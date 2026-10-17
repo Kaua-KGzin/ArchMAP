@@ -22,6 +22,14 @@ from archmap.cli.commands import run_temporal as _run_temporal
 from archmap.cli.commands import run_trace as _run_trace
 from archmap.cli.commands import run_watch as _run_watch
 from archmap.cli.defaults import DEFAULT_HOST, DEFAULT_PORT  # noqa: F401
+from archmap.cli.inspect_commands import run_audit as _run_audit
+from archmap.cli.inspect_commands import run_commands as _run_commands
+from archmap.cli.inspect_commands import run_context as _run_context
+from archmap.cli.inspect_commands import run_hexdump as _run_hexdump
+from archmap.cli.inspect_commands import run_inspect as _run_inspect
+from archmap.cli.inspect_commands import run_strings as _run_strings
+
+_NO_BANNER_COMMANDS = {"mcp", "memory", "hexdump", "strings", "commands"}
 
 
 def _print_banner() -> None:
@@ -66,6 +74,12 @@ def _resolve_command_handler(command: str | None):
         "netscan": _run_netscan,
         "expose": _run_expose,
         "memory": _run_memory,
+        "inspect": _run_inspect,
+        "hexdump": _run_hexdump,
+        "strings": _run_strings,
+        "audit": _run_audit,
+        "commands": _run_commands,
+        "context": _run_context,
     }
     return handlers.get(command)
 
@@ -97,7 +111,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"archmap {__version__}")
         return 0
 
-    if sys.stdout.isatty() and command not in ("mcp", "memory"):
+    # Commands whose stdout is meant to be piped or parsed never get the banner.
+    if sys.stdout.isatty() and command not in _NO_BANNER_COMMANDS:
         _print_banner()
 
     handler = _resolve_command_handler(command)

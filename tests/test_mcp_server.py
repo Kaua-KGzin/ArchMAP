@@ -333,7 +333,16 @@ def test_dispatch_tools_list() -> None:
     assert "diff_architecture" in names
     assert "get_network_exposure" in names
     assert "get_project_memory" in names
-    assert len(names) == 8
+    assert {
+        "get_relevant_context",
+        "get_analysis_quality",
+        "list_findings",
+        "inspect_path",
+        "hexdump",
+        "extract_strings",
+        "audit_project",
+    } <= set(names)
+    assert len(names) == len(set(names)) == 15
 
 
 def test_dispatch_unknown_method() -> None:

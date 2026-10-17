@@ -64,8 +64,18 @@ def test_skill_frontmatter() -> None:
 def test_skill_references_only_real_mcp_tools() -> None:
     text = SKILL_FILE.read_text(encoding="utf-8")
     known = {tool["name"] for tool in _TOOLS}
-    arguments = {"project_path", "max_depth", "base_ref", "head_ref"}
-    referenced = set(re.findall(r"`([a-z]+(?:_[a-z]+)+)`", text)) - arguments
+    arguments = {
+        "project_path",
+        "max_depth",
+        "base_ref",
+        "head_ref",
+        "budget_tokens",
+        "min_severity",
+    }
+    # Snake_case identifiers are tool names unless listed as arguments; single
+    # words (e.g. `hexdump`) count only when they name a real tool.
+    candidates = set(re.findall(r"`([a-z]+(?:_[a-z]+)*)`", text))
+    referenced = {c for c in candidates if "_" in c or c in known} - arguments
     assert referenced, "skill should reference MCP tools"
     assert referenced <= known, f"unknown tools in SKILL.md: {sorted(referenced - known)}"
     # Every tool the server exposes should be documented for the agent.

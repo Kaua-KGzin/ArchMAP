@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/>
   </a>
   <a href="./CHANGELOG.md">
-    <img src="https://img.shields.io/badge/version-1.2.0-brightgreen" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-1.4.0-brightgreen" alt="Version"/>
   </a>
   <a href="https://pypi.org/project/KG-ARCHMAP/">
     <img src="https://img.shields.io/badge/PyPI-KG--ARCHMAP-orange?logo=pypi&logoColor=white" alt="PyPI"/>
@@ -26,15 +26,17 @@
 
 ---
 
-ArchMAP scans source code, builds dependency graphs, detects cycles, reports architectural risks, and serves an interactive web UI.
+ArchMAP scans source code, builds dependency graphs, detects cycles, reports architectural risks, and serves an interactive web UI. It also statically inspects binaries and data files (ELF, PE, Mach-O, WebAssembly, APK, SQLite, archives), audits secrets and AI-agent configuration, and gives AI coding agents task-scoped context through MCP — all with the Python standard library only.
 
 **Supported languages:** Python · JavaScript · TypeScript · Rust · Go · PHP · Java · C# · C/C++
+
+**Inspected file formats:** ELF · PE · Mach-O · WebAssembly · APK/JAR/DEX · SQLite · ZIP/tar/gzip · JSON/CSV · and 20+ identified by magic bytes
 
 ## Status
 
 | | |
 |---|---|
-| Release | `v1.2.0` |
+| Release | `v1.4.0` |
 | Runtime | Python `>=3.11` |
 | UI | built-in static UI + Node dev server |
 | Distribution | PyPI (`KG-ARCHMAP`) + Windows `.exe` |
@@ -251,7 +253,42 @@ Renders the project's health score, top risk files, cycles, and violations into 
 archmap mcp .
 ```
 
-Starts a JSON-RPC 2.0 server over stdio exposing 8 tools: `get_project_memory`, `get_architecture_summary`, `get_file_context`, `impact_analysis`, `run_checks`, `trace_reachability`, `diff_architecture`, `get_network_exposure`. Register in `~/.claude/claude_desktop_config.json` to let Claude Code, Cursor, or Windsurf query your project's structure — and now its network exposure — before making changes. See [`archmap mcp`](docs/cli/mcp.md) for the full tool list.
+Starts a JSON-RPC 2.0 server over stdio exposing 15 tools — architecture (`get_project_memory`, `get_relevant_context`, `get_architecture_summary`, `get_analysis_quality`, `list_findings`, `get_file_context`, `impact_analysis`, `run_checks`, `trace_reachability`, `diff_architecture`), network (`get_network_exposure`), and reverse engineering/security (`inspect_path`, `hexdump`, `extract_strings`, `audit_project`). File tools are confined to the project root. Register in `~/.claude/claude_desktop_config.json` to let Claude Code, Cursor, or Windsurf query your project before making changes — or install the [plugin](#ai-agent-plugin). See [`archmap mcp`](docs/cli/mcp.md) for the full tool list.
+
+### Context (task-scoped files for AI agents)
+
+```bash
+archmap context "fix retry backoff in the payment webhook" .
+archmap context "tree-sitter fallback for C#" . --budget 12000 --json
+```
+
+Ranks the files to read for a task (BM25 over identifier-aware tokens + direct imports/dependents from the graph) and packs them into a token budget with the best-matching lines. Same engine as the `get_relevant_context` MCP tool. See [`archmap context`](docs/cli/context.md).
+
+### Inspect (static reverse engineering)
+
+```bash
+archmap inspect ./firmware.bin            # identify + parse + mitigations + strings
+archmap inspect ./rootfs                  # inventory + binary→library linkage graph
+archmap inspect app.apk --json            # dex files, native libs per ABI, red flags
+archmap inspect dist/ --fail-on high      # CI gate on shipped binaries
+archmap hexdump app.exe -s -64            # last 64 bytes
+archmap strings app.exe --interesting     # URLs, IPs, paths, registry keys, toolchain, secrets (redacted)
+```
+
+Parses ELF, PE, Mach-O (incl. universal), and WebAssembly headers, linked libraries, imports/exports, and mitigations (NX, PIE, RELRO, canary, FORTIFY / ASLR, DEP, CFG, signing, packers); summarizes JSON, CSV, SQLite (read-only), ZIP/APK/JAR, tar, and gzip with red flags (zip-slip, setuid, escaping links, decompression bombs). Malformed input never crashes the tool — it's fuzz-tested. Results land as `BIN-*` findings. See [`archmap inspect`](docs/cli/inspect.md).
+
+### Audit (secrets and AI-agent configuration)
+
+```bash
+archmap audit .                 # SEC-* and AGENT-* findings
+archmap audit . --fail-on high  # CI gate
+```
+
+Git-aware secret detection (committed secrets outrank local `.env` files; values always redacted) and AI-agent configuration as attack surface: insecure or unpinned MCP servers, plaintext tokens, `bypassPermissions`, interpreter-wildcard permissions, hooks that pipe downloads into a shell, and invisible Unicode in `CLAUDE.md`/`AGENTS.md`/`.cursorrules`. See [`archmap audit`](docs/cli/audit.md).
+
+### Analysis quality
+
+Every `archmap analyze` now reports how much of the project it actually understood — files discovered vs. parsed, parse/decode failures, oversized files skipped, per-language import resolution, and an overall confidence — as `metrics.analysisQuality` and `QUAL-*` findings. Gate on it in CI with `--min-coverage PCT` and `--max-parse-failures N`.
 
 ### Tree-sitter parser (optional)
 

@@ -97,6 +97,9 @@ nav:
       - expose: cli/expose.md
       - memory: cli/memory.md
       - mcp: cli/mcp.md
+      - context: cli/context.md
+      - inspect: cli/inspect.md
+      - audit: cli/audit.md
       - watch: cli/watch.md
   - Internals:
       - Architecture: architecture.md

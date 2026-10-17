@@ -100,7 +100,10 @@ archmap serve .
 | [`init`](cli/init.md) | Generate `.archmap.toml` from a real dependency graph |
 | [`advise`](cli/advise.md) | LLM-powered architectural advisor |
 | [`temporal`](cli/temporal.md) | Temporal coupling via git history |
-| [`mcp`](cli/mcp.md) | MCP server for AI assistant integration (8 tools) |
+| [`mcp`](cli/mcp.md) | MCP server for AI assistant integration (15 tools) |
+| [`context`](cli/context.md) | Files to read for a task, packed into a token budget |
+| [`inspect`](cli/inspect.md) | Static reverse engineering: binaries, archives, databases, data; `hexdump`, `strings` |
+| [`audit`](cli/audit.md) | Committed secrets and risky AI-agent configuration |
 | [`memory`](cli/memory.md) | Persistent architecture digest for AI coding agents |
 | [`watch`](cli/watch.md) | Continuous analysis on file change |
 | [`netscan`](cli/netscan.md) | Network host discovery + port scanning, nmap-style |
@@ -108,6 +111,12 @@ archmap serve .
 
 ## What's new
 
+- **1.4.0** — Reverse engineering and agent tooling: `archmap inspect`
+  (ELF/PE/Mach-O/WASM parsing, mitigations, entropy, classified strings,
+  data and archive summaries, binary linkage graphs), `hexdump`, `strings`,
+  `archmap audit` (secrets and AI-agent configuration), `archmap context`
+  (task-scoped file ranking), analysis-quality metrics with `QUAL-*`
+  findings and CI gates, seven new MCP tools, and a Claude Code plugin.
 - **1.2.0** — `archmap memory`: a persistent markdown digest of the project's
   architecture for AI coding agents to read at session start instead of
   re-exploring the codebase, with ready-made Claude Code hook integration

@@ -24,9 +24,9 @@ The plugin provides:
 
 | Component | What it does |
 |---|---|
-| MCP server `archmap` | Runs `archmap mcp .` and exposes all eight ArchMAP tools |
+| MCP server `archmap` | Runs `archmap mcp .` and exposes all fifteen ArchMAP tools (architecture, context, quality, findings, reverse engineering, audit) |
 | `SessionStart` hook | Injects `archmap memory --print` into context at session start. Skips silently if `archmap` isn't installed, and is bounded to 60 s |
-| `archmap` skill | Tells the agent when to call which tool: orient with `get_project_memory`, run `impact_analysis` before editing, `run_checks` + `diff_architecture` before finishing |
+| `archmap` skill | Tells the agent when to call which tool: orient with `get_project_memory` and `get_relevant_context`, check `get_analysis_quality`, run `impact_analysis` before editing, `run_checks` + `diff_architecture` before finishing; plus a reverse-engineering workflow (`inspect_path`, `extract_strings`, `hexdump`) and `audit_project` |
 
 To also refresh `.archmap/memory.md` after every edit, add the
 `PostToolUse` hook from [`archmap memory`](cli/memory.md) to your project's

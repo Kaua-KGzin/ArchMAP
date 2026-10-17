@@ -9,6 +9,7 @@ from typing import Any, NotRequired, TypedDict
 
 __all__ = ["ParsedFile", "ParsedProject", "parse_project"]
 
+from archmap.core.analyzer.quality import ParseDiagnostics, empty_diagnostics
 from archmap.core.parser import plugins as plugins  # noqa: F401
 from archmap.core.parser.cpp_parser import CParser, CppParser
 from archmap.core.parser.csharp_parser import CSharpParser
@@ -56,6 +57,7 @@ class ParsedFile(TypedDict):
 class ParsedProject(TypedDict):
     projectRoot: str
     parsedFiles: list[ParsedFile]
+    diagnostics: NotRequired[ParseDiagnostics]
 
 
 def parse_project(
@@ -67,13 +69,19 @@ def parse_project(
     import concurrent.futures
     import logging
     import os
+    import time
 
     logger = logging.getLogger(__name__)
     project_root = Path(project_path).resolve()
     if config is None and virtual_files is None:
         from archmap.config import load_project_config
         config = load_project_config(project_root)
-    file_content_map = _load_source_map(project_root, virtual_files, config=config)
+    diagnostics = empty_diagnostics()
+    started = time.perf_counter()
+    file_content_map = _load_source_map(
+        project_root, virtual_files, config=config, diagnostics=diagnostics
+    )
+    discovered_at = time.perf_counter()
     file_ids = set(file_content_map.keys())
 
     def get_file_content(path: str) -> str | None:
@@ -103,6 +111,10 @@ def parse_project(
             )
         except Exception as exc:
             logger.error("Failed to parse %s: %s", file_id, exc)
+            # list.append is atomic under the GIL, so worker threads can share it.
+            diagnostics["parseFailures"].append(
+                {"file": file_id, "language": language, "error": f"{type(exc).__name__}: {exc}"}
+            )
             return None
 
         # Identify per-entry unresolved imports by resolving each entry individually.
@@ -144,10 +156,16 @@ def parse_project(
                 parsed_files.append(result)
 
     parsed_files.sort(key=lambda x: x["id"])
+    finished = time.perf_counter()
+    diagnostics["timingsMs"] = {
+        "discover": round((discovered_at - started) * 1000, 1),
+        "parse": round((finished - discovered_at) * 1000, 1),
+    }
 
     return {
         "projectRoot": str(project_root),
         "parsedFiles": parsed_files,
+        "diagnostics": diagnostics,
     }
 
 
@@ -155,8 +173,11 @@ def _load_source_map(
     project_root: Path,
     virtual_files: dict[str, str] | None,
     config: Any = None,
+    diagnostics: ParseDiagnostics | None = None,
 ) -> dict[str, str]:
     from archmap.config import DEFAULT_MAX_FILE_SIZE_BYTES
+
+    diag = diagnostics if diagnostics is not None else empty_diagnostics()
 
     max_file_size_bytes = DEFAULT_MAX_FILE_SIZE_BYTES
     extra_ignored_dirs: list[str] = []
@@ -173,22 +194,29 @@ def _load_source_map(
             ext = Path(normalized).suffix.lower()
             if not registry.get_language_by_ext(ext):
                 continue
+            diag["discovered"] = diag.get("discovered", 0) + 1
             if max_file_size_bytes > 0 and len(content.encode("utf-8")) > max_file_size_bytes:
+                diag["oversized"].append(normalized)
                 continue
             source_map[normalized] = content
         return source_map
 
     source_map = {}
+    # Size filtering happens here rather than in discover_source_files so that
+    # skipped files are counted instead of silently vanishing from the graph.
     for file_path in discover_source_files(
         project_root,
         extra_ignored_dirs=extra_ignored_dirs,
-        max_file_size_bytes=max_file_size_bytes,
     ):
         file_id = to_file_id(project_root, file_path)
+        diag["discovered"] = diag.get("discovered", 0) + 1
         try:
+            if max_file_size_bytes > 0 and file_path.stat().st_size > max_file_size_bytes:
+                diag["oversized"].append(file_id)
+                continue
             source_map[file_id] = file_path.read_text(encoding="utf-8-sig")
         except (UnicodeDecodeError, OSError):
-            continue
+            diag["decodeErrors"].append(file_id)
     return source_map
 
 

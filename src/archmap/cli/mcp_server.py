@@ -195,6 +195,113 @@ def _tool_get_project_memory(project_path: str) -> dict:
     return {"memory": generate_memory_digest(result)}
 
 
+def _resolve_inside(project_path: str, user_path: str) -> Path:
+    """Resolve ``user_path`` against the project root and refuse anything outside it.
+
+    File-reading tools (inspect, hexdump, strings) take paths from the model,
+    and a prompt-injected model could ask for ``~/.ssh/id_rsa``. Symlinks are
+    resolved first, so a link inside the project can't point the tool outside.
+    """
+    root = Path(project_path).resolve()
+    candidate = Path(user_path)
+    resolved = (candidate if candidate.is_absolute() else root / candidate).resolve()
+    if resolved != root and root not in resolved.parents:
+        raise ValueError(
+            f"'{user_path}' is outside the project root {root}; start `archmap mcp` "
+            "in a directory that contains it"
+        )
+    if not resolved.exists():
+        raise ValueError(f"'{user_path}' does not exist")
+    return resolved
+
+
+def _tool_get_relevant_context(
+    project_path: str, task: str, budget_tokens: int, max_files: int
+) -> dict:
+    from archmap.core.context.relevance import rank_relevant_files
+
+    return rank_relevant_files(
+        _get_analysis(project_path),
+        task,
+        budget_tokens=max(500, min(int(budget_tokens), 200_000)),
+        max_files=max(1, min(int(max_files), 50)),
+    )
+
+
+def _tool_get_analysis_quality(project_path: str) -> dict:
+    result = _get_analysis(project_path)
+    quality = dict(result.get("metrics", {}).get("analysisQuality", {}))
+    quality.pop("timingsMs", None)
+    return quality
+
+
+def _tool_list_findings(
+    project_path: str, domain: str | None, min_severity: str | None, limit: int
+) -> dict:
+    from archmap.core.analyzer.findings import SEVERITY_LEVELS
+
+    findings = list(_get_analysis(project_path).get("findings", []))
+    if domain:
+        findings = [f for f in findings if f.get("domain") == domain]
+    if min_severity in SEVERITY_LEVELS:
+        floor = SEVERITY_LEVELS.index(str(min_severity))
+        findings = [
+            f for f in findings if SEVERITY_LEVELS.index(f.get("severity", "info")) >= floor
+        ]
+    return {"total": len(findings), "findings": findings[: max(1, min(int(limit), 500))]}
+
+
+def _tool_inspect_path(project_path: str, path: str, include_strings: bool) -> dict:
+    from archmap.core.binary.analyzer import inspect_file
+    from archmap.core.inspect.inventory import inspect_directory
+
+    target = _resolve_inside(project_path, path)
+    if target.is_dir():
+        result = inspect_directory(target, max_files=2000, include_strings=False)
+        result["binaries"] = result["binaries"][:200]
+        return result
+    report = inspect_file(target, include_strings=include_strings, max_interesting_strings=50)
+    # The per-block profile is for plotting; agents only need the summary numbers.
+    report["entropy"] = {k: v for k, v in report["entropy"].items() if k != "profile"}
+    return report
+
+
+def _tool_hexdump(project_path: str, path: str, offset: int, length: int) -> dict:
+    from archmap.core.binary.hexdump import hexdump
+    from archmap.core.binary.reader import open_binary
+
+    target = _resolve_inside(project_path, path)
+    if not target.is_file():
+        raise ValueError(f"'{path}' is not a file")
+    with open_binary(target) as data:
+        size = len(data)
+        dump = hexdump(data, offset=int(offset), length=max(1, min(int(length), 4096)))
+    return {"file": str(target), "size": size, "hexdump": dump}
+
+
+def _tool_extract_strings(
+    project_path: str, path: str, min_length: int, interesting_only: bool, limit: int
+) -> dict:
+    from archmap.core.binary.reader import open_binary
+    from archmap.core.binary.strings import analyze_strings, extract_strings
+
+    target = _resolve_inside(project_path, path)
+    if not target.is_file():
+        raise ValueError(f"'{path}' is not a file")
+    cap = max(1, min(int(limit), 1000))
+    with open_binary(target) as data:
+        if interesting_only:
+            return analyze_strings(data, min_length=int(min_length), max_interesting=cap)
+        found = extract_strings(data, min_length=int(min_length), limit=cap)
+    return {"file": str(target), "strings": found, "truncated": len(found) >= cap}
+
+
+def _tool_audit_project(project_path: str) -> dict:
+    from archmap.core.audit.project_audit import audit_project
+
+    return audit_project(project_path)
+
+
 def _tool_run_checks(project_path: str) -> dict:
     result = _get_analysis(project_path)
     risks = result.get("risks", {})
@@ -223,6 +330,11 @@ def _tool_run_checks(project_path: str) -> dict:
 # ---------------------------------------------------------------------------
 # Tool registry
 # ---------------------------------------------------------------------------
+
+_PROJECT_PATH_SCHEMA = {
+    "type": "string",
+    "description": "Absolute path to the project root (default: server startup path).",
+}
 
 _TOOLS = [
     {
@@ -468,6 +580,137 @@ _TOOLS = [
             "required": ["target"],
         },
     },
+    {
+        "name": "get_relevant_context",
+        "description": (
+            "Given a task description, returns the files to read for it, in order, "
+            "packed into a token budget: BM25 over identifier-aware tokens (path "
+            "segments weigh more), plus the direct imports/dependents of each match "
+            "from the dependency graph. Each file comes with why it was picked, its "
+            "blast radius, and its best-matching lines — often enough to skip reading "
+            "it. Call this before exploring the codebase for a task."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "What you are about to do; include identifiers if known.",
+                },
+                "budget_tokens": {
+                    "type": "integer",
+                    "description": "Approximate tokens you can spend reading files (default 8000).",
+                },
+                "max_files": {"type": "integer", "description": "Maximum files (default 15)."},
+                "project_path": _PROJECT_PATH_SCHEMA,
+            },
+            "required": ["task"],
+        },
+    },
+    {
+        "name": "get_analysis_quality",
+        "description": (
+            "How complete the dependency graph is: files discovered vs. parsed, parse "
+            "and decode failures, oversized files skipped, per-language import "
+            "resolution, and an overall confidence (high/medium/low). Check this before "
+            "trusting 'no dependents' or a small blast radius."
+        ),
+        "inputSchema": {"type": "object", "properties": {"project_path": _PROJECT_PATH_SCHEMA}},
+    },
+    {
+        "name": "list_findings",
+        "description": (
+            "All unified findings with stable IDs: ARCH-* (cycles, god modules, layer "
+            "and rule violations) and QUAL-* (parse failures, low resolution). Filter "
+            "by domain ('code' or 'quality') and minimum severity."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "enum": ["code", "quality"]},
+                "min_severity": {
+                    "type": "string",
+                    "enum": ["info", "low", "medium", "high", "critical"],
+                },
+                "limit": {"type": "integer", "description": "Maximum findings (default 100)."},
+                "project_path": _PROJECT_PATH_SCHEMA,
+            },
+        },
+    },
+    {
+        "name": "inspect_path",
+        "description": (
+            "Static reverse-engineering inspection of a file or directory inside the "
+            "project. Files: format identification (ELF, PE, Mach-O, WASM, APK/JAR, "
+            "SQLite, archives, JSON/CSV, ...), hashes, headers, linked libraries, "
+            "imports/exports, mitigations (NX/PIE/RELRO/canary, ASLR/DEP/CFG), packer "
+            "hints, entropy, classified strings, data schema, and BIN-* findings. "
+            "Directories: file inventory plus a binary-to-library linkage graph. "
+            "Nothing is executed."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File or directory (relative to the project root).",
+                },
+                "include_strings": {
+                    "type": "boolean",
+                    "description": "Extract and classify strings (default true).",
+                },
+                "project_path": _PROJECT_PATH_SCHEMA,
+            },
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "hexdump",
+        "description": (
+            "Hex + ASCII dump of a byte range of a file inside the project (max 4096 "
+            "bytes). Negative offsets count from the end of the file."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "offset": {"type": "integer", "description": "Start offset (default 0)."},
+                "length": {"type": "integer", "description": "Bytes to dump (default 256)."},
+                "project_path": _PROJECT_PATH_SCHEMA,
+            },
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "extract_strings",
+        "description": (
+            "Printable ASCII/UTF-16LE strings from a file inside the project. With "
+            "interesting_only (default), returns only URLs, IPs, paths, registry keys, "
+            "crypto/toolchain markers, and secrets (redacted), with category counts."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "min_length": {"type": "integer", "description": "Minimum length (default 4)."},
+                "interesting_only": {"type": "boolean", "description": "Default true."},
+                "limit": {"type": "integer", "description": "Maximum strings (default 200)."},
+                "project_path": _PROJECT_PATH_SCHEMA,
+            },
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "audit_project",
+        "description": (
+            "Offline audit: secrets in project files (git-aware; committed secrets rank "
+            "higher; values redacted) as SEC-* findings, and AI-agent configuration "
+            "risks as AGENT-* findings — insecure or unpinned MCP servers, plaintext "
+            "tokens, bypassed/broad permissions, hooks that pipe downloads into a "
+            "shell, and invisible Unicode in CLAUDE.md/AGENTS.md/.cursorrules."
+        ),
+        "inputSchema": {"type": "object", "properties": {"project_path": _PROJECT_PATH_SCHEMA}},
+    },
 ]
 
 
@@ -548,6 +791,39 @@ def _dispatch(message: dict, default_path: str) -> dict | None:
                     args.get("use_nmap"),
                     args.get("timeout", 1.0),
                 )
+            elif tool_name == "get_relevant_context":
+                task = str(args.get("task", "")).strip()
+                if not task:
+                    return _err(req_id, -32602, "'task' argument is required")
+                data = _tool_get_relevant_context(
+                    project_path, task, args.get("budget_tokens", 8000), args.get("max_files", 15)
+                )
+            elif tool_name == "get_analysis_quality":
+                data = _tool_get_analysis_quality(project_path)
+            elif tool_name == "list_findings":
+                data = _tool_list_findings(
+                    project_path, args.get("domain"), args.get("min_severity"),
+                    args.get("limit", 100),
+                )
+            elif tool_name in ("inspect_path", "hexdump", "extract_strings"):
+                path = str(args.get("path", ""))
+                if not path:
+                    return _err(req_id, -32602, "'path' argument is required")
+                if tool_name == "inspect_path":
+                    data = _tool_inspect_path(
+                        project_path, path, bool(args.get("include_strings", True))
+                    )
+                elif tool_name == "hexdump":
+                    data = _tool_hexdump(
+                        project_path, path, args.get("offset", 0), args.get("length", 256)
+                    )
+                else:
+                    data = _tool_extract_strings(
+                        project_path, path, args.get("min_length", 4),
+                        bool(args.get("interesting_only", True)), args.get("limit", 200),
+                    )
+            elif tool_name == "audit_project":
+                data = _tool_audit_project(project_path)
             else:
                 return _err(req_id, -32601, f"Unknown tool: '{tool_name}'")
         except Exception as exc:  # noqa: BLE001
