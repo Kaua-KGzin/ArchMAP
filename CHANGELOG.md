@@ -74,6 +74,41 @@ surface. Driven by the October 2026 market-trends research
   `npx skills add Kaua-KGzin/ArchMAP --skill archmap`. A test keeps the
   plugin version in sync and fails if the skill omits or invents a tool.
 - **Market-trends research** (`docs/research/market-trends-2026-10.md`).
+- **Web UI: five new views** in `archmap serve`, in all six UI languages and
+  the mobile layout:
+  - **Analysis confidence** card in Insights (and a Confidence KPI) showing
+    parse coverage, parse failures with errors, skipped files, and
+    per-language import resolution.
+  - **Findings**: every `ARCH-*`/`QUAL-*` finding (plus `SEC-*`/`AGENT-*`
+    after an audit) with severity counts, domain/severity filters, evidence,
+    and *Show in graph*.
+  - **Task context**: the `archmap context` ranking in the browser, with
+    matching lines and *Highlight in graph*.
+  - **Inspect files** plus an **Inspector** canvas tab: file reports with
+    mitigation chips, a clickable entropy profile, a paged hexdump, a
+    filterable strings table, and for folders the binary→library linkage
+    graph.
+  - **Security audit**: runs `archmap audit` and lists the findings.
+  The new views live in `web-ui/static/toolkit.js`; a test keeps their
+  translations complete in every language and their element IDs in sync.
+- **Web API**: `POST /api/context`, `/api/inspect`, `/api/hexdump`,
+  `/api/strings`, `/api/audit` (loopback only; file paths confined to the
+  analyzed project).
+
+### Changed
+- **`archmap serve` requires `Content-Type: application/json` on every
+  `POST`** and answers `415` otherwise. This blocks cross-site request
+  forgery: a page on another origin can't send that header without a CORS
+  preflight, which the server never approves. The web UI already complies;
+  scripts that call the API need the header, e.g.
+  `curl -X POST http://127.0.0.1:3000/api/reanalyze -H "Content-Type: application/json" -d "{}"`.
+- `.canvas-panel` now sizes its column with `minmax(0, 1fr)`, and the canvas
+  toolbar drops its redundant title and button labels between 961 and
+  1600 px, so wide content (hexdumps, extra tabs) no longer pushes the
+  toolbar out of view.
+- The plugin, `package.json`, and `package-lock.json` versions now match the
+  Python package (the npm manifests had drifted to 1.1.0 and 0.4.0-beta.0); a
+  test keeps every version declaration in sync.
 
 ### Fixed
 - Lint errors (`ruff check .`) left by v1.3.0: an unused import in

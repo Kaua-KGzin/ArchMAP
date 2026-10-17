@@ -84,6 +84,9 @@ Useful API endpoints while `serve` is running:
 | `GET /api/health` | Health score + grade |
 | `GET /api/project` | Project metadata |
 | `POST /api/reanalyze` | Trigger a fresh analysis |
+| `POST /api/context` · `/api/inspect` · `/api/hexdump` · `/api/strings` · `/api/audit` | Task context, reverse engineering, and audit (loopback only, paths confined to the project) |
+
+Every `POST` must send `Content-Type: application/json` (CSRF protection), e.g. `curl -X POST http://127.0.0.1:3000/api/reanalyze -H "Content-Type: application/json" -d "{}"`.
 
 ## CLI overview
 
@@ -135,7 +138,7 @@ archmap serve <path> --host 0.0.0.0 --port 3000
 > regardless of `--host`. Only the read-only graph/health endpoints are
 > reachable from other hosts when you bind to `0.0.0.0`.
 
-The web UI is responsive — the nav rail, side panels, and toolbar reflow into a single-column, touch-friendly layout on phones and tablets, so `archmap serve` works the same way in a Termux browser as it does on desktop.
+The web UI has views for the dependency graph, insights (with **analysis confidence**), rules and layers, reachability trace, the AI advisor, and — new in 1.4.0 — **Findings** (every `ARCH`/`QUAL`/`SEC`/`AGENT` finding with filters and *Show in graph*), **Task context** (files to read for a task, highlighted in the graph), **Inspect files** with an **Inspector** tab (entropy profile, paged hexdump, filterable strings, binary→library graph), and **Security audit**. It is available in 6 languages and is responsive — the nav rail, side panels, and toolbar reflow into a single-column, touch-friendly layout on phones and tablets, so `archmap serve` works the same way in a Termux browser as it does on desktop. See the [web UI tour](https://kaua-kgzin.github.io/ArchMAP/#web-ui-tour).
 
 ### Diff
 
