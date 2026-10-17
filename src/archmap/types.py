@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 # ---------------------------------------------------------------------------
 # Node / edge types
@@ -95,6 +95,7 @@ class MetricsResult(TypedDict):
     architectureHealthScore: float
     architectureStyle: str
     architectureRuleViolations: int
+    analysisQuality: NotRequired[dict[str, Any]]
 
 
 # ---------------------------------------------------------------------------

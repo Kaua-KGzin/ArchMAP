@@ -2,6 +2,119 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.0] - 2026-10-17
+
+Reverse engineering, analysis-quality measurement, and a much deeper AI-agent
+surface. Driven by the October 2026 market-trends research
+(`docs/research/market-trends-2026-10.md`). Still zero runtime dependencies.
+
+### Added
+- **`archmap inspect`** — static reverse engineering for any file or folder.
+  Format identification by magic bytes (ELF, PE, Mach-O thin/universal,
+  WebAssembly, DEX, Java class, `.pyc`, APK/JAR/OOXML, ZIP, tar,
+  gzip/bzip2/xz/zstd, 7z, RAR, SQLite, PDF, images, pcap, LLVM bitcode, ...),
+  MD5/SHA-1/SHA-256, sampled entropy profile, and per-format parsing:
+  - **ELF**: segments, sections with entropy, `DT_NEEDED`, SONAME,
+    RPATH/RUNPATH, imported/exported symbols (incl. IFUNC), language hints,
+    and mitigations (NX, PIE, RELRO none/partial/full, stack canary,
+    FORTIFY_SOURCE). Validated against `readelf`.
+  - **PE**: PE32/PE32+, subsystem, compile time, sections with entropy,
+    imports and delay imports (names + ordinals), exports, .NET marker,
+    Authenticode presence, packer hints, ASLR/high-entropy ASLR/DEP/CFG.
+    Validated against `objdump`.
+  - **Mach-O**: universal slices, dylibs, install name, rpaths, segments,
+    PIE/executable-stack/code-signature/encryption flags.
+  - **WebAssembly**: imports/exports, function count, custom sections, and
+    `producers` metadata (exact language/compiler versions).
+  - **Data**: JSON/JSONL schema inference, CSV column types, SQLite tables,
+    columns and row counts (opened read-only, `immutable=1`), ZIP/APK/JAR
+    contents (dex files, native libraries per ABI), tar and gzip metadata,
+    with red flags for zip-slip paths, links escaping the archive, setuid
+    files, device nodes, and decompression bombs.
+  - **Directories**: file inventory plus a binary→library linkage graph
+    (libraries inside the tree resolve to real files by name/SONAME).
+  - Findings as `BIN-*` in the unified model; `--fail-on SEVERITY` CI gate.
+  - Bounds-checked parsing: a truncated or hostile file degrades the report
+    (`errors`/`limitations`) instead of crashing; covered by deterministic
+    truncation/mutation fuzz tests.
+- **`archmap hexdump`** (`hexdump -C` layout, hex/negative offsets) and
+  **`archmap strings`** (ASCII + UTF-16LE, `--interesting` classification
+  into URLs, IPs, paths, registry keys, shell commands, crypto, toolchain
+  markers, and redacted secrets; UTF-16 runs no longer start inside an
+  ASCII string as with `strings -el`).
+- **`archmap audit`** — offline, git-aware secret detection (`SEC-*`;
+  committed secrets outrank untracked local files; values always redacted)
+  and AI-agent configuration audit (`AGENT-*`): insecure or unpinned MCP
+  servers, plaintext MCP credentials, `bypassPermissions`, wildcard and
+  interpreter-wildcard permissions, auto-enabled project MCP servers, hooks
+  that pipe downloads into a shell or call the network, and invisible
+  Unicode in `CLAUDE.md`/`AGENTS.md`/`.cursorrules` ("Rules File Backdoor").
+- **`archmap context "<task>"`** — ranks the files to read for a task with
+  identifier-aware BM25, spreads score to direct imports/dependents in the
+  dependency graph, and packs results into a token budget with reasons and
+  best-matching lines.
+- **`archmap commands --json`** — machine-readable catalog of every command
+  and option, generated from the live parser.
+- **Analysis-quality metrics** — `metrics.analysisQuality` reports files
+  discovered vs. parsed, coverage, parse failures (file, language, error),
+  decode failures, oversized files skipped, per-language import resolution,
+  timings, and an overall confidence. Gaps become `QUAL-*` findings, are
+  shown in the summary and in `archmap memory`, and can gate CI with
+  `--min-coverage PCT` and `--max-parse-failures N`. Previously these files
+  vanished from the graph silently.
+- **MCP server: 8 → 15 tools** — `get_relevant_context`,
+  `get_analysis_quality`, `list_findings`, `inspect_path`, `hexdump`,
+  `extract_strings`, `audit_project`. File tools resolve paths (and
+  symlinks) inside the project root and refuse anything outside it.
+- **Claude Code plugin + portable agent skill** (`plugins/archmap/`) —
+  bundles the MCP server, a fail-safe `SessionStart` hook that injects
+  `archmap memory --print`, and an `archmap` skill covering the architecture,
+  context, reverse-engineering, and audit workflows. Install with
+  `/plugin marketplace add Kaua-KGzin/ArchMAP` or, for Cursor/Codex/OpenCode,
+  `npx skills add Kaua-KGzin/ArchMAP --skill archmap`. A test keeps the
+  plugin version in sync and fails if the skill omits or invents a tool.
+- **Market-trends research** (`docs/research/market-trends-2026-10.md`).
+- **Web UI: five new views** in `archmap serve`, in all six UI languages and
+  the mobile layout:
+  - **Analysis confidence** card in Insights (and a Confidence KPI) showing
+    parse coverage, parse failures with errors, skipped files, and
+    per-language import resolution.
+  - **Findings**: every `ARCH-*`/`QUAL-*` finding (plus `SEC-*`/`AGENT-*`
+    after an audit) with severity counts, domain/severity filters, evidence,
+    and *Show in graph*.
+  - **Task context**: the `archmap context` ranking in the browser, with
+    matching lines and *Highlight in graph*.
+  - **Inspect files** plus an **Inspector** canvas tab: file reports with
+    mitigation chips, a clickable entropy profile, a paged hexdump, a
+    filterable strings table, and for folders the binary→library linkage
+    graph.
+  - **Security audit**: runs `archmap audit` and lists the findings.
+  The new views live in `web-ui/static/toolkit.js`; a test keeps their
+  translations complete in every language and their element IDs in sync.
+- **Web API**: `POST /api/context`, `/api/inspect`, `/api/hexdump`,
+  `/api/strings`, `/api/audit` (loopback only; file paths confined to the
+  analyzed project).
+
+### Changed
+- **`archmap serve` requires `Content-Type: application/json` on every
+  `POST`** and answers `415` otherwise. This blocks cross-site request
+  forgery: a page on another origin can't send that header without a CORS
+  preflight, which the server never approves. The web UI already complies;
+  scripts that call the API need the header, e.g.
+  `curl -X POST http://127.0.0.1:3000/api/reanalyze -H "Content-Type: application/json" -d "{}"`.
+- `.canvas-panel` now sizes its column with `minmax(0, 1fr)`, and the canvas
+  toolbar drops its redundant title and button labels between 961 and
+  1600 px, so wide content (hexdumps, extra tabs) no longer pushes the
+  toolbar out of view.
+- The plugin, `package.json`, and `package-lock.json` versions now match the
+  Python package (the npm manifests had drifted to 1.1.0 and 0.4.0-beta.0); a
+  test keeps every version declaration in sync.
+
+### Fixed
+- Lint errors (`ruff check .`) left by v1.3.0: an unused import in
+  `core/exposure/correlate.py` and two over-long lines in
+  `tests/test_findings.py`.
+
 ## [1.3.0] - 2026-08-13
 
 ### Added

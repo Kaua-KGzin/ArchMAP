@@ -69,6 +69,8 @@ def build_graph(parsed_project: ParsedProject) -> dict:
 
     return {
         "projectRoot": parsed_project["projectRoot"],
+        "parsedFiles": parsed_project["parsedFiles"],
+        "diagnostics": parsed_project.get("diagnostics"),
         "nodes": nodes,
         "edges": edges,
         "importStats": {

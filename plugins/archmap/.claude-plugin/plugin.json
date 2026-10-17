@@ -1,0 +1,14 @@
+{
+  "name": "archmap",
+  "displayName": "ArchMAP",
+  "version": "1.4.0",
+  "description": "Architecture intelligence for coding agents: dependency graph, blast radius, cycles, layer rules, and network exposure via the ArchMAP MCP server.",
+  "author": {
+    "name": "Kaua Gabriel",
+    "url": "https://github.com/Kaua-KGzin"
+  },
+  "homepage": "https://kaua-kgzin.github.io/ArchMAP/",
+  "repository": "https://github.com/Kaua-KGzin/ArchMAP",
+  "license": "MIT",
+  "keywords": ["architecture", "dependency-graph", "static-analysis", "impact-analysis", "mcp"]
+}

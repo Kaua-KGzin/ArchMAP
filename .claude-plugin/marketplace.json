@@ -1,0 +1,18 @@
+{
+  "name": "archmap",
+  "owner": {
+    "name": "Kaua Gabriel",
+    "url": "https://github.com/Kaua-KGzin"
+  },
+  "metadata": {
+    "description": "ArchMAP plugins for AI coding agents: architecture-aware context, impact analysis, and quality gates."
+  },
+  "plugins": [
+    {
+      "name": "archmap",
+      "source": "./plugins/archmap",
+      "description": "Architecture intelligence for coding agents: dependency graph, blast radius, cycles, layer rules, and network exposure via the ArchMAP MCP server.",
+      "category": "development"
+    }
+  ]
+}

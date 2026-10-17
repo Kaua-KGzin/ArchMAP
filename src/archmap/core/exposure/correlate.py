@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from archmap.config import NetworkRulesConfig
-from archmap.core.analyzer.findings import SEVERITY_LEVELS, max_severity
+from archmap.core.analyzer.findings import max_severity
 from archmap.core.analyzer.rule_engine import detect_rule_violations, rule_tokens
 from archmap.core.exposure.endpoint_scanner import EndpointReference
 from archmap.core.exposure.service_packages import package_hints_for_service

@@ -18,6 +18,7 @@ from xml.sax.saxutils import escape as _xml_escape
 from archmap.core import analyze_project
 from archmap.core.advisor import advise_architecture
 from archmap.utils.file_utils import normalize_file_id
+from archmap.utils.paths import resolve_inside
 
 
 @dataclass
@@ -99,6 +100,11 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             "/api/open-file": "_handle_open_file",
             "/api/project": "_handle_set_project",
             "/api/reanalyze": "_handle_reanalyze",
+            "/api/context": "_handle_context",
+            "/api/inspect": "_handle_inspect",
+            "/api/hexdump": "_handle_hexdump",
+            "/api/strings": "_handle_strings",
+            "/api/audit": "_handle_audit",
         }
 
         def do_POST(self):  # noqa: N802
@@ -110,6 +116,16 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
                 self._write_json(
                     HTTPStatus.FORBIDDEN,
                     {"status": "error", "message": "only available on localhost"},
+                )
+                return
+            # A page on another origin can only send JSON after a CORS preflight,
+            # which this server never approves; requiring it blocks CSRF from any
+            # website the user visits while `archmap serve` is running.
+            content_type = self.headers.get("Content-Type", "").split(";")[0].strip().lower()
+            if content_type != "application/json":
+                self._write_json(
+                    HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
+                    {"status": "error", "message": "Content-Type must be application/json"},
                 )
                 return
             getattr(self, handler_name)()
@@ -450,10 +466,121 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
 
             self._write_json(HTTPStatus.OK, {"status": "success", **result})
 
+        # -- Toolkit endpoints (context, reverse engineering, audit) ---------------
+
+        def _run_tool(self, func: Any) -> None:
+            """Run a toolkit call, mapping user errors to 400 and the rest to 500."""
+            try:
+                result = func()
+            except (ValueError, FileNotFoundError, NotADirectoryError) as exc:
+                self._write_json(HTTPStatus.BAD_REQUEST, {"status": "error", "message": str(exc)})
+                return
+            except OSError as exc:
+                self._write_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR, {"status": "error", "message": str(exc)}
+                )
+                return
+            self._write_json(HTTPStatus.OK, {"status": "success", "result": result})
+
+        def _handle_context(self) -> None:
+            from archmap.core.context.relevance import rank_relevant_files
+
+            payload = self._read_json_body()
+            task = str(payload.get("task", "")).strip()
+            if not task:
+                self._write_json(
+                    HTTPStatus.BAD_REQUEST, {"status": "error", "message": "body.task is required"}
+                )
+                return
+            budget = _bounded_int(payload.get("budget"), 8000, 500, 200_000)
+            max_files = _bounded_int(payload.get("maxFiles"), 15, 1, 50)
+            self._run_tool(
+                lambda: rank_relevant_files(
+                    state.report, task, budget_tokens=budget, max_files=max_files
+                )
+            )
+
+        def _handle_inspect(self) -> None:
+            from archmap.core.binary.analyzer import inspect_file
+            from archmap.core.inspect.inventory import inspect_directory
+
+            payload = self._read_json_body()
+            include_strings = bool(payload.get("strings", True))
+
+            def run() -> dict:
+                target = resolve_inside(state.path, str(payload.get("path", "")))
+                if target.is_dir():
+                    result = inspect_directory(target, max_files=2000)
+                    result["kind"] = "directory"
+                    return result
+                report = inspect_file(
+                    target, include_strings=include_strings, max_interesting_strings=200
+                )
+                report["kind"] = "file"
+                report["relativePath"] = target.relative_to(state.path).as_posix()
+                return report
+
+            self._run_tool(run)
+
+        def _handle_hexdump(self) -> None:
+            from archmap.core.binary.hexdump import hexdump
+            from archmap.core.binary.reader import open_binary
+
+            payload = self._read_json_body()
+            offset = _bounded_int(payload.get("offset"), 0, -(1 << 62), 1 << 62)
+            length = _bounded_int(payload.get("length"), 512, 1, 4096)
+
+            def run() -> dict:
+                target = resolve_inside(state.path, str(payload.get("path", "")))
+                if not target.is_file():
+                    raise ValueError("path must be a file")
+                with open_binary(target) as data:
+                    size = len(data)
+                    start = max(0, size + offset) if offset < 0 else min(offset, size)
+                    dump = hexdump(data, offset=start, length=length)
+                return {"size": size, "offset": start, "length": length, "hexdump": dump}
+
+            self._run_tool(run)
+
+        def _handle_strings(self) -> None:
+            from archmap.core.binary.reader import open_binary
+            from archmap.core.binary.strings import analyze_strings, extract_strings
+
+            payload = self._read_json_body()
+            min_length = _bounded_int(payload.get("minLength"), 4, 2, 64)
+            limit = _bounded_int(payload.get("limit"), 500, 1, 5000)
+            interesting = bool(payload.get("interesting", True))
+
+            def run() -> dict:
+                target = resolve_inside(state.path, str(payload.get("path", "")))
+                if not target.is_file():
+                    raise ValueError("path must be a file")
+                with open_binary(target) as data:
+                    if interesting:
+                        return analyze_strings(data, min_length=min_length, max_interesting=limit)
+                    found = extract_strings(data, min_length=min_length, limit=limit)
+                return {"strings": found, "truncated": len(found) >= limit}
+
+            self._run_tool(run)
+
+        def _handle_audit(self) -> None:
+            from archmap.core.audit.project_audit import audit_project
+
+            self._run_tool(lambda: audit_project(state.path))
+
         def log_message(self, _format: str, *args) -> None:
             return
 
     return Handler
+
+
+def _bounded_int(raw: object, default: int, low: int, high: int) -> int:
+    """Parse an integer from a JSON body, falling back to ``default`` and clamping."""
+    try:
+        value = int(str(raw)) if raw is not None and raw != "" else default
+    except (TypeError, ValueError):
+        value = default
+    return max(low, min(high, value))
 
 
 def _is_safe_base_url(base_url: str) -> bool:

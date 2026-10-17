@@ -193,6 +193,13 @@ def _build_summary_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
     unresolved_total = int(metrics.get("unresolvedImportsTotal", 0))
     res_suffix = f" ({unresolved_total} unresolved)" if unresolved_total else ""
     rows.append(("Import resolution", f"{rate_pct}%{res_suffix}"))
+    quality = metrics.get("analysisQuality")
+    if quality:
+        rows.append((
+            "Analysis confidence",
+            f"{round(float(quality.get('confidence', 1.0)) * 100)}% "
+            f"({quality.get('filesParsed', 0)}/{quality.get('filesDiscovered', 0)} files parsed)",
+        ))
 
     architecture = report.get("architecture", {})
     health = architecture.get("health", {})
@@ -240,6 +247,16 @@ def _print_summary_text(report: dict[str, Any]) -> None:
     else:
         suffix = f" ({unresolved_total} unresolved)" if unresolved_total else ""
         print(f"[ok] Import resolution rate {rate_pct}%{suffix}")
+    quality = metrics.get("analysisQuality")
+    if quality:
+        confidence_pct = round(float(quality.get("confidence", 1.0)) * 100)
+        tag = "[ok]" if quality.get("confidenceLevel") == "high" else "[warn]"
+        print(
+            f"{tag} Analysis confidence {confidence_pct}% "
+            f"({quality.get('filesParsed', 0)}/{quality.get('filesDiscovered', 0)} files parsed)"
+        )
+        for warning in quality.get("warnings", []):
+            print(f"[warn] {warning}")
 
     architecture = report.get("architecture", {})
     health = architecture.get("health", {})
@@ -398,6 +415,24 @@ def evaluate_quality_gates(report: dict[str, Any], args: argparse.Namespace) -> 
             failures.append(
                 f"resolution-rate gate failed: "
                 f"import resolution {rate_pct}% is below {int(min_rate)}%"
+            )
+
+    quality = metrics.get("analysisQuality", {})
+    min_coverage = getattr(args, "min_coverage", None)
+    if min_coverage is not None:
+        coverage_pct = round(float(quality.get("coverage", 1.0)) * 100)
+        if coverage_pct < int(min_coverage):
+            failures.append(
+                f"coverage gate failed: {coverage_pct}% of source files parsed, "
+                f"below {int(min_coverage)}%"
+            )
+    max_parse_failures = getattr(args, "max_parse_failures", None)
+    if max_parse_failures is not None:
+        parse_failures = int(quality.get("parseFailureCount", 0))
+        if parse_failures > int(max_parse_failures):
+            failures.append(
+                f"parse-failure gate failed: {parse_failures} file(s) failed to parse "
+                f"(limit {int(max_parse_failures)})"
             )
 
     if getattr(args, "fail_on_budget_violations", False):

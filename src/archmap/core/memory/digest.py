@@ -70,6 +70,18 @@ def generate_memory_digest(report: dict[str, Any]) -> str:
     ]
     if health.get("drivers"):
         lines.append(f"- Score drivers: {', '.join(health['drivers'])}")
+    quality = metrics.get("analysisQuality")
+    if quality:
+        # Timings are deliberately left out: they change on every run and would
+        # defeat digest_changed()'s no-op detection.
+        lines.append(
+            f"- Analysis confidence: **{quality.get('confidenceLevel', '?')}** "
+            f"({round(float(quality.get('confidence', 1.0)) * 100)}%; "
+            f"{quality.get('filesParsed', 0)}/{quality.get('filesDiscovered', 0)} files parsed, "
+            f"import resolution {round(float(quality.get('resolutionRate', 1.0)) * 100)}%)"
+        )
+        for warning in quality.get("warnings", [])[:_MAX_LIST_ITEMS]:
+            lines.append(f"- Warning: {warning} — the graph is incomplete there")
     lines.append("")
 
     detected_layers = architecture.get("detectedLayers", [])
@@ -129,9 +141,11 @@ def generate_memory_digest(report: dict[str, Any]) -> str:
             "re-run `archmap memory` after structural changes."
         ),
         (
-            "- For live, per-file detail beyond this snapshot, use the `archmap mcp` "
-            "server tools: `get_file_context`, `impact_analysis`, `trace_reachability`, "
-            "`run_checks`, `diff_architecture`, `get_network_exposure`."
+            "- For a specific task, call the `archmap mcp` tool `get_relevant_context` "
+            "(or `archmap context \"<task>\"`) to get the files to read in order. For "
+            "live detail use `get_file_context`, `impact_analysis`, `trace_reachability`, "
+            "`run_checks`, `diff_architecture`, `list_findings`, `get_analysis_quality`; "
+            "for binaries and unknown files, `inspect_path`, `extract_strings`, `hexdump`."
         ),
         "",
     ]

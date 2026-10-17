@@ -26,7 +26,9 @@ archmap mcp /path/to/my-project
 
 ## Tools exposed
 
-The server exposes eight tools:
+The server exposes fifteen tools.
+
+### Architecture and code
 
 | Tool | Description |
 |---|---|
@@ -38,6 +40,23 @@ The server exposes eight tools:
 | `trace_reachability` | BFS from an entrypoint file through outgoing dependency edges — everything it transitively pulls in, plus coverage stats and dead-code detection |
 | `diff_architecture` | Architecture diff between two git refs (default `HEAD~1` vs `HEAD`): health/complexity/cycle deltas and per-file changes |
 | `get_network_exposure` | Live network scan of a target, correlated against the project's dependency graph — surfaces which open ports/services map to code the project actually imports, that code's blast radius, a confidence score per finding, and any `[network.rules]` drift violations (see [`archmap expose`](expose.md)) |
+| `get_relevant_context` | Files to read for a task, in order, packed into a token budget, with reasons and best-matching lines (see [`archmap context`](context.md)) |
+| `get_analysis_quality` | Parse coverage, failures, per-language resolution, and overall confidence of the graph |
+| `list_findings` | Unified findings (`ARCH-*`, `QUAL-*`) filtered by domain and minimum severity |
+
+### Reverse engineering and security
+
+| Tool | Description |
+|---|---|
+| `inspect_path` | Static inspection of a file or directory inside the project (see [`archmap inspect`](inspect.md)) |
+| `hexdump` | Hex + ASCII dump of up to 4096 bytes at an offset (negative offsets from the end) |
+| `extract_strings` | ASCII/UTF-16LE strings, by default only the classified, interesting ones (secrets redacted) |
+| `audit_project` | Secrets (`SEC-*`) and AI-agent configuration risks (`AGENT-*`) (see [`archmap audit`](audit.md)) |
+
+File tools resolve paths against the project root (following symlinks) and
+refuse anything outside it, so a prompt-injected model can't use them to
+read `~/.ssh` or other files beyond the project. Start the server in the
+directory you want inspected.
 
 ## Registering with Claude Code
 
@@ -54,7 +73,7 @@ Add the server to `~/.claude/claude_desktop_config.json`:
 }
 ```
 
-After restarting Claude Code, the eight tools become available in every conversation about that project.
+After restarting Claude Code, the tools become available in every conversation about that project.
 
 ## Registering with Cursor or Windsurf
 

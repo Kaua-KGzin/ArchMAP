@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import Any
 
 from archmap.cli.defaults import (
     DEFAULT_CYTOSCAPE_OUTPUT_PATH,
@@ -131,6 +132,24 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="PCT",
         help="exit with code 2 when import resolution rate is below PCT percent (0-100)",
+    )
+    analyze_parser.add_argument(
+        "--min-coverage",
+        type=int,
+        default=None,
+        metavar="PCT",
+        help=(
+            "exit with code 2 when fewer than PCT percent of discovered source files "
+            "were parsed into the graph "
+            "(parse/decode failures and oversized files count against it)"
+        ),
+    )
+    analyze_parser.add_argument(
+        "--max-parse-failures",
+        type=int,
+        default=None,
+        metavar="N",
+        help="exit with code 2 when more than N source files fail to parse",
     )
     analyze_parser.add_argument(
         "--show-unresolved",
@@ -508,6 +527,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="enable parallel file parsing for speedup",
     )
 
+    _add_reverse_engineering_parsers(subparsers)
+
     subparsers.add_parser("version", help="print tool version")
     return parser
 
@@ -632,3 +653,144 @@ def _add_export_arguments(parser: argparse.ArgumentParser, *, default_format: st
         metavar="PATH",
         help="path for the SARIF 2.1.0 output file",
     )
+
+
+_SEVERITY_CHOICES = ["info", "low", "medium", "high", "critical"]
+
+
+def _add_reverse_engineering_parsers(subparsers: Any) -> None:
+    inspect_parser = subparsers.add_parser(
+        "inspect",
+        help="identify and analyze any file or folder: binaries, archives, databases, data",
+        description=(
+            "Static inspection of a file or directory. Executables (ELF, PE, Mach-O, "
+            "WebAssembly) get headers, linked libraries, imports/exports, mitigation "
+            "checks, entropy, and classified strings; archives, SQLite databases, JSON "
+            "and CSV get a schema/content summary with red flags (zip-slip, setuid, "
+            "decompression bombs). A directory is inventoried and its binaries' "
+            "library links are mapped into a dependency graph. Nothing is executed."
+        ),
+    )
+    inspect_parser.add_argument("path", help="file or directory to inspect")
+    inspect_parser.add_argument("--json", action="store_true", help="print the full JSON report")
+    inspect_parser.add_argument("--out", metavar="PATH", help="also write the JSON report here")
+    inspect_parser.add_argument(
+        "--no-strings", action="store_true", help="skip string extraction (faster)"
+    )
+    inspect_parser.add_argument(
+        "--max-strings",
+        type=int,
+        default=100,
+        metavar="N",
+        help="maximum interesting strings to report for a file (default: 100)",
+    )
+    inspect_parser.add_argument(
+        "--max-files",
+        type=int,
+        default=5000,
+        metavar="N",
+        help="maximum files to scan in a directory (default: 5000)",
+    )
+    inspect_parser.add_argument(
+        "--fail-on",
+        choices=_SEVERITY_CHOICES,
+        default=None,
+        metavar="SEVERITY",
+        help="exit with code 2 when a finding at or above SEVERITY is reported",
+    )
+
+    hexdump_parser = subparsers.add_parser(
+        "hexdump",
+        help="canonical hex + ASCII dump of a byte range (like hexdump -C)",
+    )
+    hexdump_parser.add_argument("file")
+    hexdump_parser.add_argument(
+        "-s",
+        "--offset",
+        type=lambda text: int(text, 0),
+        default=0,
+        help="start offset; accepts 0x hex and negative values (from end of file)",
+    )
+    hexdump_parser.add_argument(
+        "-n", "--length", type=lambda text: int(text, 0), default=256,
+        help="number of bytes to dump (default: 256, max: 65536)",
+    )
+    hexdump_parser.add_argument(
+        "-w", "--width", type=int, default=16, help="bytes per line (default: 16)"
+    )
+
+    strings_parser = subparsers.add_parser(
+        "strings",
+        help="extract printable ASCII/UTF-16 strings, optionally only the interesting ones",
+    )
+    strings_parser.add_argument("file")
+    strings_parser.add_argument(
+        "-n", "--min-length", type=int, default=4, help="minimum string length (default: 4)"
+    )
+    strings_parser.add_argument(
+        "--encoding", choices=["ascii", "utf16le", "both"], default="both"
+    )
+    strings_parser.add_argument(
+        "--interesting",
+        action="store_true",
+        help="only URLs, IPs, paths, registry keys, crypto/toolchain markers, secrets (redacted)",
+    )
+    strings_parser.add_argument(
+        "--offsets", action="store_true", help="prefix each string with its offset"
+    )
+    strings_parser.add_argument("--limit", type=int, default=50_000, metavar="N")
+    strings_parser.add_argument("--json", action="store_true")
+
+    audit_parser = subparsers.add_parser(
+        "audit",
+        help="find committed secrets and risky AI-agent configuration (MCP, hooks, permissions)",
+        description=(
+            "Scans project text files for secrets (git-aware: committed secrets rank "
+            "above local, untracked ones) and audits AI-agent configuration as attack "
+            "surface: .mcp.json transports/unpinned packages/plaintext tokens, "
+            ".claude/settings permissions and hooks, plugin hooks, and hidden Unicode "
+            "in agent instruction files (CLAUDE.md, AGENTS.md, .cursorrules). Offline; "
+            "secret values are always redacted."
+        ),
+    )
+    audit_parser.add_argument("path", nargs="?", default=".")
+    audit_parser.add_argument("--json", action="store_true")
+    audit_parser.add_argument("--out", metavar="PATH")
+    audit_parser.add_argument(
+        "--fail-on",
+        choices=_SEVERITY_CHOICES,
+        default=None,
+        metavar="SEVERITY",
+        help="exit with code 2 when a finding at or above SEVERITY is reported",
+    )
+
+    context_parser = subparsers.add_parser(
+        "context",
+        help="rank the files to read for a task, packed into a token budget (for AI agents)",
+        description=(
+            "Ranks project files for a free-text task with BM25 over identifier-aware "
+            "tokens, spreads score to direct imports/dependents in the dependency "
+            "graph, and packs the result into a token budget with matching lines. "
+            "Same engine as the get_relevant_context MCP tool."
+        ),
+    )
+    context_parser.add_argument(
+        "task", help='what you are about to do, e.g. "fix retry in webhook"'
+    )
+    context_parser.add_argument("path", nargs="?", default=".")
+    context_parser.add_argument(
+        "--budget", type=int, default=8000, metavar="TOKENS",
+        help="approximate tokens available for reading files (default: 8000)",
+    )
+    context_parser.add_argument("--max-files", type=int, default=15, metavar="N")
+    context_parser.add_argument("--json", action="store_true")
+    context_parser.add_argument(
+        "--parallel", action=argparse.BooleanOptionalAction, default=True,
+        help="enable parallel file parsing",
+    )
+
+    commands_parser = subparsers.add_parser(
+        "commands",
+        help="list every archmap command (--json: machine-readable catalog for AI agents)",
+    )
+    commands_parser.add_argument("--json", action="store_true")

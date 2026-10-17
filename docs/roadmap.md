@@ -158,6 +158,55 @@ are the next slice, each buildable directly on what's already shipped.
 
 ---
 
+## Next (v1.4.0 candidates) — agent-native ArchMAP
+
+Derived from the [October 2026 market-trends research](research/market-trends-2026-10.md):
+GitHub's monthly trending list is dominated by tooling for AI coding agents
+(skills/plugins, persistent memory, context-window economy, verified security
+findings). ArchMAP already has the deterministic engine those tools lack; the
+items below close the distribution and ergonomics gap.
+
+- **Agent plugin + skill** — ✅ Done. `plugins/archmap/` (Claude Code plugin:
+  MCP server, `SessionStart` memory hook, `archmap` skill) and a root
+  `.claude-plugin/marketplace.json`; the same `SKILL.md` installs into other
+  agents via `npx skills add`. See [AI agent plugin](agents.md).
+- **Task-scoped context retrieval** — ✅ Done (`archmap context`, `get_relevant_context`). MCP tool `get_relevant_context(task,
+  budget_tokens)`: BM25 (stdlib `sqlite3` FTS5) over paths/symbols/imports,
+  re-ranked by graph proximity and risk, returning the minimal file set for a
+  task within a token budget.
+- **Snapshot history + observations** — persist each analysis under
+  `.archmap/history/` (generalizing the network-snapshot item above) and
+  derive trend observations ("risk rising 5 runs in a row", "cycle open for
+  40 days") for `archmap memory`.
+- **`archmap recon` + verified findings** — partially done: `archmap inspect` maps binaries, mitigations, and linkage; still open: deterministic attack-surface map
+  (entrypoints, network-facing code, blast radius) for agentic security
+  audits; `Finding.status` (`confirmed`/`needs_validation`/`rejected`) and a
+  published JSON Schema.
+- **`archmap agents audit`** — ✅ Done as `archmap audit` (`AGENT-*`). `AGENT-*` findings for risky agent config
+  (`.mcp.json`, hooks, permissions): `curl | sh` hooks, wildcard permissions,
+  plaintext secrets, non-loopback `http://` MCP servers.
+- **Secret exposure findings** — ✅ Done as `archmap audit` (`SEC-*`, git-aware). `SEC-*` findings from the existing
+  endpoint scanner's `.env`/config pass (offline, conservative).
+- **`archmap commands --json`** — ✅ Done. machine-readable command catalog for
+  agent-native CLI discovery.
+
+- **Analysis-quality metrics** — ✅ Done (`metrics.analysisQuality`, `QUAL-*`, `--min-coverage`, `--max-parse-failures`).
+- **Static reverse engineering** — ✅ Done (`archmap inspect`, `hexdump`, `strings`; ELF/PE/Mach-O/WASM, data and archives, binary linkage graph).
+
+### Next reverse-engineering steps
+
+- **Go build info and Rust `cargo-auditable` metadata** — module versions
+  embedded in binaries become package nodes, so `impact_analysis` works on a
+  binary's dependencies (and pairs with vulnerability databases).
+- **DEX/APK depth** — decode the binary `AndroidManifest.xml` (permissions,
+  exported components) and DEX class/method tables.
+- **ELF/PE symbol-level call graph** — PLT/IAT cross-references from code
+  sections, without a full disassembler.
+- **Binary nodes in the unified graph** — feed `inspect` linkage graphs into
+  the same node/edge model as code and network (the Unified System Graph).
+
+---
+
 ## Longer-term
 
 - **Unified System Graph** — extend the dependency graph's node/edge model

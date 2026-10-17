@@ -84,6 +84,16 @@
 
 ---
 
+## Next (v1.4.0) — agent-native ArchMAP
+
+See `docs/roadmap.md` and `docs/research/market-trends-2026-10.md` for the
+full list. Shipped in v1.4.0: the Claude Code plugin + portable `archmap`
+agent skill, `archmap context`, `archmap inspect`/`hexdump`/`strings`
+(static reverse engineering), `archmap audit` (secrets and agent config),
+analysis-quality metrics, and 7 new MCP tools.
+
+---
+
 ## Medium-term (v1.0.0)
 
 - **Public Python API** — Define and document a stable programmatic surface (`from archmap import analyze_project, ArchMapConfig, AnalysisResult`). Add `__all__` to public modules, document with MkDocs examples, establish a deprecation policy (`DeprecationWarning` + semver). Unlocks IDE plugins, pytest integrations, and custom CI tooling beyond the CLI.

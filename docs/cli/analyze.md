@@ -65,6 +65,8 @@ archmap analyze [path] [options]
 | `--fail-on-budget-violations` | off | Exit code `2` when any file exceeds coupling budgets |
 | `--min-health N` | — | Exit code `2` when architecture health score falls below N (0–100) |
 | `--min-resolution-rate PCT` | — | Exit code `2` when import resolution rate is below PCT percent (0–100) |
+| `--min-coverage PCT` | — | Exit code `2` when fewer than PCT percent of discovered source files were parsed into the graph |
+| `--max-parse-failures N` | — | Exit code `2` when more than N source files fail to parse |
 | `--max-outgoing-per-file N` | — | CLI override: max outgoing dependencies per file (overrides `.archmap.toml`) |
 | `--max-incoming-per-file N` | — | CLI override: max incoming dependencies per file (overrides `.archmap.toml`) |
 
@@ -119,6 +121,7 @@ Prints a summary to stdout:
 [ok] 0 circular dependencies detected
 [ok] Average instability 38%
 [ok] Import resolution rate 97% (4 unresolved)
+[ok] Analysis confidence 99% (42/42 files parsed)
 [ok] Architecture health 84/100 (B)
 Top complexity (imports/dependents):
   - src/main.py: 14 imports, 3 dependents, 17 total, 82% instability (87% score)
@@ -126,6 +129,30 @@ Top risk files:
   - src/core/__init__.py: score 42 (god_module)
 [info] JSON report exported to .codeatlas/graph.json
 ```
+
+### Analysis quality (`metrics.analysisQuality`)
+
+Every metric above is only as trustworthy as the parse behind it. Files that
+fail to parse, aren't valid UTF-8, or exceed `max_file_size_bytes` used to
+vanish from the graph silently; they are now counted and reported:
+
+| Field | Meaning |
+|---|---|
+| `filesDiscovered` / `filesParsed` | Source files found vs. files that made it into the graph |
+| `coverage` | `filesParsed / filesDiscovered` |
+| `resolutionRate` | Share of imports resolved to a file or package |
+| `confidence` / `confidenceLevel` | `coverage × (0.6 + 0.4 × resolutionRate)`; `high` ≥ 0.9, `medium` ≥ 0.7, else `low` |
+| `parseFailures` | `{file, language, error}` for each file whose parser raised |
+| `decodeFailures` / `oversizedSkipped` | Files skipped before parsing |
+| `languages` | Per language: files, imports, resolved, failures, resolutionRate |
+| `warnings` | Human-readable summary of every gap |
+| `timingsMs` | Discovery and parse time |
+
+Gaps also become `QUAL-*` entries in the unified `findings` list
+(`parse_failure`, `decode_failure`, `oversized_skipped`, and
+`low_resolution` for a language with at least 5 imports and under 50%
+resolved), and `archmap memory` adds the confidence line and warnings to the
+agent digest so an agent knows when "no dependents" is a lower bound.
 
 ### Table format (`--summary-format table`)
 

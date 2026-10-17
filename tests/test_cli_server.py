@@ -61,6 +61,9 @@ def request_json(
 ) -> tuple[int, dict | None]:
     body = None
     headers: dict[str, str] = {}
+    if payload is None and method == "POST":
+        # The server requires JSON on every POST (CSRF guard), like the web UI sends.
+        payload = {}
     if payload is not None:
         body = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -228,7 +231,12 @@ def test_build_http_handler_open_project_supports_cancel_and_success(tmp_path) -
 
     handler._pick_directory = lambda self: (None, None)
     with run_handler_server(handler) as base_url:
-        request = Request(f"{base_url}/api/open", data=b"", method="POST")
+        request = Request(
+            f"{base_url}/api/open",
+            data=b"{}",
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
         with urlopen(request) as response:
             assert response.status == 204
             assert response.read() == b""
