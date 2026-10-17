@@ -196,23 +196,9 @@ def _tool_get_project_memory(project_path: str) -> dict:
 
 
 def _resolve_inside(project_path: str, user_path: str) -> Path:
-    """Resolve ``user_path`` against the project root and refuse anything outside it.
+    from archmap.utils.paths import resolve_inside
 
-    File-reading tools (inspect, hexdump, strings) take paths from the model,
-    and a prompt-injected model could ask for ``~/.ssh/id_rsa``. Symlinks are
-    resolved first, so a link inside the project can't point the tool outside.
-    """
-    root = Path(project_path).resolve()
-    candidate = Path(user_path)
-    resolved = (candidate if candidate.is_absolute() else root / candidate).resolve()
-    if resolved != root and root not in resolved.parents:
-        raise ValueError(
-            f"'{user_path}' is outside the project root {root}; start `archmap mcp` "
-            "in a directory that contains it"
-        )
-    if not resolved.exists():
-        raise ValueError(f"'{user_path}' does not exist")
-    return resolved
+    return resolve_inside(project_path, user_path)
 
 
 def _tool_get_relevant_context(

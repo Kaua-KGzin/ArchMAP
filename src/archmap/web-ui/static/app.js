@@ -1,3 +1,5 @@
+import * as toolkit from "./toolkit.js";
+
 const FILE_COLOR   = "#6173e0";
 const PKG_COLOR    = "#62b386";
 const CYCLE_COLOR  = "#d35266";
@@ -53,6 +55,7 @@ async function init() {
     if (!controlsBound) { bindControls(); controlsBound = true; }
     updateStatusBar(report);
     updateProjectHeader(report);
+    toolkit.onReportUpdated(report, activeToolkitView());
   } finally {
     el.refreshBtn?.classList.remove("loading");
   }
@@ -162,8 +165,10 @@ function renderSummary(metrics) {
     { label: "External pkg", value: metrics.externalDependencies },
     { label: "Cycles",       value: metrics.circularDependencyCount },
   ];
+  const confidence = toolkit.qualityKpi({ metrics });
+  if (confidence) kpis.push({ label: confidence.label, value: confidence.value, warn: confidence.warn });
   el.summary.innerHTML = kpis.map((k, i) => `
-    <div class="kpi${k.accent ? " kpi--accent" : ""}">
+    <div class="kpi${k.accent ? " kpi--accent" : ""}${k.warn ? " kpi--warn" : ""}">
       <span class="kpi-label">${k.label}</span>
       <span class="kpi-value">${k.value ?? 0}</span>
     </div>`).join("");
@@ -414,14 +419,14 @@ function bindControls() {
   });
 
   el.refreshBtn.addEventListener("click", async () => {
-    try { await fetch("/api/reanalyze", { method: "POST" }); } catch { /* ignored */ }
+    try { await fetch("/api/reanalyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); } catch { /* ignored */ }
     await init();
   });
 
   el.openProjectBtn.addEventListener("click", async () => {
     el.openProjectBtn.classList.add("loading");
     try {
-      const res = await fetch("/api/open", { method: "POST" });
+      const res = await fetch("/api/open", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
 
       if (res.status === 200) { await init(); return; }
       if (res.status === 204) return; // native picker was cancelled
@@ -475,6 +480,10 @@ function bindControls() {
   document.getElementById("navBtnTrace")?.addEventListener("click",    () => switchLeftView("trace"));
   document.getElementById("navBtnAdvisor")?.addEventListener("click",  () => switchLeftView("advisor"));
   document.getElementById("navBtnConfig")?.addEventListener("click",   () => switchLeftView("config"));
+  document.getElementById("navBtnFindings")?.addEventListener("click", () => switchLeftView("findings"));
+  document.getElementById("navBtnContext")?.addEventListener("click",  () => switchLeftView("context"));
+  document.getElementById("navBtnInspect")?.addEventListener("click",  () => switchLeftView("inspect"));
+  document.getElementById("navBtnAudit")?.addEventListener("click",    () => switchLeftView("audit"));
   const _railLogo = document.getElementById("railLogo");
   _railLogo?.addEventListener("click", () => switchLeftView("graph"));
   _railLogo?.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") switchLeftView("graph"); });
@@ -495,6 +504,8 @@ function bindControls() {
   document.getElementById("canvasTabGraph")?.addEventListener("click",   () => switchCanvasTab("graph"));
   document.getElementById("canvasTabLayers")?.addEventListener("click",  () => switchCanvasTab("layers"));
   document.getElementById("canvasTabMatrix")?.addEventListener("click",  () => switchCanvasTab("matrix"));
+  document.getElementById("canvasTabInspector")?.addEventListener("click", () => switchCanvasTab("inspector"));
+
 }
 
 /* ============================================================
@@ -603,8 +614,48 @@ const LP_NAV = {
   rules:   ["lpRules",    "navBtnRules",    "rail-btn-active"],
   trace:   ["lpTrace",    "navBtnTrace",    "rail-btn-active"],
   advisor: ["lpAdvisor",  "navBtnAdvisor",  "rail-btn-active"],
+  findings:["lpFindings", "navBtnFindings", "rail-btn-active"],
+  context: ["lpContext",  "navBtnContext",  "rail-btn-active"],
+  inspect: ["lpInspect",  "navBtnInspect",  "rail-btn-active"],
+  audit:   ["lpAudit",    "navBtnAudit",    "rail-btn-active"],
   config:  ["lpConfig",   "navBtnConfig",   "rail-btn-active"],
 };
+
+const TOOLKIT_VIEWS = new Set(["findings", "context", "inspect", "audit"]);
+
+function activeLeftView() {
+  return Object.entries(LP_NAV).find(([, [vid]]) => !document.getElementById(vid)?.classList.contains("lp-hidden"))?.[0];
+}
+
+function activeToolkitView() {
+  const key = activeLeftView();
+  return TOOLKIT_VIEWS.has(key) ? key : null;
+}
+
+/** Show the graph canvas, select `id`, and center on it. Returns false if absent. */
+function focusGraphNode(id) {
+  if (!cy) return false;
+  const node = cy.getElementById(id);
+  if (!node.length) return false;
+  switchCanvasTab("graph");
+  node.removeClass("hidden");
+  highlightNode(node);
+  renderSelection(node);
+  cy.animate({ center: { eles: node }, zoom: Math.max(cy.zoom(), 1.1) }, { duration: 300 });
+  return true;
+}
+
+/** Dim everything except `ids` (and the edges between them), then fit them in view. */
+function highlightGraphFiles(ids) {
+  if (!cy) return;
+  switchCanvasTab("graph");
+  const wanted = new Set(ids);
+  const nodes = cy.nodes().filter(n => wanted.has(n.id()));
+  cy.elements().removeClass("selected highlighted").addClass("dimmed");
+  nodes.removeClass("dimmed hidden").addClass("highlighted");
+  nodes.edgesWith(nodes).removeClass("dimmed").addClass("highlighted");
+  if (nodes.length) cy.animate({ fit: { eles: nodes, padding: 80 } }, { duration: 300 });
+}
 
 function switchLeftView(key) {
   for (const [k, [viewId, btnId, activeClass]] of Object.entries(LP_NAV)) {
@@ -614,6 +665,7 @@ function switchLeftView(key) {
   if (key === "insights" && reportData) renderInsights(reportData);
   if (key === "rules"    && reportData) renderRules(reportData);
   if (key === "advisor"  && reportData) renderAdvisorView(reportData);
+  if (TOOLKIT_VIEWS.has(key)) toolkit.onViewShown(key, reportData);
 }
 
 /* ============================================================
@@ -624,6 +676,7 @@ const CV_TABS = {
   graph:  { btn: "canvasTabGraph",  view: "graph",      title: "Dependency Graph" },
   layers: { btn: "canvasTabLayers", view: "layersView",  title: "Layer Diagram"    },
   matrix: { btn: "canvasTabMatrix", view: "matrixView",  title: "Dependency Matrix"},
+  inspector: { btn: "canvasTabInspector", view: "inspectorView", title: "Inspector" },
 };
 
 function switchCanvasTab(key) {
@@ -639,6 +692,7 @@ function switchCanvasTab(key) {
 
   if (key === "layers" && reportData) initLayersView(reportData);
   if (key === "matrix" && reportData) renderMatrix(reportData);
+  if (key === "inspector") toolkit.renderInspector();
 }
 
 /* ============================================================
@@ -734,7 +788,7 @@ function renderInsights(report) {
     { label: t("insCriticalFiles"),  val: (m.criticalFiles ?? []).length },
     { label: t("insResolutionRate"), val: `${Math.round((m.resolutionRate ?? 1) * 100)}%` },
   ];
-  container.innerHTML = `<div class="insights-summary">${items.map(i =>
+  container.innerHTML = toolkit.renderQualityCard(report) + `<div class="insights-summary">${items.map(i =>
     `<div class="insight-item"><p class="ins-label">${escHtml(i.label)}</p><p class="ins-val">${escHtml(String(i.val))}</p></div>`
   ).join("")}</div>`;
 }
@@ -1273,6 +1327,7 @@ function applyI18n() {
   CV_TABS.graph.title  = t("dependencyGraph");
   CV_TABS.layers.title = t("layerDiagram");
   CV_TABS.matrix.title = t("dependencyMatrix");
+  CV_TABS.inspector.title = t("inspectorTab");
 
   const breadcrumb = document.getElementById("breadcrumbView");
   const canvasTitle = document.getElementById("canvasTitle");
@@ -1281,10 +1336,12 @@ function applyI18n() {
   if (activeTab && canvasTitle) canvasTitle.textContent = activeTab.title;
 
   if (reportData) {
-    const active = Object.entries(LP_NAV).find(([, [vid]]) => !document.getElementById(vid)?.classList.contains("lp-hidden"))?.[0];
+    const active = activeLeftView();
     if (active === "insights") renderInsights(reportData);
     if (active === "rules")    renderRules(reportData);
     if (active === "advisor")  renderAdvisorView(reportData);
+    renderSummary(reportData.metrics ?? {});
+    toolkit.onLanguageChanged(reportData, TOOLKIT_VIEWS.has(active) ? active : null);
   }
 }
 
@@ -1528,6 +1585,19 @@ function _initConfigPanel() {
     setTimeout(() => { savedMsg.style.display = "none"; }, 2000);
   });
 }
+
+for (const [lang, strings] of Object.entries(toolkit.TOOLKIT_TRANSLATIONS)) {
+  _TRANSLATIONS[lang] = { ...(_TRANSLATIONS[lang] ?? {}), ...strings };
+}
+
+// Wired before the first /api/graph response renders, so toolkit strings are translated.
+toolkit.initToolkit({
+  t,
+  switchCanvasTab,
+  hasNode: (id) => Boolean(cy && cy.getElementById(id).length),
+  focusNode: focusGraphNode,
+  highlightFiles: highlightGraphFiles,
+});
 
 _initConfigPanel();
 applyI18n();

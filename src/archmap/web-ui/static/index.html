@@ -36,6 +36,22 @@
         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span class="rail-tooltip" data-i18n="navAdvisor">AI Advisor</span>
       </button>
+      <button class="rail-btn" id="navBtnFindings" type="button" data-i18n-title="navFindings" aria-label="Findings">
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span class="rail-tooltip" data-i18n="navFindings">Findings</span>
+      </button>
+      <button class="rail-btn" id="navBtnContext" type="button" data-i18n-title="navContext" aria-label="Task context">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M8 11h6M11 8v6"/></svg>
+        <span class="rail-tooltip" data-i18n="navContext">Task context</span>
+      </button>
+      <button class="rail-btn" id="navBtnInspect" type="button" data-i18n-title="navInspect" aria-label="Inspect files">
+        <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9zM9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>
+        <span class="rail-tooltip" data-i18n="navInspect">Inspect files</span>
+      </button>
+      <button class="rail-btn" id="navBtnAudit" type="button" data-i18n-title="navAudit" aria-label="Security audit">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+        <span class="rail-tooltip" data-i18n="navAudit">Security audit</span>
+      </button>
       <div class="rail-divider"></div>
       <button class="rail-btn" id="openProjectBtn" type="button" data-i18n-title="navOpenProject" aria-label="Open project">
         <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
@@ -189,6 +205,73 @@
         <div id="advisorContent" style="display:contents"></div>
       </div>
 
+      <!-- VIEW: Findings -->
+      <div class="lp-view lp-hidden" id="lpFindings">
+        <header class="card panel-header">
+          <div class="card-body">
+            <p class="eyebrow" data-i18n="navFindings">Findings</p>
+            <h1 class="title" data-i18n="findingsTitle">Findings</h1>
+            <p class="subtitle" data-i18n="findingsSub">Every problem ArchMAP found, with a stable ID, severity, confidence and evidence.</p>
+          </div>
+        </header>
+        <div id="findingsContent" style="display:contents"></div>
+      </div>
+
+      <!-- VIEW: Task context -->
+      <div class="lp-view lp-hidden" id="lpContext">
+        <header class="card panel-header">
+          <div class="card-body">
+            <p class="eyebrow" data-i18n="navContext">Task context</p>
+            <h1 class="title" data-i18n="ctxTitle">Task context</h1>
+            <p class="subtitle" data-i18n="ctxSub">Describe a task and get the files to read, in order, within a token budget.</p>
+            <textarea id="tkContextTask" class="tk-textarea" rows="3" data-i18n-placeholder="ctxPlaceholder" placeholder="e.g. fix retry backoff in the payment webhook" aria-label="Task"></textarea>
+            <div class="tk-form-row">
+              <label class="tk-inline"><span data-i18n="ctxBudget">Token budget</span>
+                <select id="tkContextBudget">
+                  <option value="4000">4k</option>
+                  <option value="8000" selected>8k</option>
+                  <option value="16000">16k</option>
+                  <option value="32000">32k</option>
+                  <option value="64000">64k</option>
+                </select>
+              </label>
+              <button id="tkContextRun" type="button" class="primary" data-i18n="ctxRun">Find files</button>
+            </div>
+          </div>
+        </header>
+        <div id="contextContent" style="display:contents"></div>
+      </div>
+
+      <!-- VIEW: Inspect -->
+      <div class="lp-view lp-hidden" id="lpInspect">
+        <header class="card panel-header">
+          <div class="card-body">
+            <p class="eyebrow" data-i18n="navInspect">Inspect files</p>
+            <h1 class="title" data-i18n="rvTitle">Inspect files</h1>
+            <p class="subtitle" data-i18n="rvSub">Static reverse engineering of any file or folder in the project: binaries, archives, databases, data. Nothing is executed.</p>
+            <div class="trace-input-row">
+              <input id="tkInspectPath" type="search" value="." spellcheck="false" data-i18n-placeholder="rvPathPlaceholder" placeholder="Path inside the project" aria-label="Path" />
+              <button id="tkInspectRun" type="button" class="primary" style="flex-shrink:0" data-i18n="rvRun">Inspect</button>
+            </div>
+            <label class="switch" style="margin-top:6px"><input id="tkInspectStrings" type="checkbox" checked /><span data-i18n="rvStrings">Extract strings</span></label>
+          </div>
+        </header>
+        <div id="inspectContent" style="display:contents"></div>
+      </div>
+
+      <!-- VIEW: Security audit -->
+      <div class="lp-view lp-hidden" id="lpAudit">
+        <header class="card panel-header">
+          <div class="card-body">
+            <p class="eyebrow" data-i18n="navAudit">Security audit</p>
+            <h1 class="title" data-i18n="auTitle">Security audit</h1>
+            <p class="subtitle" data-i18n="auSub">Committed secrets and risky AI-agent configuration. Offline; secret values are always redacted.</p>
+            <button id="tkAuditRun" type="button" class="primary tk-full" data-i18n="auRun">Run audit</button>
+          </div>
+        </header>
+        <div id="auditContent" style="display:contents"></div>
+      </div>
+
       <!-- VIEW: Config -->
       <div class="lp-view lp-hidden" id="lpConfig">
         <header class="card panel-header">
@@ -330,6 +413,7 @@
           <button class="active" id="canvasTabGraph" type="button" data-i18n="canvasGraph">Graph</button>
           <button id="canvasTabLayers" type="button" data-i18n="canvasLayers">Layers</button>
           <button id="canvasTabMatrix" type="button" data-i18n="canvasMatrix">Matrix</button>
+          <button id="canvasTabInspector" type="button" data-i18n="inspectorTab" hidden>Inspector</button>
         </div>
         <div class="toolbar-spacer"></div>
         <div class="search-wrap" id="searchWrap">
@@ -380,6 +464,9 @@
           </div>
           <div class="matrix-scroll" id="matrixScroll"></div>
         </div>
+
+        <!-- Inspector view (hexdump, strings, entropy, linkage graph) -->
+        <div id="inspectorView" class="canvas-view-hidden tk-inspector"></div>
       </div>
 
       <footer class="canvas-statusbar">

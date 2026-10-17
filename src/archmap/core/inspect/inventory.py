@@ -125,9 +125,12 @@ def inspect_directory(
     nodes: dict[str, dict[str, Any]] = {}
     edges: list[dict[str, str]] = []
     library_users: Counter[str] = Counter()
-    for binary in binaries:
+    # Only formats that link libraries belong in the linkage graph; archives and
+    # databases are listed in `binaries` but would be isolated nodes here.
+    linkable = [b for b in binaries if b["format"] in _LINKABLE]
+    for binary in linkable:
         nodes[binary["file"]] = {"id": binary["file"], "type": "binary", "format": binary["format"]}
-    for binary in binaries:
+    for binary in linkable:
         for library in binary["libraries"]:
             target = provided.get(Path(library).name)
             target_id = target if target else f"lib:{library}"
