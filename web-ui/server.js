@@ -28,24 +28,6 @@ export async function startWebUi(options = {}) {
   const provider = reportProvider ?? createInMemoryReportStore({ report, projectPath });
   await provider.ensureLoaded();
 
-const DEFAULT_HOST = "0.0.0.0";
-const DEFAULT_PORT = 3000;
-const DEFAULT_SEARCH_LIMIT = 30;
-
-export async function startWebUi(options = {}) {
-  const {
-    report = null,
-    reportProvider = null,
-    projectPath = ".",
-    host = DEFAULT_HOST,
-    port = DEFAULT_PORT,
-    openBrowser = true,
-    staticDir = staticDirectory,
-  } = options;
-
-  const provider = reportProvider ?? createInMemoryReportStore({ report, projectPath });
-  await provider.ensureLoaded();
-
   const app = express();
   app.use(express.json({ limit: "256kb" }));
 
@@ -373,20 +355,20 @@ function runProcess(command, args) {
 }
 
 function tryOpenBrowser(url) {
+  const [command, args] =
+    process.platform === "win32"
+      ? ["cmd", ["/c", "start", "", url]]
+      : process.platform === "darwin"
+        ? ["open", [url]]
+        : ["xdg-open", [url]];
   try {
-    const platform = process.platform;
-    if (platform === "win32") {
-      spawn("cmd", ["/c", "start", "", url], {
-        detached: true,
-        stdio: "ignore",
-      }).unref();
-      return;
-    }
-    if (platform === "darwin") {
-      spawn("open", [url], { detached: true, stdio: "ignore" }).unref();
-      return;
-    }
-    spawn("xdg-open", [url], { detached: true, stdio: "ignore" }).unref();
+    const child = spawn(command, args, { detached: true, stdio: "ignore" });
+    // A missing opener (headless Linux, containers, Termux) is reported as an async
+    // 'error' event, not a throw; unhandled, it took the whole server down.
+    child.on("error", () => {
+      console.log(`[info] Open ${url} in your browser.`);
+    });
+    child.unref();
   } catch (_error) {
     // Browser opening is best-effort only.
   }
