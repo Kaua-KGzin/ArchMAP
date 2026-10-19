@@ -1106,7 +1106,7 @@ function exportGraphSvg() {
 
 const _TRANSLATIONS = {
   en: {
-    navGraph:"Graph view",navInsights:"Insights",navRules:"Rules & Layers",navTrace:"Trace reachability",navAdvisor:"AI Advisor",navOpenProject:"Open project",navToggleTheme:"Toggle theme",navSettings:"Settings",
+    navGraph:"Graph view",navInsights:"Insights",navRules:"Rules & Layers",navTrace:"Trace reachability",navAdvisor:"AI Advisor",navOpenProject:"Open project",navToggleTheme:"Toggle theme",navSettings:"Settings",navArchLine:"Part of the Arch line",
     serviceMap:"Service Map",serviceMapSub:"Dependency topology and architectural risk hotspots.",
     archHealth:"Architecture Health",cycles:"Cycles",layerViol:"Layer viol.",godFiles:"God files",avgComplex:"Avg complex.",
     risksAnomalies:"Risks & Anomalies",graphControls:"Graph Controls",filterByFolder:"Filter by folder",onlyCircular:"Only circular dependencies",heatmapMode:"Heatmap (complexity)",
@@ -1139,7 +1139,7 @@ const _TRANSLATIONS = {
     openProjectManualPrompt:"Enter the project folder path:",openProjectFailed:"Could not open that folder.",
   },
   pt: {
-    navGraph:"Grafo",navInsights:"Insights",navRules:"Regras & Camadas",navTrace:"Rastrear dependências",navAdvisor:"Consultor IA",navOpenProject:"Abrir projeto",navToggleTheme:"Alternar tema",navSettings:"Configurações",
+    navGraph:"Grafo",navInsights:"Insights",navRules:"Regras & Camadas",navTrace:"Rastrear dependências",navAdvisor:"Consultor IA",navOpenProject:"Abrir projeto",navToggleTheme:"Alternar tema",navSettings:"Configurações",navArchLine:"Parte da linha Arch",
     serviceMap:"Mapa de Serviços",serviceMapSub:"Topologia de dependências e hotspots de risco arquitetural.",
     archHealth:"Saúde da Arquitetura",cycles:"Ciclos",layerViol:"Viol. de camada",godFiles:"Arquivos deus",avgComplex:"Complex. média",
     risksAnomalies:"Riscos & Anomalias",graphControls:"Controles do Grafo",filterByFolder:"Filtrar por pasta",onlyCircular:"Apenas dependências circulares",heatmapMode:"Mapa de calor (complexidade)",
@@ -1172,7 +1172,7 @@ const _TRANSLATIONS = {
     openProjectManualPrompt:"Digite o caminho da pasta do projeto:",openProjectFailed:"Não foi possível abrir essa pasta.",
   },
   es: {
-    navGraph:"Vista de grafo",navInsights:"Perspectivas",navRules:"Reglas y Capas",navTrace:"Rastrear dependencias",navAdvisor:"Asesor IA",navOpenProject:"Abrir proyecto",navToggleTheme:"Cambiar tema",navSettings:"Configuración",
+    navGraph:"Vista de grafo",navInsights:"Perspectivas",navRules:"Reglas y Capas",navTrace:"Rastrear dependencias",navAdvisor:"Asesor IA",navOpenProject:"Abrir proyecto",navToggleTheme:"Cambiar tema",navSettings:"Configuración",navArchLine:"Parte de la línea Arch",
     serviceMap:"Mapa de Servicios",serviceMapSub:"Topología de dependencias y puntos críticos de riesgo arquitectónico.",
     archHealth:"Salud de la Arquitectura",cycles:"Ciclos",layerViol:"Viol. de capa",godFiles:"Archivos dios",avgComplex:"Compl. promedio",
     risksAnomalies:"Riesgos y Anomalías",graphControls:"Controles del Grafo",filterByFolder:"Filtrar por carpeta",onlyCircular:"Solo dependencias circulares",heatmapMode:"Mapa de calor (complejidad)",
@@ -1205,7 +1205,7 @@ const _TRANSLATIONS = {
     openProjectManualPrompt:"Ingresa la ruta de la carpeta del proyecto:",openProjectFailed:"No se pudo abrir esa carpeta.",
   },
   fr: {
-    navGraph:"Vue graphe",navInsights:"Insights",navRules:"Règles & Couches",navTrace:"Tracer les dépendances",navAdvisor:"Conseiller IA",navOpenProject:"Ouvrir le projet",navToggleTheme:"Changer le thème",navSettings:"Paramètres",
+    navGraph:"Vue graphe",navInsights:"Insights",navRules:"Règles & Couches",navTrace:"Tracer les dépendances",navAdvisor:"Conseiller IA",navOpenProject:"Ouvrir le projet",navToggleTheme:"Changer le thème",navSettings:"Paramètres",navArchLine:"Fait partie de la gamme Arch",
     serviceMap:"Carte des Services",serviceMapSub:"Topologie des dépendances et points chauds de risque architectural.",
     archHealth:"Santé de l'Architecture",cycles:"Cycles",layerViol:"Viol. de couche",godFiles:"Fichiers dieu",avgComplex:"Complex. moy.",
     risksAnomalies:"Risques & Anomalies",graphControls:"Contrôles du Graphe",filterByFolder:"Filtrer par dossier",onlyCircular:"Uniquement dépendances circulaires",heatmapMode:"Carte de chaleur (complexité)",
@@ -1238,7 +1238,7 @@ const _TRANSLATIONS = {
     openProjectManualPrompt:"Entrez le chemin du dossier du projet :",openProjectFailed:"Impossible d'ouvrir ce dossier.",
   },
   de: {
-    navGraph:"Graphansicht",navInsights:"Einblicke",navRules:"Regeln & Schichten",navTrace:"Abhängigkeiten verfolgen",navAdvisor:"KI-Berater",navOpenProject:"Projekt öffnen",navToggleTheme:"Design wechseln",navSettings:"Einstellungen",
+    navGraph:"Graphansicht",navInsights:"Einblicke",navRules:"Regeln & Schichten",navTrace:"Abhängigkeiten verfolgen",navAdvisor:"KI-Berater",navOpenProject:"Projekt öffnen",navToggleTheme:"Design wechseln",navSettings:"Einstellungen",navArchLine:"Teil der Arch-Linie",
     serviceMap:"Service-Karte",serviceMapSub:"Abhängigkeitstopologie und architektonische Risikohotspots.",
     archHealth:"Architektur-Gesundheit",cycles:"Zyklen",layerViol:"Schichtverstöße",godFiles:"Gotdateien",avgComplex:"Ø Komplexität",
     risksAnomalies:"Risiken & Anomalien",graphControls:"Graphsteuerung",filterByFolder:"Nach Ordner filtern",onlyCircular:"Nur zirkuläre Abhängigkeiten",heatmapMode:"Heatmap (Komplexität)",
@@ -1271,7 +1271,7 @@ const _TRANSLATIONS = {
     openProjectManualPrompt:"Geben Sie den Projektordnerpfad ein:",openProjectFailed:"Dieser Ordner konnte nicht geöffnet werden.",
   },
   zh: {
-    navGraph:"依赖图",navInsights:"洞察",navRules:"规则与层",navTrace:"追踪依赖",navAdvisor:"AI 顾问",navOpenProject:"打开项目",navToggleTheme:"切换主题",navSettings:"设置",
+    navGraph:"依赖图",navInsights:"洞察",navRules:"规则与层",navTrace:"追踪依赖",navAdvisor:"AI 顾问",navOpenProject:"打开项目",navToggleTheme:"切换主题",navSettings:"设置",navArchLine:"Arch 产品线成员",
     serviceMap:"服务地图",serviceMapSub:"依赖拓扑和架构风险热点。",
     archHealth:"架构健康度",cycles:"循环",layerViol:"层级违规",godFiles:"上帝文件",avgComplex:"平均复杂度",
     risksAnomalies:"风险与异常",graphControls:"图形控制",filterByFolder:"按文件夹过滤",onlyCircular:"仅循环依赖",heatmapMode:"热力图（复杂度）",

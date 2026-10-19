@@ -114,6 +114,10 @@ body {
 }
 .rail-btn svg,.theme-toggle svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6}
 .theme-toggle{margin-top:auto}
+/* Arch line mark: shared brand (System-Arch/brand), quiet until hovered. */
+.rail-arch{opacity:.7;text-decoration:none}
+.rail-arch:hover{opacity:1}
+.rail-arch img{width:18px;height:18px;display:block}
 .rail-tooltip {
   position:absolute;left:100%;margin-left:10px;top:50%;transform:translateY(-50%);
   background:var(--ink);color:var(--surface);font-size:12px;font-weight:500;
