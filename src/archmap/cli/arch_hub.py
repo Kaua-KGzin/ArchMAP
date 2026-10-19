@@ -299,7 +299,11 @@ def run_hub_report(args: object, post: Poster = _urllib_post) -> int:
         return 1 if strict else 0
 
     if 200 <= status < 300:
-        print(f"[ok] Published to Arch Hub {hub} as '{system_id}'")
+        # --json keeps stdout a single JSON document; status goes to stderr.
+        print(
+            f"[ok] Published to Arch Hub {hub} as '{system_id}'",
+            file=sys.stderr if getattr(args, "json", False) else sys.stdout,
+        )
         _write_step_summary(system_id, payload, f"published to {hub}")
         return 0
     print(f"[warn] Arch Hub rejected the report: HTTP {status}", file=sys.stderr)

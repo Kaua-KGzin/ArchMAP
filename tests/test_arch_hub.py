@@ -178,3 +178,12 @@ def test_hub_report_is_a_cli_command(tmp_path: Path, capsys: pytest.CaptureFixtu
     )
     out = capsys.readouterr().out
     assert '"systemId": "demo-system"' in out
+
+
+def test_hub_report_json_stdout_stays_parseable_after_publishing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert run_hub_report(_args(_project(tmp_path), json=True), post=FakeHub(201)) == 0
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["systemId"] == "demo-system"
+    assert "Published" in captured.err
