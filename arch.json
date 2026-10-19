@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Kaua-KGzin/System-Arch/main/docs/arch-line.schema.json",
+  "line": "arch",
+  "protocol": 1,
+  "id": "archmap",
+  "name": "ArchMAP",
+  "role": "insight",
+  "description": "Análise estática de arquitetura — CLI, web UI e MCP",
+  "repository": "https://github.com/Kaua-KGzin/ArchMAP",
+  "stack": ["python"],
+  "runtime": "cli+service",
+  "defaultPort": 3000,
+  "health": "/api/health",
+  "connectsTo": ["arch-hub"],
+  "adapter": "src/archmap/cli/arch_hub.py"
+}

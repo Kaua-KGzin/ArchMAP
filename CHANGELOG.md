@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Arch line integration** — `archmap serve` registers itself in the Arch Hub
+  (System-Arch) when `ARCHHUB_URL` is set, then keeps itself `UP` with heartbeats.
+  Opt-in, stdlib-only, and an unreachable Hub never affects the server.
+  Contract: System-Arch `docs/ARCH-LINE.md`. Manifest: `arch.json`.
+
 ## [1.4.0] - 2026-10-17
 
 Reverse engineering, analysis-quality measurement, and a much deeper AI-agent
