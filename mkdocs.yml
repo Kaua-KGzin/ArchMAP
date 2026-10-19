@@ -98,6 +98,7 @@ nav:
       - memory: cli/memory.md
       - mcp: cli/mcp.md
       - context: cli/context.md
+      - hub-report: cli/hub-report.md
       - inspect: cli/inspect.md
       - audit: cli/audit.md
       - watch: cli/watch.md
