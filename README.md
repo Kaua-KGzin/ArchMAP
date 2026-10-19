@@ -385,6 +385,18 @@ Builds `dist/archmap.exe`, creates a versioned binary copy, writes `dist/archmap
 npm run serve:web -- --path .
 ```
 
+## Arch line
+
+ArchMAP is part of the **Arch line** — independent systems that see each other
+through the [Arch Hub](https://github.com/Kaua-KGzin/System-Arch/blob/main/docs/ARCH-LINE.md) (System-Arch): Arch Hub (platform), ARCHNEXUS /
+System-PVD (business), SIMPLE ArCh (collaboration) and ArchMAP (insight).
+
+`archmap serve` registers itself in the Hub when `ARCHHUB_URL` is set
+(`ARCHHUB_TOKEN`, `ARCHHUB_PUBLIC_URL` and `ARCHHUB_HEARTBEAT_SECONDS` are optional).
+Without it nothing changes, and an unreachable Hub never affects the server.
+Tip: SIMPLE-ArCh also defaults to port 3000 — run `archmap serve --port 3100` next to it.
+Implementation: `src/archmap/cli/arch_hub.py`. Manifest: `arch.json`.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from archmap import __version__
+from archmap.cli.arch_hub import start_arch_hub_registration
 from archmap.cli.defaults import DEFAULT_SARIF_OUTPUT_PATH, DEFAULT_TOP_ITEMS
 from archmap.cli.reporting import (
     evaluate_quality_gates,
@@ -219,12 +220,15 @@ def run_serve(args: argparse.Namespace) -> int:
             "restricted to loopback, but anyone who can reach this port can read the "
             "dependency graph. Use --host 127.0.0.1 if that is not intended."
         )
+    hub_registrar = start_arch_hub_registration(state.path, browser_url)
     print("[info] Press Ctrl+C to stop.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n[info] Shutting down server.")
     finally:
+        if hub_registrar is not None:
+            hub_registrar.stop()
         server.server_close()
     return 0
 

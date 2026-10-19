@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 
 from archmap import __version__
+from archmap.cli.arch_hub import run_hub_report as _run_hub_report
 from archmap.cli.args import apply_default_command as _apply_default_command
 from archmap.cli.args import build_parser as _build_parser
 from archmap.cli.commands import run_advise as _run_advise
@@ -80,6 +81,7 @@ def _resolve_command_handler(command: str | None):
         "audit": _run_audit,
         "commands": _run_commands,
         "context": _run_context,
+        "hub-report": _run_hub_report,
     }
     return handlers.get(command)
 

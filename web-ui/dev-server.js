@@ -1,13 +1,13 @@
-import path from "node:path";
-
 import { createPythonReportProvider, startWebUi } from "./server.js";
 
 const args = parseArgs(process.argv.slice(2));
 const projectPath = args.path ?? ".";
-const host = args.host ?? "0.0.0.0";
+// Loopback by default, like `archmap serve`: the UI can switch the analyzed
+// directory, so binding every interface must be an explicit --host choice.
+const host = args.host ?? "127.0.0.1";
 const port = args.port ?? 3000;
 const openBrowser = !args.noOpen;
-const pythonCmd = args.python ?? "python";
+const pythonCmd = args.python ?? (process.platform === "win32" ? "python" : "python3");
 
 const reportProvider = createPythonReportProvider({
   projectPath,
@@ -20,7 +20,8 @@ const { url } = await startWebUi({
   host,
   port,
   openBrowser,
-  staticDir: path.join(process.cwd(), "web-ui", "static"),
+  // staticDir: server.js already points at src/archmap/web-ui/static (the old
+  // override pointed at web-ui/static, which doesn't exist).
 });
 
 console.log(`[info] ArchMAP web server running on ${url}`);

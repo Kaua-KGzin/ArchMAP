@@ -789,6 +789,33 @@ def _add_reverse_engineering_parsers(subparsers: Any) -> None:
         help="enable parallel file parsing",
     )
 
+    hub_report_parser = subparsers.add_parser(
+        "hub-report",
+        help="publish the architecture score to the Arch Hub (System-Arch), e.g. from CI",
+        description=(
+            "Analyzes the project and POSTs score, grade, files, cycles and findings "
+            "to ARCHHUB_URL/api/v1/systems/<id>/architecture. The id comes from "
+            "--system-id, the Arch line manifest (arch.json) or the directory name. "
+            "Without ARCHHUB_URL it only prints (and writes the GitHub step summary)."
+        ),
+    )
+    hub_report_parser.add_argument("path", nargs="?", default=".")
+    hub_report_parser.add_argument("--system-id", help="Hub id (default: arch.json)")
+    hub_report_parser.add_argument("--hub", help="Hub URL (default: $ARCHHUB_URL)")
+    hub_report_parser.add_argument("--token", help="X-Hub-Token (default: $ARCHHUB_TOKEN)")
+    hub_report_parser.add_argument("--commit", help="default: $GITHUB_SHA")
+    hub_report_parser.add_argument("--ref", help="default: $GITHUB_REF_NAME")
+    hub_report_parser.add_argument("--report-url", help="link to the full report (http/https)")
+    hub_report_parser.add_argument("--dry-run", action="store_true", help="analyze and print only")
+    hub_report_parser.add_argument(
+        "--strict", action="store_true", help="exit 1 when the report can't be published"
+    )
+    hub_report_parser.add_argument("--json", action="store_true")
+    hub_report_parser.add_argument(
+        "--parallel", action=argparse.BooleanOptionalAction, default=True,
+        help="enable parallel file parsing",
+    )
+
     commands_parser = subparsers.add_parser(
         "commands",
         help="list every archmap command (--json: machine-readable catalog for AI agents)",
