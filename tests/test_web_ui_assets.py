@@ -83,3 +83,15 @@ def test_app_wires_every_toolkit_view() -> None:
         assert f'id="{view}"' in html and f'id="{button}"' in html
         assert f'"{view}"' in app and f'"{button}"' in app
     assert 'id="inspectorView"' in html and 'id="canvasTabInspector"' in html
+
+
+def test_arch_line_mark_is_shipped_and_translated() -> None:
+    # The Arch line signature in the nav rail: asset present, tooltip in all six languages.
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    app = (STATIC / "app.js").read_text(encoding="utf-8")
+    assert (STATIC / "arch-mark.svg").read_text(encoding="utf-8").lstrip().startswith("<svg")
+    assert 'src="/arch-mark.svg"' in html and 'data-i18n="navArchLine"' in html
+    table = app[app.index("const _TRANSLATIONS = {"):]
+    for lang in LANGS:
+        block = re.search(rf"\n  {lang}: \{{\n(.*?)\n  \}},", table, re.DOTALL)
+        assert block and 'navArchLine:"' in block.group(1), f"navArchLine missing in {lang}"

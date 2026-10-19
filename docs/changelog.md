@@ -5,6 +5,9 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Arch line mark in the web UI** — the shared Arch line signature
+  (System-Arch `brand/`) at the bottom of the nav rail, linking to the line's
+  contract; tooltip translated in all six UI languages.
 - **Arch line integration** — `archmap serve` registers itself in the Arch Hub
   (System-Arch) when `ARCHHUB_URL` is set, then keeps itself `UP` with heartbeats.
   Opt-in, stdlib-only, and an unreachable Hub never affects the server.
