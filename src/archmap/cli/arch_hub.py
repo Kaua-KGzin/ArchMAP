@@ -10,6 +10,8 @@ environment variables are the same in every system of the line:
 ``ARCHHUB_HEARTBEAT_SECONDS``  Heartbeat period (default 20, 0 = register only).
 
 A Hub that is down never affects ``serve``: failures are printed once and retried.
+``archmap hub-report`` publishes the architecture score of a project (usually
+from CI) to ``POST /api/v1/systems/{id}/architecture``.
 Standard library only, like the rest of ArchMAP.
 """
 
@@ -17,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -167,3 +170,138 @@ def start_arch_hub_registration(
     registrar = ArchHubRegistrar(config, project_path)
     registrar.start()
     return registrar
+
+
+# --------------------------------------------------------------------------- hub-report
+
+_SLUG_ALLOWED = set("abcdefghijklmnopqrstuvwxyz0123456789-")
+
+
+def _slugify(name: str) -> str:
+    slug = "".join(ch if ch in _SLUG_ALLOWED else "-" for ch in name.lower()).strip("-")
+    return slug[:63] or "project"
+
+
+def resolve_system_id(project: Path, explicit: str | None = None) -> str:
+    """``--system-id`` > ``arch.json`` (Arch line manifest) > directory name."""
+    if explicit:
+        return explicit
+    manifest = project / "arch.json"
+    if manifest.is_file():
+        try:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and isinstance(data.get("id"), str) and data["id"]:
+                return str(data["id"])
+        except (OSError, ValueError):
+            pass
+    return _slugify(project.resolve().name)
+
+
+def build_architecture_payload(
+    report: Mapping[str, object],
+    *,
+    commit: str | None,
+    ref: str | None,
+    report_url: str | None,
+) -> dict[str, object]:
+    architecture = report.get("architecture")
+    health = architecture.get("health") if isinstance(architecture, dict) else None
+    health = health if isinstance(health, dict) else {}
+    metrics = report.get("metrics")
+    metrics = metrics if isinstance(metrics, dict) else {}
+    findings = report.get("findings")
+    payload: dict[str, object] = {
+        "score": int(health.get("score") or metrics.get("architectureHealthScore") or 0),
+        "grade": health.get("grade"),
+        "files": int(metrics.get("filesAnalyzed", 0)),
+        "cycles": int(metrics.get("circularDependencyCount", 0)),
+        "findings": len(findings) if isinstance(findings, list) else 0,
+        "commit": (commit or "")[:64] or None,
+        "ref": ref,
+        "toolVersion": __version__,
+        "reportUrl": report_url,
+    }
+    return payload
+
+
+def _ci_default(*names: str) -> str | None:
+    for name in names:
+        value = os.environ.get(name)
+        if value:
+            return value
+    return None
+
+
+def _write_step_summary(system_id: str, payload: Mapping[str, object], published: str) -> None:
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
+    lines = [
+        f"### ArchMAP — `{system_id}`",
+        "",
+        "| Score | Grade | Files | Cycles | Findings |",
+        "|---|---|---|---|---|",
+        f"| **{payload['score']}/100** | {payload['grade'] or '-'} | {payload['files']} "
+        f"| {payload['cycles']} | {payload['findings']} |",
+        "",
+        f"Arch Hub: {published}",
+        "",
+    ]
+    try:
+        with open(summary_path, "a", encoding="utf-8") as handle:
+            handle.write("\n".join(lines))
+    except OSError:
+        pass
+
+
+def run_hub_report(args: object, post: Poster = _urllib_post) -> int:
+    """Analyze a project and publish its architecture score to the Arch Hub."""
+    from archmap.core import analyze_project
+
+    project = Path(getattr(args, "path", ".")).resolve()
+    system_id = resolve_system_id(project, getattr(args, "system_id", None))
+    report = analyze_project(str(project), parallel=getattr(args, "parallel", True))
+    payload = build_architecture_payload(
+        report,
+        commit=getattr(args, "commit", None) or _ci_default("GITHUB_SHA", "CI_COMMIT_SHA"),
+        ref=getattr(args, "ref", None) or _ci_default("GITHUB_REF_NAME", "CI_COMMIT_REF_NAME"),
+        report_url=getattr(args, "report_url", None),
+    )
+
+    hub = (getattr(args, "hub", None) or os.environ.get("ARCHHUB_URL", "")).strip().rstrip("/")
+    token = getattr(args, "token", None) or os.environ.get("ARCHHUB_TOKEN") or None
+    strict = bool(getattr(args, "strict", False))
+
+    if getattr(args, "json", False):
+        print(json.dumps({"systemId": system_id, **payload}, indent=2))
+    else:
+        print(
+            f"[info] {system_id}: architecture {payload['score']}/100 "
+            f"({payload['grade'] or '-'}), {payload['files']} files, "
+            f"{payload['cycles']} cycles, {payload['findings']} findings"
+        )
+
+    if getattr(args, "dry_run", False) or not hub:
+        if not hub and not getattr(args, "dry_run", False):
+            print("[warn] ARCHHUB_URL not set; nothing published.", file=sys.stderr)
+        _write_step_summary(system_id, payload, "not published")
+        return 1 if strict and not hub else 0
+
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["X-Hub-Token"] = token
+    url = f"{hub}/api/v1/systems/{system_id}/architecture"
+    try:
+        status = post(url, json.dumps(payload).encode("utf-8"), headers)
+    except (URLError, OSError, ValueError) as exc:
+        print(f"[warn] Arch Hub unreachable at {hub}: {exc}", file=sys.stderr)
+        _write_step_summary(system_id, payload, f"unreachable ({hub})")
+        return 1 if strict else 0
+
+    if 200 <= status < 300:
+        print(f"[ok] Published to Arch Hub {hub} as '{system_id}'")
+        _write_step_summary(system_id, payload, f"published to {hub}")
+        return 0
+    print(f"[warn] Arch Hub rejected the report: HTTP {status}", file=sys.stderr)
+    _write_step_summary(system_id, payload, f"rejected (HTTP {status})")
+    return 1 if strict else 0

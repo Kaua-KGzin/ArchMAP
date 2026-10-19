@@ -1,0 +1,63 @@
+# Arch line: publishes the architecture score of a repository to the Arch Hub.
+#
+# Reusable: every repository of the line calls it with
+#   uses: Kaua-KGzin/ArchMAP/.github/workflows/arch-line-report.yml@main
+#   secrets: inherit
+# Secrets (optional): ARCHHUB_URL (a Hub reachable from GitHub runners) and
+# ARCHHUB_TOKEN (global or per-system token). Without them the job only writes
+# the score to the run summary. Contract: System-Arch docs/ARCH-LINE.md.
+name: arch-line report
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: Project path to analyze
+        type: string
+        default: "."
+      archmap-ref:
+        description: ArchMAP git ref to install
+        type: string
+        default: main
+    secrets:
+      ARCHHUB_URL:
+        required: false
+      ARCHHUB_TOKEN:
+        required: false
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install ArchMAP
+        env:
+          ARCHMAP_REF: ${{ inputs.archmap-ref || 'main' }}
+        run: |
+          if [ "${GITHUB_REPOSITORY}" = "Kaua-KGzin/ArchMAP" ]; then
+            python -m pip install .
+          else
+            python -m pip install "git+https://github.com/Kaua-KGzin/ArchMAP@${ARCHMAP_REF}"
+          fi
+
+      - name: Publish architecture score
+        env:
+          ARCHHUB_URL: ${{ secrets.ARCHHUB_URL }}
+          ARCHHUB_TOKEN: ${{ secrets.ARCHHUB_TOKEN }}
+          REPORT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PROJECT_PATH: ${{ inputs.path || '.' }}
+        run: archmap hub-report "$PROJECT_PATH" --report-url "$REPORT_URL"
