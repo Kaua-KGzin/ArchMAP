@@ -16,10 +16,18 @@ All notable changes to this project are documented in this file.
   variables; writes a GitHub step summary. Without `ARCHHUB_URL` it only prints;
   `--strict` makes publish failures fail the job.
 
+### Fixed
+- `npm run serve:web` crashed on start: `web-ui/server.js` had the top of
+  `startWebUi` pasted twice; a missing browser opener (headless Linux,
+  containers, Termux) killed the server; `dev-server.js` served a
+  non-existent `web-ui/static`. It now binds `127.0.0.1` by default, like
+  `archmap serve`.
+
 ### Security
+- npm: removed the unused `fast-glob` dependency (and with it the vulnerable
+  `braces`/`micromatch` chain); `npm audit` is clean.
 - npm: `proxy-addr` (critical IP-spoofing advisory) fixed via `npm audit fix`;
   `qs` 6.16.1 and `body-parser` 2.3.0 (supersedes dependabot #45 and #47).
-  `braces` (dev server only, via `fast-glob`) has no patched release yet.
 
 ## [1.4.0] - 2026-10-17
 
