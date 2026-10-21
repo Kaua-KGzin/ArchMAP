@@ -5,6 +5,33 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Interprocedural taint analysis (`TAINT-*`) in `archmap audit`** — follows
+  untrusted input (HTTP request data, NestJS/Spring/ASP.NET/FastAPI/Next.js
+  handler parameters, browser URL/DOM, argv/stdin) through assignments,
+  string building, destructuring and calls, across files, to SQL, shell,
+  eval, template, deserialization, path, SSRF, XSS, redirect, NoSQL and regex
+  sinks. Python is read from the standard-library AST; JS/TS, C# and Java by a
+  dependency-free statement reader. Function summaries are solved to a
+  fixpoint and callees are resolved only within the caller's dependency-graph
+  neighbourhood. Findings carry the full flow, call chain, CWE and fix;
+  sanitizers, bound parameters, fixed-host URLs and suppressions are honoured.
+  `--no-taint` to skip; counted in the web UI, SARIF and the MCP tool.
+- **`archmap audit` code checks (`CODE-*`)** — offline, stdlib-only SAST pass
+  with ~40 CWE-tagged rules across Python, JS/TS, C/C++, C#, Java, Go, Rust and
+  PHP: command/code injection, SQL built by concatenation/interpolation, unsafe
+  deserialization, disabled TLS verification, weak crypto, raw HTML sinks,
+  memory-unsafe C calls. One finding per rule and file with line, CWE and fix;
+  honours `archmap-ignore` / `nosemgrep` / `nosec` / `NOSONAR` suppressions;
+  `--no-code` to skip. Shown in the web UI audit view and the `audit_project`
+  MCP tool.
+- **`archmap audit --sarif PATH`** — SARIF 2.1.0 with CWE tags and
+  `security-severity`, ready for GitHub code scanning.
+- **Context-aware secret ranking** — secrets in test code, templates/docs
+  (`.env.example`) and CI config are kept but downgraded; placeholder URL
+  credentials (`postgresql://user:password@localhost`) are no longer reported.
+- **Vendored code detection** — files under `vendor/`, `third_party/`, `ext/`,
+  `imgui/`, ... stay in the graph but are excluded from risk ranking,
+  thresholds and complexity normalization (`metrics.vendoredFiles`).
 - **Arch line mark in the web UI** — the shared Arch line signature
   (System-Arch `brand/`) at the bottom of the nav rail, linking to the line's
   contract; tooltip translated in all six UI languages.
@@ -20,6 +47,24 @@ All notable changes to this project are documented in this file.
   `--strict` makes publish failures fail the job.
 
 ### Fixed
+- **C# resolution invented dependency cliques** — `using Ns;` linked a file to
+  *every* file in the namespace. Resolution now uses a project type index:
+  edges only to types actually referenced (via usings, `global using`, own and
+  parent namespaces, fully qualified names, extension methods, `[Attr]` →
+  `AttrAttribute`), ignoring nested private types, enum members and other
+  `partial` parts. On a real 170-file ASP.NET backend: 2371 → 767 edges and the
+  phantom service cycles disappeared.
+- **JS/TS dotted basenames never resolved** — `./user.service`,
+  `./app.module` (NestJS/Angular) were treated as already having an extension.
+  ESM `./util.js` → `util.ts`, stylesheet/asset imports, and `../dist/*` imports
+  (mapped back through tsconfig `outDir`/`rootDir`) are handled too. A real
+  NestJS repo went from 61% to 100% resolution.
+- `archmap analyze --no-cache` was ignored; cached reports were also served
+  across ArchMAP upgrades (the fingerprint now includes the version).
+- `--show-unresolved=all`, suggested by the CLI itself, was rejected.
+- `archmap audit` skipped `tests/`, `examples/` and git-tracked build output
+  (`dist/`, `build/`, ...) because it reused the analyzer's ignore list; a
+  secret committed there went unreported.
 - `npm run serve:web` crashed on start: `web-ui/server.js` had the top of
   `startWebUi` pasted twice; a missing browser opener (headless Linux,
   containers, Termux) killed the server; `dev-server.js` served a

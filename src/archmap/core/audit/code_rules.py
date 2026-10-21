@@ -242,6 +242,11 @@ _SANITIZER = re.compile(r"(?i)^\s*(?:esc\w*|escape\w*|sanitiz\w*|DOMPurify\.sani
                         r"String\(|Number\(|parseInt|parseFloat|\w+\.length\b)")
 
 
+def is_suppressed(lines: list[str], line: int) -> bool:
+    """A suppression marker on ``line`` (1-based) or the line above."""
+    return any(_SUPPRESS.search(text) for text in lines[max(0, line - 2):line])
+
+
 def _template_is_sanitized(code: str, start: int) -> bool:
     """`el.innerHTML = `...${escHtml(x)}...`` — every interpolation sanitized?"""
     tick = code.find("`", start)
@@ -317,8 +322,7 @@ def scan_code(path: str, source: str) -> list[CodeMatch]:
     grouped: dict[str, CodeMatch] = {}
 
     def suppressed(line: int) -> bool:
-        window = raw_lines[max(0, line - 2):line]
-        return any(_SUPPRESS.search(text) for text in window)
+        return is_suppressed(raw_lines, line)
 
     for rule in CODE_RULES:
         if language not in rule["languages"]:
@@ -352,4 +356,4 @@ def scan_code(path: str, source: str) -> list[CodeMatch]:
     return list(grouped.values())
 
 
-__all__ = ["CODE_RULES", "CodeMatch", "LANGUAGE_BY_EXT", "scan_code"]
+__all__ = ["CODE_RULES", "CodeMatch", "LANGUAGE_BY_EXT", "is_suppressed", "scan_code"]

@@ -756,7 +756,8 @@ def _add_reverse_engineering_parsers(subparsers: Any) -> None:
         help="find committed secrets and risky AI-agent configuration (MCP, hooks, permissions)",
         description=(
             "Scans project text files for secrets (git-aware: committed secrets rank "
-            "above local, untracked ones), flags insecure code patterns per language "
+            "above local, untracked ones), traces untrusted input to dangerous sinks "
+            "across files (Python, JS/TS, C#, Java), flags insecure code patterns per language "
             "(CWE-tagged: injection, unsafe deserialization, disabled TLS, weak crypto, "
             "unbounded C string calls), and audits AI-agent configuration as attack "
             "surface: .mcp.json transports/unpinned packages/plaintext tokens, "
@@ -771,6 +772,12 @@ def _add_reverse_engineering_parsers(subparsers: Any) -> None:
         action="store_true",
         help="skip the pattern-based code checks (CODE-*: injection, deserialization, "
              "TLS, weak crypto, memory-unsafe C calls)",
+    )
+    audit_parser.add_argument(
+        "--no-taint",
+        action="store_true",
+        help="skip the interprocedural data-flow analysis (TAINT-*: untrusted input "
+             "reaching SQL, shell, eval, file paths, URLs, HTML, redirects)",
     )
     audit_parser.add_argument(
         "--sarif",

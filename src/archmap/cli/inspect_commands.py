@@ -269,7 +269,11 @@ def run_strings(args: argparse.Namespace) -> int:
 def run_audit(args: argparse.Namespace) -> int:
     from archmap.core.audit.project_audit import audit_project
 
-    result = audit_project(args.path, include_code=not getattr(args, "no_code", False))
+    result = audit_project(
+        args.path,
+        include_code=not getattr(args, "no_code", False),
+        include_taint=not getattr(args, "no_taint", False),
+    )
     _write_json(result, args)
     if getattr(args, "sarif", None):
         from archmap.exporters.sarif_exporter import export_findings_as_sarif
@@ -281,7 +285,9 @@ def run_audit(args: argparse.Namespace) -> int:
     else:
         git = "git-aware" if result["gitAware"] else "not a git repository"
         print(f"[ok] Audited {result['filesScanned']} text files in {result['root']} ({git})")
-        print(f"  Secrets: {result['secretFindings']} | Code: {result.get('codeFindings', 0)} "
+        print(f"  Secrets: {result['secretFindings']} "
+              f"| Data flow: {result.get('taintFindings', 0)} "
+              f"| Code: {result.get('codeFindings', 0)} "
               f"| Agent config: {result['agentFindings']}")
         _print_findings(result["findings"])
         for note in result["limitations"]:

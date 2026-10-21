@@ -233,7 +233,9 @@ def _inspect_sqlite(path: Path) -> dict[str, Any]:
             entry: dict[str, Any] = {"name": name, "type": obj_type, "columns": columns}
             if obj_type == "table":
                 try:
+                    # Table names come from the inspected file; `quoted` escapes them.
                     count_sql = f"SELECT COUNT(*) FROM {quoted}"
+                    # archmap-ignore: identifier quoted above, no bound-parameter form
                     entry["rows"] = connection.execute(count_sql).fetchone()[0]
                 except sqlite3.Error as exc:
                     entry["rows"] = None

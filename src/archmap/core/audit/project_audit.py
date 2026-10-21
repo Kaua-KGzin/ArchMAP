@@ -134,6 +134,7 @@ class _Collector:
     def __init__(self) -> None:
         self.secrets: list[Finding] = []
         self.code: list[Finding] = []
+        self.taint: list[Finding] = []
         self.agent: list[Finding] = []
 
     @staticmethod
@@ -170,19 +171,26 @@ class _Collector:
         finding_id = f"CODE-{len(self.code) + 1:03d}"
         self.code.append(self._finding(finding_id, "security", **fields))
 
+    def add_taint(self, **fields: Any) -> None:
+        finding_id = f"TAINT-{len(self.taint) + 1:03d}"
+        self.taint.append(self._finding(finding_id, "security", **fields))
+
     def add_agent(self, **fields: Any) -> None:
         finding_id = f"AGENT-{len(self.agent) + 1:03d}"
         self.agent.append(self._finding(finding_id, "agent", **fields))
 
 
-def audit_project(root: str | Path, *, include_code: bool = True) -> dict[str, Any]:
-    """Audit ``root`` for secrets, insecure code patterns and risky AI-agent configuration."""
+def audit_project(
+    root: str | Path, *, include_code: bool = True, include_taint: bool = True
+) -> dict[str, Any]:
+    """Audit ``root`` for secrets, insecure code, tainted data flows and agent configuration."""
     root_path = Path(root).resolve()
     if not root_path.is_dir():
         raise NotADirectoryError(f"not a directory: {root_path}")
     tracked = _git_tracked(root_path)
     collector = _Collector()
     scanned = 0
+    taint_sources: dict[str, str] = {}
 
     for path in _iter_text_files(root_path, tracked):
         try:
@@ -197,13 +205,18 @@ def audit_project(root: str | Path, *, include_code: bool = True) -> dict[str, A
         _scan_secrets(rel, text, tracked, collector)
         if include_code:
             _scan_code(rel, text, collector)
+            if include_taint and _taint_candidate(rel):
+                taint_sources[rel] = text
 
     _audit_mcp_configs(root_path, collector)
     _audit_claude_settings(root_path, collector)
     _audit_hook_files(root_path, collector)
     _audit_instruction_files(root_path, collector)
 
-    findings = collector.secrets + collector.code + collector.agent
+    if taint_sources:
+        _scan_taint(root_path, taint_sources, collector)
+
+    findings = collector.secrets + collector.taint + collector.code + collector.agent
     limitations = [
         "Secrets are matched by pattern and never verified against a provider.",
         "Git history is not scanned; a secret removed from HEAD may still be in history.",
@@ -213,12 +226,19 @@ def audit_project(root: str | Path, *, include_code: bool = True) -> dict[str, A
             "Code checks are pattern-based (no data-flow): a CODE finding marks a sink "
             "to review, not a proven exploit."
         )
+    if include_code and include_taint:
+        limitations.append(
+            "Data-flow (TAINT) analysis is intra-project and name-resolved: flows through "
+            "reflection, dependency-injection containers, framework callbacks and dynamic "
+            "dispatch are not followed, and custom validators are not recognised."
+        )
     return {
         "root": str(root_path),
         "filesScanned": scanned,
         "gitAware": tracked is not None,
         "secretFindings": len(collector.secrets),
         "codeFindings": len(collector.code),
+        "taintFindings": len(collector.taint),
         "agentFindings": len(collector.agent),
         "findings": findings,
         "limitations": limitations,
@@ -325,6 +345,88 @@ def _scan_code(rel: str, text: str, out: _Collector) -> None:
             cwe=match["cwe"],
             remediation=match["remediation"],
         )
+
+
+def _taint_candidate(rel: str) -> bool:
+    from archmap.core.audit.taint import SUPPORTED_EXTENSIONS
+
+    suffix = rel[rel.rfind("."):].lower() if "." in rel else ""
+    if suffix not in SUPPORTED_EXTENSIONS or suffix in (".d.ts",) or rel.endswith(".min.js"):
+        return False
+    context = secret_context(rel)
+    # Test code feeds fixtures to sinks on purpose; vendored code is not ours.
+    return not is_vendored_path(rel) and not (context and context[0] == "test fixture")
+
+
+def _graph_neighbours(root: Path) -> dict[str, set[str]]:
+    """file -> files it imports, from ArchMAP's own resolved dependency graph."""
+    try:
+        from archmap.core.parser import parse_project
+
+        parsed = parse_project(root, parallel=True)
+    except Exception:
+        return {}
+    return {
+        item["id"]: {dep["id"] for dep in item["dependencies"] if dep.get("type") == "file"}
+        for item in parsed["parsedFiles"]
+    }
+
+
+def _scan_taint(root: Path, sources: dict[str, str], out: _Collector) -> None:
+    from archmap.core.audit.taint import SINKS, analyze_sources
+
+    graph = _graph_neighbours(root)
+    try:
+        hits = analyze_sources(sources, lambda file: graph.get(file, set()))
+    except RecursionError:
+        return
+    from archmap.core.audit.code_rules import is_suppressed
+
+    covered: dict[str, set[int]] = {}
+    for hit in hits:
+        lines = sources.get(hit.file, "").splitlines()
+        if is_suppressed(lines, hit.line):
+            continue
+        kind = SINKS[hit.sink]
+        confidence = 0.85 if hit.file.endswith(".py") else 0.75
+        if hit.via:
+            confidence -= 0.05
+        evidence = [f"Sink: {hit.file}:{hit.line}  {hit.text}"]
+        evidence += [f"Flow: {step}" for step in hit.trace]
+        evidence += [f"Call: {call}" for call in hit.via]
+        evidence += [f"Rule: taint-{hit.sink} ({kind.cwe})", f"Fix: {kind.remediation}"]
+        source = _source_text(hit.source) or "untrusted input"
+        out.add_taint(
+            category=f"taint-{hit.sink}",
+            severity=kind.severity,
+            confidence=round(confidence, 2),
+            message=f"{kind.title}: {source} reaches {hit.file}:{hit.line}",
+            evidence=evidence,
+            file=hit.file,
+            line=hit.line,
+            cwe=kind.cwe,
+            remediation=kind.remediation,
+        )
+        covered.setdefault(hit.file, set()).add(hit.line)
+    # A pattern finding fully explained by a data-flow finding adds nothing.
+    out.code = [
+        f for f in out.code
+        if not (f.get("file") in covered and _code_lines(f) <= covered[str(f.get("file"))])
+    ]
+
+
+def _source_text(label: str) -> str:
+    from archmap.core.audit.taint.model import BROWSER_PREFIX, LOCAL_PREFIX
+
+    return label.removeprefix(LOCAL_PREFIX).removeprefix(BROWSER_PREFIX)
+
+
+def _code_lines(finding: Finding) -> set[int]:
+    for item in finding.get("evidence", []):
+        if item.startswith("Occurrences: "):
+            numbers = item.split(" at lines ", 1)[1].split(" (", 1)[0]
+            return {int(n) for n in numbers.split(", ") if n.isdigit()}
+    return {int(finding.get("line", 0))}
 
 
 def _load_json(path: Path) -> Any:

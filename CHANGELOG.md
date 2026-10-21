@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Interprocedural taint analysis (`TAINT-*`) in `archmap audit`** — follows
+  untrusted input (HTTP request data, NestJS/Spring/ASP.NET/FastAPI/Next.js
+  handler parameters, browser URL/DOM, argv/stdin) through assignments,
+  string building, destructuring and calls, across files, to SQL, shell,
+  eval, template, deserialization, path, SSRF, XSS, redirect, NoSQL and regex
+  sinks. Python is read from the standard-library AST; JS/TS, C# and Java by a
+  dependency-free statement reader. Function summaries are solved to a
+  fixpoint and callees are resolved only within the caller's dependency-graph
+  neighbourhood. Findings carry the full flow, call chain, CWE and fix;
+  sanitizers, bound parameters, fixed-host URLs and suppressions are honoured.
+  `--no-taint` to skip; counted in the web UI, SARIF and the MCP tool.
 - **`archmap audit` code checks (`CODE-*`)** — offline, stdlib-only SAST pass
   with ~40 CWE-tagged rules across Python, JS/TS, C/C++, C#, Java, Go, Rust and
   PHP: command/code injection, SQL built by concatenation/interpolation, unsafe
