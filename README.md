@@ -292,7 +292,7 @@ archmap audit . --sarif audit.sarif   # GitHub code scanning (CWE tags + securit
 
 **Insecure code patterns (`CODE-*`, new in 1.4.1):** ~40 CWE-tagged checks across Python, JS/TS, C/C++, C#, Java, Go, Rust and PHP (injection sinks, unsafe deserialization, disabled TLS, weak crypto, unbounded C string calls), honouring `archmap-ignore` / `nosemgrep` / `nosec` suppressions.
 
-Git-aware, context-aware secret detection (committed secrets outrank local `.env` files; test fixtures, templates and CI placeholders are ranked down; values always redacted) (committed secrets outrank local `.env` files; values always redacted) and AI-agent configuration as attack surface: insecure or unpinned MCP servers, plaintext tokens, `bypassPermissions`, interpreter-wildcard permissions, hooks that pipe downloads into a shell, and invisible Unicode in `CLAUDE.md`/`AGENTS.md`/`.cursorrules`. See [`archmap audit`](docs/cli/audit.md).
+Git-aware, context-aware secret detection (committed secrets outrank local `.env` files; test fixtures, templates and CI placeholders are ranked down; values always redacted) and AI-agent configuration as attack surface: insecure or unpinned MCP servers, plaintext tokens, `bypassPermissions`, interpreter-wildcard permissions, hooks that pipe downloads into a shell, and invisible Unicode in `CLAUDE.md`/`AGENTS.md`/`.cursorrules`. See [`archmap audit`](docs/cli/audit.md).
 
 ### Analysis quality
 
