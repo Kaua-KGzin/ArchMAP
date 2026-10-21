@@ -37,6 +37,6 @@
   "homepage": "https://github.com/Kaua-KGzin/ArchMAP#readme",
   "license": "MIT",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.3.0"
   }
 }
