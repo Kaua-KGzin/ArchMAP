@@ -36,3 +36,27 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes` for code review.
 3. Use `get_affected_flows` to understand impact.
 4. Use `query_graph` pattern="tests_for" to check coverage.
+
+## Pull request rule: AI authorship and human supervision (mandatory)
+
+Every pull request opened or updated by an AI agent (Claude Code or any other)
+must fill the **AI assistance & supervision** section of
+`.github/PULL_REQUEST_TEMPLATE.md`, in detail. This is a project rule, not a
+suggestion:
+
+- **Agent**: tool and model as reported by the session, plus the session /
+  replay link (e.g. `https://claude.ai/code/session_...`) so the work can be
+  audited step by step.
+- **Supervisor**: the human who directed and reviewed the work, by GitHub
+  handle (e.g. `@Kaua-KGzin`). Never publish personal e-mail addresses.
+- **Timeline (UTC)**: session start, each commit (hash + time), PR creation and
+  every later update, taken from `git log --date=iso` / the GitHub API — never
+  estimated.
+- **What the human decided** vs. **what the agent did on its own**: the
+  instructions given, decisions taken, and anything the agent chose that the
+  supervisor should double-check.
+- **Validation actually run** (commands and results) and **known limitations /
+  open risks**.
+
+When a PR receives more commits, update the section (new commits, times,
+validation) instead of leaving the original description stale.
