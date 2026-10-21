@@ -1,10 +1,11 @@
 # archmap audit
 
-Finds committed secrets and risky AI-agent configuration. Offline,
-deterministic, and safe to share: secret values are always redacted.
+Finds committed secrets, untrusted input flowing into dangerous sinks,
+insecure code patterns, and risky AI-agent configuration. Offline, deterministic, and safe to share: secret values are
+always redacted.
 
 ```bash
-archmap audit [path] [--json] [--out PATH] [--fail-on SEVERITY]
+archmap audit [path] [--json] [--out PATH] [--sarif PATH] [--no-code] [--no-taint] [--fail-on SEVERITY]
 ```
 
 ## Secrets (`SEC-*`)
@@ -20,9 +21,112 @@ the rule's severity, while the same secret in an untracked file (a local,
 gitignored `.env`) is downgraded two levels, because it was never
 committed. Each finding's evidence states which case applies.
 
-Skipped: VCS and dependency directories, lockfiles, minified bundles,
-source maps, binary files (use [`archmap inspect`](inspect.md) for those),
-and files over 1 MiB. Git history is not scanned.
+**Context-aware.** Where a secret sits changes what it means, so findings
+are kept but ranked accordingly (the evidence says which case applied):
+
+| Location | Effect |
+|---|---|
+| Test code (`tests/`, `*.spec.ts`, `*Tests.cs`, `test_*.py`, ...) | severity −2, confidence ×0.5 |
+| Templates and docs (`.env.example`, `*.sample`, `docs/`, `*.md`) | severity −2, confidence ×0.5 |
+| CI configuration (`.github/workflows/`, `.gitlab-ci.yml`) | severity −1, confidence ×0.7 |
+
+A committed private key is never downgraded. URLs whose password is a
+well-known placeholder (`postgresql://user:password@localhost/db`,
+`${DB_PASSWORD}`) are not reported at all.
+
+Skipped: VCS and dependency directories (`node_modules`), caches, lockfiles,
+minified bundles, source maps, binary files (use
+[`archmap inspect`](inspect.md) for those), and files over 1 MiB. Unlike
+`archmap analyze`, the audit **does** scan `tests/` and `examples/`, and
+scans build output (`dist/`, `build/`, `target/`, ...) when git tracks it —
+a committed bundle leaks a key just as well. Git history is not scanned.
+
+## Data flow (`TAINT-*`)
+
+Interprocedural taint analysis: untrusted input is followed through
+assignments, string building, destructuring, loops and function calls —
+**across files** — until it reaches a dangerous sink. Each finding carries the
+full path, so a reviewer sees where the input entered, every step it took,
+and which call chain led there:
+
+```text
+[high] TAINT-001  SQL injection: request parameter `name` of search() (HTTP input) reaches src/users/users.service.ts:5
+  Sink: src/users/users.service.ts:5  return this.prisma.$queryRawUnsafe(sql);
+  Flow: src/users/users.controller.ts:7 request parameter `name` of search() (HTTP input)
+  Flow: src/users/users.controller.ts:11 -> findByName() in src/users/users.service.ts
+  Flow: src/users/users.service.ts:4 const sql = `SELECT * FROM users WHERE name = '${name}'`;
+  Call: src/users/users.controller.ts:11 findByName(...)
+```
+
+| | Python | JS / TS | C# | Java |
+|---|---|---|---|---|
+| Reader | standard-library `ast` | statement-level | statement-level | statement-level |
+| Sources | `request.args/form/json/...`, Flask/FastAPI/Django route params, `input()`, `sys.argv` | `req.query/body/params/headers/cookies`, NestJS `@Body/@Query/@Param/...`, Next.js `route.ts` handlers, `location`/`document.cookie` (browser) | `[FromQuery/Body/Route/Form/Header]`, minimal-API endpoint lambdas and controller actions (string/DTO params), `Request.Query/...` | `@RequestParam/@PathVariable/@RequestBody/...`, `request.getParameter(...)` |
+
+Sinks: SQL (CWE-89), OS command (78), code eval (95), template (1336),
+deserialization (502), path traversal (22), SSRF (918), XSS (79), open
+redirect (601), NoSQL (943), regex DoS (1333).
+
+How it stays precise:
+
+- **Sanitizers end a flow**: `int()`, `parseInt`, `int.Parse`, `Number`,
+  `shlex.quote`, `html.escape`, `encodeURIComponent`, `escape*`/`sanitize*`,
+  `DOMPurify.sanitize`, `Path.GetFileName`, ... — also inside templates
+  (`` `${escapeHtml(q)}` ``) and when wrapped in your own helper function.
+- **Bound parameters are not sinks**: only the SQL text argument is checked,
+  so `query("... = ?", [name])` / `execute(sql, (name,))` are clean.
+- **Redirect/SSRF look at the URL head**: `` `${FRONTEND}/done?token=${t}` `` or
+  `"https://api.x/" + id` keep scheme and host fixed, so they are not reported.
+- **Source scope**: command-line input (`sys.argv`, `process.argv`) only
+  counts for injection sinks (a CLI user opening their own path is not
+  traversal); browser input (`location`, `document.cookie`) only for DOM XSS,
+  redirects and eval.
+- **Graph-scoped calls**: a callee is resolved by name only within the
+  caller's file and the files it imports in ArchMAP's dependency graph, and
+  only when unambiguous — so two unrelated `find()` methods are never
+  confused.
+- Test code and vendored code are not analyzed; `archmap-ignore` /
+  `nosemgrep` / `nosec` on the sink line (or the line above) suppress a
+  reviewed flow.
+- A `CODE-*` pattern finding whose lines are all explained by a `TAINT-*`
+  finding is dropped as redundant.
+
+Not followed: reflection, dependency-injection containers resolving
+interfaces, framework callbacks and dynamic dispatch; custom validators are
+not recognised as sanitizers. Skip the pass with `--no-taint`.
+
+## Insecure code patterns (`CODE-*`)
+
+A lightweight, offline SAST pass over comment-stripped source. Each rule
+targets a sink that is dangerous by itself or with dynamic input, carries a
+CWE id and a fix, and occurrences are grouped into one finding per rule and
+file. It is pattern-based, not data-flow analysis: a `CODE` finding marks a
+line a reviewer should look at, and its confidence says how sure the rule is.
+
+| Area | Examples | CWE |
+|---|---|---|
+| Command/code injection | `subprocess(..., shell=True)`, `os.system`, `` exec(`git ${x}`) ``, `Runtime.exec`, `sh -c` in Go, `system(var)` in C, `eval`/`new Function` | 78, 95 |
+| SQL injection | f-string / concatenated SQL in `execute`, `query`, `$queryRawUnsafe`, `FromSqlRaw($"...")`, `executeQuery("..." + x)`, `fmt.Sprintf` in `db.Query` | 89 |
+| Unsafe deserialization | `pickle.loads`, `yaml.load` without `SafeLoader`, `BinaryFormatter`, `TypeNameHandling`, `ObjectInputStream`, `unserialize` | 502 |
+| TLS verification off | `verify=False`, `rejectUnauthorized: false`, validation callback `=> true`, `InsecureSkipVerify`, `danger_accept_invalid_certs` | 295 |
+| Weak crypto | MD5/SHA-1, DES/RC4/ECB | 327, 328 |
+| Web | `innerHTML`/`dangerouslySetInnerHTML`/`document.write`, `jwt.decode` for trust, CORS any-origin with credentials, Flask `debug=True` | 79, 347, 942, 489 |
+| Memory safety (C/C++) | `gets`, `strcpy`/`strcat`/`sprintf`, `scanf("%s")`, non-literal `printf` format, `alloca` | 242, 120, 134 |
+
+Precision rules learned from real repositories:
+
+- `system("pause")` and other constant commands are not reported.
+- `sprintf` with a numeric-only literal format is reported as **low**, not medium.
+- ``innerHTML = `...` `` templates whose every `${...}` goes through a
+  sanitizer (`esc*`, `escape*`, `sanitize*`, `DOMPurify.sanitize`, `Number(...)`)
+  are not reported.
+- Docstrings and comments never match.
+- Test code and vendored third-party code (`vendor/`, `third_party/`, `ext/`,
+  `imgui/`, ...) are reported two severity levels lower.
+
+Suppress a reviewed line with a comment on the same or previous line:
+`archmap-ignore`, or another tool's marker (`nosemgrep`, `nosec`,
+`NOSONAR`, `codeql[...]`). Skip the pass entirely with `--no-code`.
 
 ## AI-agent configuration (`AGENT-*`)
 
@@ -49,14 +153,18 @@ configuration is part of the attack surface.
 ```bash
 archmap audit . --fail-on high      # exit 2 on any high/critical finding
 archmap audit . --json --out audit.json
+archmap audit . --sarif audit.sarif  # GitHub code scanning (CWE tags + security-severity)
 ```
+
+Upload the SARIF file with `github/codeql-action/upload-sarif` to see
+findings as code-scanning alerts on pull requests.
 
 ## Example
 
 ```text
 $ archmap audit .
 [ok] Audited 207 text files in /home/me/project (git-aware)
-  Secrets: 0 | Agent config: 1
+  Secrets: 0 | Data flow: 0 | Code: 0 | Agent config: 1
   Findings (1):
     [medium  ] AGENT-001  .claude/settings.local.json pre-approves 'Bash(python *)' (arbitrary command execution without a prompt)
 ```

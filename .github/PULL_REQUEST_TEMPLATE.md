@@ -26,3 +26,17 @@ Describe the purpose of this PR in 2-5 lines.
 ## Validation Notes
 
 Paste key command outputs or explain test coverage for this PR.
+
+## AI assistance & supervision
+
+Required whenever an AI agent wrote or changed code in this PR (see `CLAUDE.md`).
+Write "None — human-authored" otherwise.
+
+- Agent / model:
+- Session / replay link:
+- Supervisor (GitHub handle):
+- Timeline (UTC): session start · commits (hash + time) · PR opened · updates
+- Instructions from the supervisor:
+- Decisions the agent took on its own (please double-check):
+- Validation run by the agent:
+- Known limitations / open risks:

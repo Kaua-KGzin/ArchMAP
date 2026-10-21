@@ -14,6 +14,7 @@ from archmap.core.analyzer.impact_analyzer import build_dependents_map, calculat
 from archmap.core.analyzer.project_explainer import explain_project
 from archmap.core.analyzer.quality import build_analysis_quality, build_quality_findings
 from archmap.core.analyzer.risk_analyzer import detect_architectural_risks
+from archmap.utils.file_utils import is_vendored_path
 
 
 def analyze_graph(
@@ -23,6 +24,9 @@ def analyze_graph(
     allowed_rules: list[str] | None = None,
 ) -> dict:
     file_nodes = [node for node in graph["nodes"] if node.get("type") == "file"]
+    for node in file_nodes:
+        if is_vendored_path(node["id"]):
+            node["vendored"] = True
     file_node_ids = [node["id"] for node in file_nodes]
     file_node_set = set(file_node_ids)
     adjacency = _build_file_adjacency(file_node_ids, graph["edges"], file_node_set)
@@ -49,6 +53,7 @@ def analyze_graph(
 
     metrics = {
         "filesAnalyzed": len(file_nodes),
+        "vendoredFiles": sum(1 for node in file_nodes if node.get("vendored")),
         "totalDependencies": len(graph["edges"]),
         "externalDependencies": len([node for node in nodes if node.get("type") == "package"]),
         "circularDependencyCount": len(cycles),

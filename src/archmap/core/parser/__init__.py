@@ -127,7 +127,9 @@ def parse_project(
                 )
             except Exception:
                 entry_deps = []
-            if not entry_deps:
+            if not entry_deps and not _import_known(
+                parser, entry, file_id, file_ids, get_file_content
+            ):
                 unresolved_imports.append(_format_import_entry(entry))
 
         return {
@@ -220,6 +222,20 @@ def _load_source_map(
     return source_map
 
 
+def _import_known(
+    parser: Any, entry: Any, file_id: str, file_ids: set[str], get_file_content: Any
+) -> bool:
+    """Let a parser vouch for an import that resolves to no edge (e.g. a C#
+    ``using`` of a project namespace none of whose types the file uses)."""
+    check = getattr(parser, "is_import_known", None)
+    if check is None:
+        return False
+    try:
+        return bool(check(entry, file_id, file_ids, get_file_content=get_file_content))
+    except Exception:
+        return False
+
+
 def _resolve_dependencies(
     file_id: str,
     language: str,
@@ -239,6 +255,10 @@ class TsconfigAliases(TypedDict):
 
     base_url: str
     paths: dict[str, list[str]]
+    # Build output dir -> source dir, so `require("../dist/app.module")` from a
+    # serverless entrypoint maps back to `src/app.module.ts`.
+    out_dir: NotRequired[str]
+    root_dir: NotRequired[str]
 
 
 def _strip_jsonc(text: str) -> str:
@@ -327,9 +347,21 @@ def _load_tsconfig_aliases(
             if string_targets:
                 paths[alias] = string_targets
 
-    if not base_url and not paths:
+    result: TsconfigAliases = {"base_url": base_url, "paths": paths}
+    out_dir = compiler_options.get("outDir")
+    if isinstance(out_dir, str) and normalize_file_id(out_dir) not in ("", "."):
+        root_dir = compiler_options.get("rootDir")
+        if not isinstance(root_dir, str):
+            # tsc infers rootDir from `include`; the common `src/**/*` layout.
+            include = data.get("include")
+            first = include[0] if isinstance(include, list) and include else ""
+            root_dir = first.split("/", 1)[0] if isinstance(first, str) and "*" in first else ""
+        result["out_dir"] = normalize_file_id(out_dir)
+        result["root_dir"] = normalize_file_id(root_dir) if root_dir else ""
+
+    if not base_url and not paths and "out_dir" not in result:
         return None
-    return {"base_url": base_url, "paths": paths}
+    return result
 
 
 def _resolve_alias_specifier(
@@ -390,6 +422,13 @@ def _resolve_js_ts_dependency(
         match = _find_matching_file(base_candidate, JS_TS_RESOLUTION_EXTENSIONS, file_ids)
         if match:
             return _make_file_dependency(match)
+        out_dir = aliases.get("out_dir") if aliases else None
+        if aliases and out_dir and (base_candidate + "/").startswith(out_dir + "/"):
+            tail = base_candidate[len(out_dir):].lstrip("/")
+            source = posixpath.join(aliases.get("root_dir", ""), tail)
+            match = _find_matching_file(source, JS_TS_RESOLUTION_EXTENSIONS, file_ids)
+            if match:
+                return _make_file_dependency(match)
         return None
 
     if aliases is not None:
@@ -586,6 +625,23 @@ def _find_rust_module(base_candidate: str, file_ids: set[str]) -> str | None:
     return None
 
 
+_TS_EMITTED_SOURCES = {
+    ".js": (".ts", ".tsx"),
+    ".jsx": (".tsx",),
+    ".mjs": (".mts",),
+    ".cjs": (".cts",),
+}
+# Non-code files bundlers let source import (`import "./globals.css"`).
+ASSET_EXTENSIONS = frozenset({
+    ".css", ".scss", ".sass", ".less", ".styl", ".pcss",
+    ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".ico", ".bmp",
+    ".woff", ".woff2", ".ttf", ".otf", ".eot",
+    ".mp3", ".mp4", ".webm", ".wav", ".ogg",
+    ".html", ".md", ".mdx", ".txt", ".yaml", ".yml", ".toml", ".graphql", ".gql",
+    ".wasm", ".glsl", ".vert", ".frag",
+})
+
+
 def _find_matching_file(
     base_candidate: str, extensions: list[str], file_ids: set[str]
 ) -> str | None:
@@ -593,8 +649,18 @@ def _find_matching_file(
     if normalized_base in file_ids:
         return normalized_base
 
-    if Path(normalized_base).suffix:
-        return normalized_base if normalized_base in file_ids else None
+    suffix = Path(normalized_base).suffix.lower()
+    if suffix in _TS_EMITTED_SOURCES:
+        # ESM TypeScript imports the emitted name: `./util.js` is `util.ts`.
+        stem = normalized_base[: -len(suffix)]
+        for source_ext in _TS_EMITTED_SOURCES[suffix]:
+            if f"{stem}{source_ext}" in file_ids:
+                return f"{stem}{source_ext}"
+        return None
+    # Only a real extension ends the search: `user.service` / `app.module`
+    # (NestJS, Angular) are dotted basenames that still need one appended.
+    if suffix in extensions or suffix in ASSET_EXTENSIONS:
+        return None
 
     for extension in extensions:
         with_extension = normalize_file_id(f"{normalized_base}{extension}")

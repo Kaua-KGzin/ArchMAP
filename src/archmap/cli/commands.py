@@ -118,7 +118,11 @@ def _filter_external(report: dict[str, Any]) -> dict[str, Any]:
 
 def run_analyze(args: argparse.Namespace) -> int:
     quiet = getattr(args, "quiet", False)
-    report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
+    report = analyze_project(
+        args.path,
+        parallel=getattr(args, "parallel", None),
+        use_cache=not getattr(args, "no_cache", False),
+    )
     if getattr(args, "ignore_external", False):
         report = _filter_external(report)
     export_kwargs = {

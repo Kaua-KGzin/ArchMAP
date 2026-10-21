@@ -277,6 +277,23 @@ def _find_rust_module(base_candidate: str, file_ids: set[str]) -> str | None:
     return None
 
 
+_TS_EMITTED_SOURCES = {
+    ".js": (".ts", ".tsx"),
+    ".jsx": (".tsx",),
+    ".mjs": (".mts",),
+    ".cjs": (".cts",),
+}
+# Non-code files bundlers let source import (`import "./globals.css"`).
+ASSET_EXTENSIONS = frozenset({
+    ".css", ".scss", ".sass", ".less", ".styl", ".pcss",
+    ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".ico", ".bmp",
+    ".woff", ".woff2", ".ttf", ".otf", ".eot",
+    ".mp3", ".mp4", ".webm", ".wav", ".ogg",
+    ".html", ".md", ".mdx", ".txt", ".yaml", ".yml", ".toml", ".graphql", ".gql",
+    ".wasm", ".glsl", ".vert", ".frag",
+})
+
+
 def _find_matching_file(
     base_candidate: str, extensions: list[str], file_ids: set[str]
 ) -> str | None:
@@ -284,8 +301,18 @@ def _find_matching_file(
     if normalized_base in file_ids:
         return normalized_base
 
-    if Path(normalized_base).suffix:
-        return normalized_base if normalized_base in file_ids else None
+    suffix = Path(normalized_base).suffix.lower()
+    if suffix in _TS_EMITTED_SOURCES:
+        # ESM TypeScript imports the emitted name: `./util.js` is `util.ts`.
+        stem = normalized_base[: -len(suffix)]
+        for source_ext in _TS_EMITTED_SOURCES[suffix]:
+            if f"{stem}{source_ext}" in file_ids:
+                return f"{stem}{source_ext}"
+        return None
+    # Only a real extension ends the search: `user.service` / `app.module`
+    # (NestJS, Angular) are dotted basenames that still need one appended.
+    if suffix in extensions or suffix in ASSET_EXTENSIONS:
+        return None
 
     for extension in extensions:
         with_extension = normalize_file_id(f"{normalized_base}{extension}")

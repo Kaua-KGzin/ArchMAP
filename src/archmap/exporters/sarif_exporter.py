@@ -196,3 +196,86 @@ def _path_to_uri(path: str) -> str:
     if not uri.endswith("/"):
         uri += "/"
     return uri
+
+
+# ---------------------------------------------------------------------------
+# Audit findings (SEC-*, CODE-*, AGENT-*)
+# ---------------------------------------------------------------------------
+
+_LEVEL_BY_SEVERITY = {
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "low": "note",
+    "info": "note",
+}
+# GitHub code scanning ranks security alerts by this 0-10 property.
+_SECURITY_SEVERITY = {
+    "critical": "9.5", "high": "8.0", "medium": "5.5", "low": "3.0", "info": "1.0",
+}
+
+
+def export_findings_as_sarif(
+    findings: list[dict], project_root: str, output_path: str | Path
+) -> Path:
+    """Write unified audit findings as SARIF 2.1.0, one rule per finding category."""
+    target = Path(output_path).resolve()
+    ensure_parent_dir(target)
+
+    rules: dict[str, dict] = {}
+    results: list[dict] = []
+    for finding in findings:
+        category = str(finding.get("category", "finding"))
+        rule_id = f"archmap/{finding.get('domain', 'security')}/{category}"
+        severity = str(finding.get("severity", "medium"))
+        if rule_id not in rules:
+            tags = ["security"]
+            if finding.get("cwe"):
+                tags.append(f"external/cwe/{str(finding['cwe']).lower()}")
+            rule: dict = {
+                "id": rule_id,
+                "name": category,
+                "shortDescription": {
+                    "text": str(finding.get("message", category)).split(" in ")[0]
+                },
+                "defaultConfiguration": {"level": _LEVEL_BY_SEVERITY.get(severity, "warning")},
+                "properties": {
+                    "tags": tags,
+                    "security-severity": _SECURITY_SEVERITY.get(severity, "5.5"),
+                },
+            }
+            if finding.get("remediation"):
+                rule["help"] = {"text": str(finding["remediation"])}
+            rules[rule_id] = rule
+        location = _physical_location(str(finding.get("file", "")))
+        location["region"] = {"startLine": int(finding.get("line") or 1)}
+        results.append({
+            "ruleId": rule_id,
+            "level": _LEVEL_BY_SEVERITY.get(severity, "warning"),
+            "message": {
+                "text": "\n".join([str(finding.get("message", "")), *finding.get("evidence", [])])
+            },
+            "locations": [{"physicalLocation": location}],
+            "partialFingerprints": {"archmapFinding": f"{rule_id}:{finding.get('file', '')}"},
+            "properties": {"confidence": finding.get("confidence"), "archmapId": finding.get("id")},
+        })
+
+    sarif = {
+        "$schema": _SARIF_SCHEMA,
+        "version": _SARIF_VERSION,
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "ArchMAP",
+                        "informationUri": "https://github.com/Kaua-KGzin/ArchMAP",
+                        "rules": list(rules.values()),
+                    }
+                },
+                "originalUriBaseIds": {"PROJECTROOT": {"uri": _path_to_uri(project_root)}},
+                "results": results,
+            }
+        ],
+    }
+    target.write_text(f"{json.dumps(sarif, indent=2)}\n", encoding="utf-8")
+    return target

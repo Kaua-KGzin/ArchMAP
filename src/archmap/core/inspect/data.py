@@ -225,12 +225,17 @@ def _inspect_sqlite(path: Path) -> dict[str, Any]:
             quoted = '"' + str(name).replace('"', '""') + '"'
             columns = [
                 {"name": col[1], "type": col[2] or "ANY", "primaryKey": bool(col[5])}
-                for col in connection.execute(f"PRAGMA table_info({quoted})").fetchall()
+                # PRAGMA takes no bound parameters; `quoted` escapes the identifier.
+                for col in connection.execute(  # archmap-ignore: py-sql-format
+                    f"PRAGMA table_info({quoted})"
+                ).fetchall()
             ]
             entry: dict[str, Any] = {"name": name, "type": obj_type, "columns": columns}
             if obj_type == "table":
                 try:
+                    # Table names come from the inspected file; `quoted` escapes them.
                     count_sql = f"SELECT COUNT(*) FROM {quoted}"
+                    # archmap-ignore: identifier quoted above, no bound-parameter form
                     entry["rows"] = connection.execute(count_sql).fetchone()[0]
                 except sqlite3.Error as exc:
                     entry["rows"] = None
