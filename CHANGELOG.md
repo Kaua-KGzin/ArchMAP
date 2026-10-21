@@ -53,6 +53,31 @@ All notable changes to this project are documented in this file.
   and `diff_network_snapshots`.
 
 ### Fixed
+- **Arch line adapter: a down Hub was polled every 2s forever in register-only
+  mode.** With `ARCHHUB_HEARTBEAT_SECONDS=0` the retry backoff was capped at
+  `max(heartbeat, 2)` = 2 seconds, so the exponential backoff never grew and
+  an unreachable Hub got hit twice a second per system. The ceiling is now the
+  heartbeat period when there is one, and `MAX_RETRY_SECONDS` (300s) when
+  there isn't. `_run()` had no test coverage at all, which is why this went
+  unnoticed; the backoff schedule is now pinned for both modes.
+- **Arch line adapter: a rejected heartbeat counted as a successful one.**
+  Only HTTP 404 sent the adapter back to registration, so a 401/403 from a
+  rotated or mis-scoped token — or any 5xx — left `archmap serve` heartbeating
+  into a Hub that refused it, silently, forever, while the Hub's `stale-after`
+  window quietly marked it down. Now only 2xx keeps the registration; 404
+  re-registers as before, and every other status warns once and re-registers.
+- **`archmap hub-report` crashed on a report with null metrics.**
+  `build_architecture_payload` called `int()` straight on `filesAnalyzed` and
+  `circularDependencyCount`; a key that was present but `null` raised
+  `TypeError` (not caught by the `URLError/OSError/ValueError` handler around
+  the publish), failing the CI job instead of publishing a zero. Values that
+  aren't usable numbers now coerce to `0`, and a non-string `grade` to `null`.
+- `_slugify` could emit a trailing hyphen when a long directory name was cut
+  at 63 characters, because the strip ran before the truncation.
+- Two tests only failed on Windows, which made the local suite red at baseline
+  regardless of the change under test: `test_audit.py` wrote invisible Unicode
+  with no `encoding=` (cp1252 can't encode U+200B/U+202E) and
+  `test_cli_server.py` set `HOME` where `Path.expanduser()` reads `USERPROFILE`.
 - `npm run serve:web` crashed on start: `web-ui/server.js` had the top of
   `startWebUi` pasted twice; a missing browser opener (headless Linux,
   containers, Termux) killed the server; `dev-server.js` served a

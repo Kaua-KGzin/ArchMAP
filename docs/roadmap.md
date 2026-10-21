@@ -2,6 +2,33 @@
 
 ## Released
 
+### v1.4.0 (2026-10-17)
+- **`archmap inspect`, `hexdump`, `strings`** — static reverse engineering:
+  format identification by magic bytes, ELF/PE/Mach-O/WebAssembly parsing with
+  mitigations, JSON/CSV/SQLite/archive data inspection, a per-directory
+  binary→library linkage graph, and `BIN-*` findings with a `--fail-on` gate.
+- **`archmap audit`** — offline git-aware secret detection (`SEC-*`) and
+  AI-agent configuration audit (`AGENT-*`): unpinned or insecure MCP servers,
+  wildcard permissions, `curl | sh` hooks, invisible Unicode in agent
+  instruction files.
+- **`archmap context "<task>"`** — ranks the files to read for a task
+  (identifier-aware BM25 spread over the dependency graph) within a token
+  budget; also an MCP tool.
+- **Analysis-quality metrics** — `metrics.analysisQuality` plus `QUAL-*`
+  findings and the `--min-coverage`/`--max-parse-failures` CI gates, so files
+  that fail to parse stop vanishing from the graph silently.
+- **MCP server 8 → 15 tools**, **Claude Code plugin + portable agent skill**
+  (`plugins/archmap/`), **`archmap commands --json`**, and **five new web UI
+  views** (analysis confidence, findings, task context, inspector, audit).
+
+### v1.3.0 (2026-08-13)
+- **Unified findings model** — code-side risks (god modules, layer and custom
+  rule violations, dependency explosions) and network-side findings (open
+  ports, drift violations) collapse into one stable `Finding` shape with
+  `id`, `domain`, `category`, `severity`, `confidence` and `evidence`, so
+  `archmap memory`, the MCP tools and CI reporting treat "a problem" as one
+  concept instead of three ad hoc shapes.
+
 ### v1.2.0 (2026-08-12)
 - **`archmap memory`** — renders the project's already-computed architecture
   report (health score, top risk files, cycles, layer/rule violations) into
@@ -121,7 +148,11 @@
 
 ---
 
-## Now (v1.3.x)
+## Now (v1.5.0) — closing the v1.3.x slice
+
+Three of the four items below are done and sit in `CHANGELOG.md` under
+`[Unreleased]`, so they ship as **v1.5.0**. The fourth is half delivered —
+see its entry.
 
 ArchMAP's strategic direction ("Code, Architecture & Network Intelligence")
 is to correlate three domains that normally live in separate tools —
@@ -151,15 +182,22 @@ are the next slice, each buildable directly on what's already shipped.
   opened/closed, service and risk changes, hosts appearing/disappearing,
   drift violations new/resolved), and `archmap network list` shows the
   history. `--fail-on-new-ports` turns it into a CI gate.
-- **Declared vs. observed, surfaced in the web UI** — `[architecture.rules]`
-  and `[network.rules]` violations are fully computed already (`archmap
-  analyze`, `archmap expose`) but only reachable via CLI/JSON/MCP. Add a
-  panel to `archmap serve` that renders them directly, so the correlation
-  work isn't CLI-only.
+- **Declared vs. observed, surfaced in the web UI** — 🟡 Half done. v1.4.0's
+  **Findings** view renders every `ARCH-*` finding, and `[architecture.rules]`
+  violations became `ARCH-*` findings in v1.3.0 — so the declared-vs-observed
+  work on the *code* side is already in the browser, with severity filters
+  and *Show in graph*. Still open: the `[network.rules]` side. Drift
+  violations are `NET-*` findings produced by `archmap expose`, and
+  `archmap serve` only ever runs `analyze`, so they have no surface in the
+  web UI at all. Needs an exposure/network view (or an expose run wired into
+  the server), not another findings panel.
 
 ---
 
-## Next (v1.4.0 candidates) — agent-native ArchMAP
+## Shipped in v1.4.0 — agent-native ArchMAP
+
+Most of this slice is done and released; the items still marked open below
+carry over into the next one.
 
 Derived from the [October 2026 market-trends research](research/market-trends-2026-10.md):
 GitHub's monthly trending list is dominated by tooling for AI coding agents
