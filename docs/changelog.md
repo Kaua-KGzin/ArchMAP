@@ -18,6 +18,39 @@ All notable changes to this project are documented in this file.
   `arch.json` or the directory name; commit/ref default to the GitHub Actions
   variables; writes a GitHub step summary. Without `ARCHHUB_URL` it only prints;
   `--strict` makes publish failures fail the job.
+- **Network observation snapshots + `archmap network diff`** — `netscan` and
+  `expose` results were fire-and-forget: every run re-scanned from scratch
+  and there was no way to ask "what changed since last time" the way
+  `archmap diff` already answers that for code. `archmap netscan`/`archmap
+  expose` now accept `--snapshot`, which stores the report verbatim under
+  `<path>/.archmap/network/` (same `.archmap/` convention `archmap memory`
+  writes into), one timestamp-named JSON file per scan, pruned to the 30
+  newest. Opt-in on purpose — a scan writing into your project by default
+  would be a surprise.
+- **`archmap network diff` / `archmap network list`** — diffs two stored
+  snapshots: ports opened and closed, services and risk levels that changed
+  on a port that stayed open, hosts that appeared or disappeared, and
+  `[network.rules]` drift violations that are new or resolved. Snapshots are
+  referenced as `latest`, `previous`, an age index, or a file path
+  (`--from`/`--to`). Because both report shapes are normalized into one
+  observation per `host:port/protocol` first, a bare `netscan` snapshot and
+  a correlated `expose` snapshot of the same target diff cleanly against
+  each other. `--fail-on-new-ports` makes it a CI gate; `--json`/`--out`
+  give the machine-readable diff.
+- **`archmap memory` network section** — when the project has a stored
+  network snapshot, the digest now folds in its drift violations and
+  notable exposed services, so an AI agent's session-start context covers
+  network exposure without a separate command or MCP call. "Notable" means
+  the network rates the port risky, correlation rated the finding
+  `high`/`critical`, a config literal in the codebase points at it
+  (confidence ≥ 0.7), or it breaks a declared `[network.rules]` boundary —
+  a `/24` with fifty boring open ports can't crowd out the code-side
+  digest. The section carries the snapshot's `capturedAt` so an agent can
+  judge staleness, and is absent entirely for projects that never scan;
+  `--no-network` opts out even when a snapshot exists.
+- **Public helpers** — `archmap.core.exposure` now exports `save_snapshot`,
+  `list_snapshots`, `load_snapshot`, `resolve_snapshot`, `latest_snapshot`,
+  and `diff_network_snapshots`.
 
 ### Fixed
 - `npm run serve:web` crashed on start: `web-ui/server.js` had the top of

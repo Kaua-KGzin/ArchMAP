@@ -121,7 +121,7 @@
 
 ---
 
-## Now (v1.3.0 candidates)
+## Now (v1.3.x)
 
 ArchMAP's strategic direction ("Code, Architecture & Network Intelligence")
 is to correlate three domains that normally live in separate tools —
@@ -131,7 +131,7 @@ the two hardest prerequisites for that (a real network engine, and a
 code↔network correlation layer with confidence scoring); the items below
 are the next slice, each buildable directly on what's already shipped.
 
-- **Unified findings model** — Today, risks (`god_modules`, `layer_violations`,
+- **Unified findings model** — ✅ Shipped in v1.3.0. Today, risks (`god_modules`, `layer_violations`,
   ...), `architecture.ruleViolations`, and `expose`'s `driftViolations` are
   three separately-shaped collections. Give every one of them a stable ID
   (`ARCH-001`, `NET-001`, ...), a `severity`, a `confidence` (already exists
@@ -139,17 +139,18 @@ are the next slice, each buildable directly on what's already shipped.
   `archmap memory`, the MCP tools, and CI reporting can treat "a problem" as
   one concept instead of three ad hoc shapes. Purely a reshaping of data
   ArchMAP already computes — no new detectors required.
-- **`archmap memory` network section** — `archmap memory` currently only
-  renders the code-side report. When a cached `archmap expose`/`netscan`
-  snapshot exists for the project, fold its `driftViolations` and
-  high-confidence findings into the digest too, so an AI agent's session-start
-  context includes network exposure without a separate MCP call.
-- **Network observation snapshots + diff** — `archmap netscan`/`expose`
-  results aren't persisted anywhere today; every run re-scans from scratch
-  and there's no way to ask "what changed since last time" the way
-  `archmap diff` already answers that for code. Add a `.archmap/network/`
-  snapshot store (mirroring the existing `.archmap/cache.json` convention)
-  and an `archmap network diff` command.
+- **`archmap memory` network section** — ✅ Done. When the project has a
+  stored network snapshot, `archmap memory` folds its `driftViolations` and
+  notable findings (risky port, `high`/`critical` severity, confidence
+  ≥ 0.7, or a `[network.rules]` violation) into the digest, so an AI agent's
+  session-start context includes network exposure without a separate MCP
+  call. `--no-network` opts out.
+- **Network observation snapshots + diff** — ✅ Done. `archmap netscan` and
+  `archmap expose` accept `--snapshot`, storing the report under
+  `.archmap/network/`; `archmap network diff` compares two of them (ports
+  opened/closed, service and risk changes, hosts appearing/disappearing,
+  drift violations new/resolved), and `archmap network list` shows the
+  history. `--fail-on-new-ports` turns it into a CI gate.
 - **Declared vs. observed, surfaced in the web UI** — `[architecture.rules]`
   and `[network.rules]` violations are fully computed already (`archmap
   analyze`, `archmap expose`) but only reachable via CLI/JSON/MCP. Add a

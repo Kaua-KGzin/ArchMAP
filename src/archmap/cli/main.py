@@ -17,6 +17,7 @@ from archmap.cli.commands import run_init as _run_init
 from archmap.cli.commands import run_mcp as _run_mcp
 from archmap.cli.commands import run_memory as _run_memory
 from archmap.cli.commands import run_netscan as _run_netscan
+from archmap.cli.commands import run_network as _run_network
 from archmap.cli.commands import run_risk as _run_risk
 from archmap.cli.commands import run_serve as _run_serve
 from archmap.cli.commands import run_temporal as _run_temporal
@@ -74,6 +75,7 @@ def _resolve_command_handler(command: str | None):
         "temporal": _run_temporal,
         "netscan": _run_netscan,
         "expose": _run_expose,
+        "network": _run_network,
         "memory": _run_memory,
         "inspect": _run_inspect,
         "hexdump": _run_hexdump,

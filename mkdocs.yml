@@ -95,6 +95,7 @@ nav:
       - temporal: cli/temporal.md
       - netscan: cli/netscan.md
       - expose: cli/expose.md
+      - network: cli/network.md
       - memory: cli/memory.md
       - mcp: cli/mcp.md
       - context: cli/context.md
