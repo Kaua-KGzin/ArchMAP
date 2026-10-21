@@ -51,7 +51,7 @@ The server exposes fifteen tools.
 | `inspect_path` | Static inspection of a file or directory inside the project (see [`archmap inspect`](inspect.md)) |
 | `hexdump` | Hex + ASCII dump of up to 4096 bytes at an offset (negative offsets from the end) |
 | `extract_strings` | ASCII/UTF-16LE strings, by default only the classified, interesting ones (secrets redacted) |
-| `audit_project` | Secrets (`SEC-*`) and AI-agent configuration risks (`AGENT-*`) (see [`archmap audit`](audit.md)) |
+| `audit_project` | Secrets (`SEC-*`), cross-file data flows (`TAINT-*`), insecure code patterns (`CODE-*`) and AI-agent configuration risks (`AGENT-*`) (see [`archmap audit`](audit.md)) |
 
 File tools resolve paths against the project root (following symlinks) and
 refuse anything outside it, so a prompt-injected model can't use them to

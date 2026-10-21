@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/>
   </a>
   <a href="./CHANGELOG.md">
-    <img src="https://img.shields.io/badge/version-1.4.0-brightgreen" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-1.4.1-brightgreen" alt="Version"/>
   </a>
   <a href="https://pypi.org/project/KG-ARCHMAP/">
     <img src="https://img.shields.io/badge/PyPI-KG--ARCHMAP-orange?logo=pypi&logoColor=white" alt="PyPI"/>
@@ -36,7 +36,7 @@ ArchMAP scans source code, builds dependency graphs, detects cycles, reports arc
 
 | | |
 |---|---|
-| Release | `v1.4.0` |
+| Release | `v1.4.1` |
 | Runtime | Python `>=3.11` |
 | UI | built-in static UI + Node dev server |
 | Distribution | PyPI (`KG-ARCHMAP`) + Windows `.exe` |
@@ -280,14 +280,19 @@ archmap strings app.exe --interesting     # URLs, IPs, paths, registry keys, too
 
 Parses ELF, PE, Mach-O (incl. universal), and WebAssembly headers, linked libraries, imports/exports, and mitigations (NX, PIE, RELRO, canary, FORTIFY / ASLR, DEP, CFG, signing, packers); summarizes JSON, CSV, SQLite (read-only), ZIP/APK/JAR, tar, and gzip with red flags (zip-slip, setuid, escaping links, decompression bombs). Malformed input never crashes the tool — it's fuzz-tested. Results land as `BIN-*` findings. See [`archmap inspect`](docs/cli/inspect.md).
 
-### Audit (secrets and AI-agent configuration)
+### Audit (secrets, data flow, insecure code, AI-agent configuration)
 
 ```bash
-archmap audit .                 # SEC-* and AGENT-* findings
-archmap audit . --fail-on high  # CI gate
+archmap audit .                       # SEC-*, TAINT-*, CODE-* and AGENT-* findings
+archmap audit . --fail-on high        # CI gate
+archmap audit . --sarif audit.sarif   # GitHub code scanning (CWE tags + security-severity)
 ```
 
-Git-aware secret detection (committed secrets outrank local `.env` files; values always redacted) and AI-agent configuration as attack surface: insecure or unpinned MCP servers, plaintext tokens, `bypassPermissions`, interpreter-wildcard permissions, hooks that pipe downloads into a shell, and invisible Unicode in `CLAUDE.md`/`AGENTS.md`/`.cursorrules`. See [`archmap audit`](docs/cli/audit.md).
+**Data flow (`TAINT-*`, new in 1.4.1):** interprocedural taint analysis that follows untrusted input — HTTP request data, Flask/FastAPI/NestJS/Next.js/ASP.NET/Spring handler parameters, browser URL/DOM, argv/stdin — through assignments, string building and calls, *across files* (callees resolved through ArchMAP's own dependency graph), to SQL, shell, eval, template, deserialization, path, SSRF, XSS, redirect, NoSQL and regex sinks. Each finding shows the full flow and call chain. Python is read from the standard-library AST; JS/TS, C# and Java by a dependency-free statement reader. Sanitizers, bound SQL parameters and fixed-host URLs are recognised.
+
+**Insecure code patterns (`CODE-*`, new in 1.4.1):** ~40 CWE-tagged checks across Python, JS/TS, C/C++, C#, Java, Go, Rust and PHP (injection sinks, unsafe deserialization, disabled TLS, weak crypto, unbounded C string calls), honouring `archmap-ignore` / `nosemgrep` / `nosec` suppressions.
+
+Git-aware, context-aware secret detection (committed secrets outrank local `.env` files; test fixtures, templates and CI placeholders are ranked down; values always redacted) and AI-agent configuration as attack surface: insecure or unpinned MCP servers, plaintext tokens, `bypassPermissions`, interpreter-wildcard permissions, hooks that pipe downloads into a shell, and invisible Unicode in `CLAUDE.md`/`AGENTS.md`/`.cursorrules`. See [`archmap audit`](docs/cli/audit.md).
 
 ### Analysis quality
 

@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-21
+
 ### Added
 - **Interprocedural taint analysis (`TAINT-*`) in `archmap audit`** — follows
   untrusted input (HTTP request data, NestJS/Spring/ASP.NET/FastAPI/Next.js
