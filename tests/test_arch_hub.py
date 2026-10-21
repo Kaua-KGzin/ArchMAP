@@ -86,6 +86,71 @@ def test_unreachable_hub_never_raises_and_warns_once(tmp_path: Path) -> None:
     assert "unreachable" in logs[0]
 
 
+def _refuse(url: str, body: bytes | None, headers: dict[str, str]) -> int:
+    raise OSError("connection refused")
+
+
+class RecordingStop:
+    """Stands in for the registrar's stop Event, recording each wait() delay."""
+
+    def __init__(self, stop_after: int) -> None:
+        self.delays: list[float] = []
+        self._stop_after = stop_after
+
+    def is_set(self) -> bool:
+        return len(self.delays) >= self._stop_after
+
+    def wait(self, delay: float) -> bool:
+        self.delays.append(delay)
+        return False
+
+    def set(self) -> None:
+        self._stop_after = 0
+
+
+def _run_collecting_delays(registrar: ArchHubRegistrar, rounds: int) -> list[float]:
+    stop = RecordingStop(rounds)
+    registrar._stop = stop  # type: ignore[assignment]
+    registrar._run()
+    return stop.delays
+
+
+def test_backoff_grows_up_to_the_heartbeat_period_when_hub_is_down(tmp_path: Path) -> None:
+    registrar = ArchHubRegistrar(
+        _config(heartbeat_seconds=20), tmp_path, post=_refuse, log=lambda _: None
+    )
+    assert _run_collecting_delays(registrar, 5) == [2.0, 4.0, 8.0, 16.0, 20.0]
+
+
+def test_register_only_mode_still_backs_off_instead_of_hammering_the_hub(tmp_path: Path) -> None:
+    """``ARCHHUB_HEARTBEAT_SECONDS=0`` means "register once", not "retry every 2s forever"."""
+    registrar = ArchHubRegistrar(
+        _config(heartbeat_seconds=0), tmp_path, post=_refuse, log=lambda _: None
+    )
+    delays = _run_collecting_delays(registrar, 5)
+
+    assert delays == [2.0, 4.0, 8.0, 16.0, 32.0]
+    assert delays == sorted(delays), "a down Hub must never be polled at a fixed short interval"
+
+
+def test_heartbeat_rejection_warns_and_falls_back_to_registration(tmp_path: Path) -> None:
+    """A rotated or mis-scoped token answers 403 forever unless we re-register."""
+    hub = FakeHub(201, 403, 201)
+    logs: list[str] = []
+    registrar = ArchHubRegistrar(_config(), tmp_path, post=hub, log=logs.append)
+
+    registrar.tick()  # register
+    registrar.tick()  # heartbeat -> 403
+    registrar.tick()  # must go back to registration, not heartbeat again
+
+    assert [url for url, _, _ in hub.calls] == [
+        "http://hub:8080/api/v1/systems",
+        "http://hub:8080/api/v1/systems/archmap/heartbeat",
+        "http://hub:8080/api/v1/systems",
+    ]
+    assert any("403" in message for message in logs)
+
+
 # --------------------------------------------------------------------------- hub-report
 
 
@@ -168,6 +233,26 @@ def test_build_payload_tolerates_sparse_report() -> None:
     assert payload["score"] == 0
     assert payload["findings"] == 0
     assert payload["commit"] is None
+
+
+def test_build_payload_tolerates_present_but_unusable_values() -> None:
+    """Missing keys were handled; keys present with null/garbage crashed hub-report."""
+    report = {
+        "architecture": {"health": {"score": None, "grade": None}},
+        "metrics": {
+            "filesAnalyzed": None,
+            "circularDependencyCount": "many",
+            "architectureHealthScore": None,
+        },
+        "findings": "not-a-list",
+    }
+    payload = build_architecture_payload(report, commit=None, ref=None, report_url=None)
+
+    assert payload["score"] == 0
+    assert payload["files"] == 0
+    assert payload["cycles"] == 0
+    assert payload["findings"] == 0
+    assert payload["grade"] is None
 
 
 def test_hub_report_is_a_cli_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

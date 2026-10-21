@@ -20,6 +20,7 @@ archmap memory [path] [options]
 | `--print` | off | Print the digest to stdout instead of writing a file |
 | `--quiet` | off | Suppress the confirmation line (for hooks) |
 | `--parallel` / `--no-parallel` | on | Parallel file parsing |
+| `--network` / `--no-network` | on | Fold the latest stored network snapshot into the digest |
 
 Cheap to call repeatedly: `archmap memory` goes through the same
 fingerprint cache `archmap analyze` uses, so a no-op call after an unrelated
@@ -54,6 +55,36 @@ _Generated: 2026-08-12 22:57 UTC_
 ## For AI agents
 - This file is a pre-computed snapshot — trust it over re-exploring the codebase from scratch...
 ```
+
+## Network exposure section
+
+When the project has a stored network snapshot (from
+[`archmap netscan`/`archmap expose`](network.md) run with `--snapshot`), the
+digest also carries a network section, so an agent's session-start context
+covers both domains without a second command or MCP call:
+
+```markdown
+## Network exposure
+_Snapshot: 2026-08-13T12:00:00Z — target `192.168.1.0/24` (`archmap expose`)_
+- Open ports: 14 | Notable: 2 | Network rule violations: 1
+
+### Network rule violations
+- frontend -> redis is forbidden but app/cache.py depends on redis
+
+### Notable exposed services
+- `192.168.1.10:6379` (tcp) redis — severity high, port risk high, confidence 95%
+```
+
+Only ports worth acting on are listed — the network rates the port risky,
+correlation rated the finding `high`/`critical`, a config literal in your
+code actually points at it (confidence ≥ 0.7), or it breaks a declared
+`[network.rules]` boundary. A `/24` with fifty boring open ports won't crowd
+out the code-side digest.
+
+The section reflects the **last stored scan, not the live network** — its
+`capturedAt` timestamp is right there so an agent can judge how stale it is.
+Projects that never scan get exactly the digest they got before; pass
+`--no-network` to leave the section out even when a snapshot exists.
 
 ## Wiring it into Claude Code automatically
 

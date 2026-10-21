@@ -322,7 +322,10 @@ def test_build_http_handler_set_project_expands_tilde(tmp_path, monkeypatch) -> 
     fake_home = tmp_path / "home"
     project_dir = fake_home / "myproject"
     project_dir.mkdir(parents=True)
+    # POSIX expanduser() reads HOME; the Windows one reads USERPROFILE. Set both so
+    # the test exercises the handler rather than the platform.
     monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("USERPROFILE", str(fake_home))
     state = StubState(tmp_path / "project")
     handler = cli_server.build_http_handler(state, static_dir)
 

@@ -526,11 +526,93 @@ def build_parser() -> argparse.ArgumentParser:
         default=True,
         help="enable parallel file parsing for speedup",
     )
+    memory_parser.add_argument(
+        "--network",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "fold the project's latest stored network snapshot "
+            "(.archmap/network/) into the digest when one exists (default: on)"
+        ),
+    )
+
+    _add_network_parser(subparsers)
 
     _add_reverse_engineering_parsers(subparsers)
 
     subparsers.add_parser("version", help="print tool version")
     return parser
+
+
+def _add_network_parser(subparsers: argparse._SubParsersAction) -> None:
+    network_parser = subparsers.add_parser(
+        "network",
+        help="work with stored network snapshots (diff two scans, list history)",
+        description=(
+            "Compare network observations over time. `archmap netscan`/`archmap expose` "
+            "write a snapshot into <path>/.archmap/network/ when run with --snapshot; "
+            "this command diffs two of them so you can answer 'what opened, closed, or "
+            "drifted since the last scan' the same way `archmap diff` answers it for code."
+        ),
+    )
+    network_subparsers = network_parser.add_subparsers(dest="network_command")
+
+    diff_parser = network_subparsers.add_parser(
+        "diff",
+        help="diff two stored network snapshots",
+        description=(
+            "Diff two stored network snapshots: ports opened and closed, services and "
+            "risk levels that changed on a port that stayed open, hosts that appeared "
+            "or went away, and network rule (drift) violations that are new or resolved."
+        ),
+    )
+    diff_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="project root holding the .archmap/network/ store (default: current directory)",
+    )
+    diff_parser.add_argument(
+        "--from",
+        dest="snapshot_from",
+        default="previous",
+        metavar="REF",
+        help=(
+            "baseline snapshot: 'latest', 'previous', an age index ('2' = third newest), "
+            "or a path to a snapshot file (default: previous)"
+        ),
+    )
+    diff_parser.add_argument(
+        "--to",
+        dest="snapshot_to",
+        default="latest",
+        metavar="REF",
+        help="snapshot to compare against the baseline (default: latest)",
+    )
+    diff_parser.add_argument("--json", action="store_true")
+    diff_parser.add_argument(
+        "--out",
+        metavar="PATH",
+        default=None,
+        help="write the JSON diff to file",
+    )
+    diff_parser.add_argument(
+        "--fail-on-new-ports",
+        action="store_true",
+        help="exit non-zero when any port opened since the baseline (for CI)",
+    )
+
+    list_parser = network_subparsers.add_parser(
+        "list",
+        help="list stored network snapshots, newest first",
+    )
+    list_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="project root holding the .archmap/network/ store (default: current directory)",
+    )
+    list_parser.add_argument("--json", action="store_true")
 
 
 def _add_netscan_arguments(parser: argparse.ArgumentParser) -> None:
@@ -627,6 +709,14 @@ def _add_netscan_arguments(parser: argparse.ArgumentParser) -> None:
         metavar="PATH",
         default=None,
         help="write the JSON report to file",
+    )
+    parser.add_argument(
+        "--snapshot",
+        action="store_true",
+        help=(
+            "also persist this scan under <path>/.archmap/network/ so "
+            "`archmap network diff` can compare it against a later one"
+        ),
     )
 
 

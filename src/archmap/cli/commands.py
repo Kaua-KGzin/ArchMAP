@@ -54,6 +54,15 @@ from archmap.core.analyzer import (
 )
 from archmap.core.exposure import correlate_exposure
 from archmap.core.exposure.endpoint_scanner import scan_endpoint_references
+from archmap.core.exposure.network_diff import diff_network_snapshots
+from archmap.core.exposure.snapshots import (
+    SnapshotKind,
+    latest_snapshot,
+    list_snapshots,
+    resolve_snapshot,
+    save_snapshot,
+    snapshot_dir,
+)
 from archmap.core.memory import (
     DEFAULT_MEMORY_RELATIVE_PATH,
     digest_changed,
@@ -780,12 +789,35 @@ def run_netscan(args: argparse.Namespace) -> int:
         Path(args.out).write_text(json.dumps(result, indent=2), encoding="utf-8")
         print(f"[info] Report written to {args.out}")
 
+    _maybe_save_snapshot(args, result, kind="netscan")
+
     if getattr(args, "json", False):
         print(json.dumps(result, indent=2))
         return 0
 
     _print_netscan_report(result)
     return 0
+
+
+def _maybe_save_snapshot(
+    args: argparse.Namespace, result: dict[str, Any], *, kind: SnapshotKind
+) -> None:
+    """Persist the scan under `.archmap/network/` when `--snapshot` was passed.
+
+    Opt-in rather than automatic: a scan writing files into the user's
+    project by default would be a surprise, and only someone who wants
+    `archmap network diff` history needs the store.
+    """
+    if not getattr(args, "snapshot", False):
+        return
+
+    project_root = getattr(args, "path", ".")
+    try:
+        path = save_snapshot(project_root, result, kind=kind)
+    except OSError as exc:
+        print(f"[warning] Could not save network snapshot: {exc}", file=sys.stderr)
+        return
+    print(f"[info] Snapshot saved to {path}", file=sys.stderr)
 
 
 def _print_netscan_report(result: dict[str, Any]) -> None:
@@ -899,12 +931,144 @@ def run_expose(args: argparse.Namespace) -> int:
         Path(args.out).write_text(json.dumps(result, indent=2), encoding="utf-8")
         print(f"[info] Report written to {args.out}")
 
+    _maybe_save_snapshot(args, result, kind="expose")
+
     if getattr(args, "json", False):
         print(json.dumps(result, indent=2))
         return 0
 
     _print_expose_report(result)
     return 0
+
+
+def run_network(args: argparse.Namespace) -> int:
+    subcommand = getattr(args, "network_command", None)
+    if subcommand == "list":
+        return _run_network_list(args)
+    if subcommand == "diff":
+        return _run_network_diff(args)
+    print(
+        "[error] Missing subcommand — try `archmap network diff` or `archmap network list`.",
+        file=sys.stderr,
+    )
+    return 1
+
+
+def _run_network_list(args: argparse.Namespace) -> int:
+    project_path = getattr(args, "path", ".")
+    refs = list_snapshots(project_path)
+
+    if getattr(args, "json", False):
+        print(json.dumps(refs, indent=2))
+        return 0
+
+    if not refs:
+        print(
+            f"\n  No network snapshots in {snapshot_dir(project_path)}.\n"
+            "  Capture one with `archmap expose <target> --snapshot`.\n"
+        )
+        return 0
+
+    print(f"\n  Network snapshots — {snapshot_dir(project_path)} (newest first)\n")
+    header = f"  {'#':<4}{'CAPTURED':<26}{'KIND':<10}{'TARGET'}"
+    print(header)
+    print("  " + "-" * (len(header) - 2))
+    for index, ref in enumerate(refs):
+        print(f"  {index:<4}{ref['capturedAt']:<26}{ref['kind']:<10}{ref['target']}")
+    print()
+    return 0
+
+
+def _run_network_diff(args: argparse.Namespace) -> int:
+    project_path = getattr(args, "path", ".")
+    try:
+        before = resolve_snapshot(project_path, args.snapshot_from)
+        after = resolve_snapshot(project_path, args.snapshot_to)
+    except (OSError, ValueError) as exc:
+        print(f"[error] {exc}", file=sys.stderr)
+        return 1
+
+    result = diff_network_snapshots(before, after)
+
+    if getattr(args, "out", None):
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(json.dumps(result, indent=2), encoding="utf-8")
+        print(f"[info] Report written to {args.out}", file=sys.stderr)
+
+    if getattr(args, "json", False):
+        print(json.dumps(result, indent=2))
+    else:
+        _print_network_diff(result)
+
+    if getattr(args, "fail_on_new_ports", False) and result["summary"]["portsOpened"]:
+        print(
+            f"[error] {result['summary']['portsOpened']} new open port(s) since the "
+            "baseline snapshot.",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
+def _format_observation(observation: dict[str, Any]) -> str:
+    host = observation["host"]
+    if observation.get("hostname"):
+        host = f"{host} ({observation['hostname']})"
+    label = f"{host} {observation['port']}/{observation['protocol']} {observation['service']}"
+    risk = observation.get("riskLevel")
+    if risk:
+        label += f"  [{str(risk).upper()} RISK]"
+    return label
+
+
+def _print_network_diff(result: dict[str, Any]) -> None:
+    summary = result["summary"]
+    before = result["from"]
+    after = result["to"]
+
+    print(f"\n  Network Diff — {before['target']} → {after['target']}")
+    print(f"  baseline: {before['capturedAt']} ({before['kind']})")
+    print(f"  current:  {after['capturedAt']} ({after['kind']})\n")
+
+    if not summary["changed"]:
+        print("  No network changes between these two snapshots.\n")
+        return
+
+    sections: list[tuple[str, list[Any], Any]] = [
+        ("Hosts appeared", result["hostsAppeared"], _format_host),
+        ("Hosts disappeared", result["hostsDisappeared"], _format_host),
+        ("Ports opened", result["portsOpened"], _format_observation),
+        ("Ports closed", result["portsClosed"], _format_observation),
+        ("Service changes", result["serviceChanges"], _format_field_change),
+        ("Risk changes", result["riskChanges"], _format_field_change),
+        ("New drift violations", result["driftViolationsNew"], _format_drift),
+        ("Resolved drift violations", result["driftViolationsResolved"], _format_drift),
+    ]
+
+    for title, entries, formatter in sections:
+        if not entries:
+            continue
+        print(f"  {title} ({len(entries)})")
+        for entry in entries:
+            print(f"    - {formatter(entry)}")
+        print()
+
+
+def _format_host(entry: dict[str, Any]) -> str:
+    if entry.get("hostname"):
+        return f"{entry['host']} ({entry['hostname']})"
+    return str(entry["host"])
+
+
+def _format_field_change(change: dict[str, Any]) -> str:
+    return (
+        f"{change['host']} {change['port']}/{change['protocol']}: "
+        f"{change['field']} {change['from'] or 'none'} → {change['to'] or 'none'}"
+    )
+
+
+def _format_drift(violation: dict[str, Any]) -> str:
+    return str(violation.get("message", f"{violation.get('source')} → {violation.get('target')}"))
 
 
 def run_memory(args: argparse.Namespace) -> int:
@@ -915,7 +1079,11 @@ def run_memory(args: argparse.Namespace) -> int:
         print(f"[error] {exc}", file=sys.stderr)
         return 1
 
-    digest = generate_memory_digest(report)
+    network_snapshot = None
+    if getattr(args, "network", True):
+        network_snapshot = latest_snapshot(project_path)
+
+    digest = generate_memory_digest(report, network_snapshot)
 
     if getattr(args, "print_only", False):
         print(digest, end="")
