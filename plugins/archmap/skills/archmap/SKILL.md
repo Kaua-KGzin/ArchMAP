@@ -38,7 +38,7 @@ Use the `archmap` MCP tools when available; otherwise run the CLI equivalent
 | Identify and analyze a file or folder | `inspect_path` (`path`) | `archmap inspect <path> --json` |
 | Raw bytes at an offset | `hexdump` (`path`, `offset`, `length`) | `archmap hexdump <file> -s 0x40 -n 128` |
 | Strings worth reading (URLs, IPs, paths, keys) | `extract_strings` (`path`) | `archmap strings <file> --interesting` |
-| Secrets and risky agent config | `audit_project` | `archmap audit . --json` |
+| Secrets, tainted data flows, insecure code, risky agent config | `audit_project` | `archmap audit . --json` |
 
 ## Workflow
 

@@ -2,6 +2,10 @@
 
 ## Released
 
+### v1.4.1 (2026-10-21) — security and accuracy review
+- Interprocedural taint analysis (`TAINT-*`) across files for Python, JS/TS, C# and Java; insecure-code checks (`CODE-*`); SARIF export for `audit`; context-aware secret ranking.
+- Accuracy fixes from a field test on real repositories: precise C# `using` resolution, NestJS/Angular dotted imports, vendored code excluded from risk ranking, `--no-cache` and `--show-unresolved=all` fixed.
+
 ### v1.2.0 (2026-08-12)
 - **`archmap memory`** — renders the project's already-computed architecture
   report (health score, top risk files, cycles, layer/rule violations) into

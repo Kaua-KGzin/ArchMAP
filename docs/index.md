@@ -253,7 +253,7 @@ change state only answer loopback requests that send JSON. See
 | [`inspect`](cli/inspect.md) | Static reverse engineering of files and folders |
 | [`hexdump`](cli/inspect.md#archmap-hexdump) | Hex + ASCII dump of a byte range |
 | [`strings`](cli/inspect.md#archmap-strings) | ASCII/UTF-16 strings, optionally only the interesting ones |
-| [`audit`](cli/audit.md) | Committed secrets and risky AI-agent configuration |
+| [`audit`](cli/audit.md) | Secrets, cross-file data flow (taint), insecure code patterns, and risky AI-agent configuration |
 | [`mcp`](cli/mcp.md) | MCP server for AI assistants (15 tools) |
 | [`memory`](cli/memory.md) | Persistent architecture digest for AI coding agents |
 | [`commands`](cli/context.md#archmap-commands) | Machine-readable catalog of every command and option |
@@ -263,6 +263,13 @@ change state only answer loopback requests that send JSON. See
 
 ## What's new
 
+- **1.4.1**: security and accuracy review from a field test on real
+  repositories — interprocedural taint analysis (`TAINT-*`) across files for
+  Python, JS/TS, C# and Java; CWE-tagged insecure-code checks (`CODE-*`);
+  SARIF export for `audit`; context-aware secret ranking; precise C# `using`
+  resolution (no more namespace cliques); NestJS/Angular dotted imports
+  (`x.service`) resolved; vendored code excluded from risk ranking;
+  `--no-cache` fixed.
 - **1.4.0**: static reverse engineering (`inspect`, `hexdump`, `strings`),
   analysis-quality metrics with `QUAL-*` findings and CI gates, `audit` for
   secrets and AI-agent configuration, `context` for task-scoped file
