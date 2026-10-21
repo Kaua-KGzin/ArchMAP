@@ -13,6 +13,16 @@ from archmap.cli.defaults import (
 )
 
 
+def _unresolved_limit(value: str) -> int:
+    """``--show-unresolved`` count; ``all`` lifts the limit."""
+    if value.strip().lower() == "all":
+        return 1_000_000
+    try:
+        return int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a number or 'all', got {value!r}") from None
+
+
 def apply_default_command(args: argparse.Namespace) -> None:
     if args.command:
         return
@@ -153,14 +163,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     analyze_parser.add_argument(
         "--show-unresolved",
-        type=int,
+        type=_unresolved_limit,
         default=0,
         nargs="?",
         const=20,
         metavar="N",
         help=(
             "print unresolved imports in the summary; "
-            "N controls how many are shown (default 20 when flag is present)"
+            "N controls how many are shown (default 20 when flag is present, 'all' for every one)"
         ),
     )
     analyze_parser.add_argument(
@@ -746,7 +756,9 @@ def _add_reverse_engineering_parsers(subparsers: Any) -> None:
         help="find committed secrets and risky AI-agent configuration (MCP, hooks, permissions)",
         description=(
             "Scans project text files for secrets (git-aware: committed secrets rank "
-            "above local, untracked ones) and audits AI-agent configuration as attack "
+            "above local, untracked ones), flags insecure code patterns per language "
+            "(CWE-tagged: injection, unsafe deserialization, disabled TLS, weak crypto, "
+            "unbounded C string calls), and audits AI-agent configuration as attack "
             "surface: .mcp.json transports/unpinned packages/plaintext tokens, "
             ".claude/settings permissions and hooks, plugin hooks, and hidden Unicode "
             "in agent instruction files (CLAUDE.md, AGENTS.md, .cursorrules). Offline; "
@@ -754,6 +766,17 @@ def _add_reverse_engineering_parsers(subparsers: Any) -> None:
         ),
     )
     audit_parser.add_argument("path", nargs="?", default=".")
+    audit_parser.add_argument(
+        "--no-code",
+        action="store_true",
+        help="skip the pattern-based code checks (CODE-*: injection, deserialization, "
+             "TLS, weak crypto, memory-unsafe C calls)",
+    )
+    audit_parser.add_argument(
+        "--sarif",
+        metavar="PATH",
+        help="also write the findings as SARIF 2.1.0 (GitHub code scanning)",
+    )
     audit_parser.add_argument("--json", action="store_true")
     audit_parser.add_argument("--out", metavar="PATH")
     audit_parser.add_argument(

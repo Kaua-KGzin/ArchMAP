@@ -690,7 +690,9 @@ _TOOLS = [
         "name": "audit_project",
         "description": (
             "Offline audit: secrets in project files (git-aware; committed secrets rank "
-            "higher; values redacted) as SEC-* findings, and AI-agent configuration "
+            "higher; values redacted) as SEC-* findings, CWE-tagged insecure code "
+            "patterns as CODE-* findings (injection sinks, unsafe deserialization, "
+            "disabled TLS, weak crypto, unbounded C string calls), and AI-agent configuration "
             "risks as AGENT-* findings — insecure or unpinned MCP servers, plaintext "
             "tokens, bypassed/broad permissions, hooks that pipe downloads into a "
             "shell, and invisible Unicode in CLAUDE.md/AGENTS.md/.cursorrules."

@@ -178,6 +178,9 @@ class Finding(TypedDict):
     file: NotRequired[str]
     source: NotRequired[str]
     target: NotRequired[str]
+    line: NotRequired[int]
+    cwe: NotRequired[str]
+    remediation: NotRequired[str]
 
 
 # ---------------------------------------------------------------------------

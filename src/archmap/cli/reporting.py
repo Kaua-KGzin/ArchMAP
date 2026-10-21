@@ -257,6 +257,10 @@ def _print_summary_text(report: dict[str, Any]) -> None:
         )
         for warning in quality.get("warnings", []):
             print(f"[warn] {warning}")
+    vendored = int(metrics.get("vendoredFiles", 0) or 0)
+    if vendored:
+        print(f"[info] {vendored} vendored third-party file(s) kept in the graph, "
+              "excluded from risk ranking")
 
     architecture = report.get("architecture", {})
     health = architecture.get("health", {})
