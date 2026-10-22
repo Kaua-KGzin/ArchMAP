@@ -5,8 +5,10 @@ what shipped in 1.4.0 and 1.4.1 and the next updates on Sunday at 22h.
 
 - `index.html` — the whole video as a deterministic timeline: `seek(t)` draws
   any instant. Open it in a browser to preview it live (loops).
-- `render.cjs` — captures every frame with Playwright and pipes it to ffmpeg.
-  `node render.cjs stills 3.5 20 54` writes single frames to `out/` for review.
+- `render_part.cjs` — captures a frame range with Playwright and pipes it to
+  ffmpeg; `build.sh` runs several in parallel and concatenates them.
+- `render.cjs` — `node render.cjs stills 3.5 20 54` writes single frames to
+  `out/` for review.
 - `music.py` — synthesizes the soundtrack (pad, bass, beat, transition whooshes)
   with numpy; no third-party audio assets, no licensing issues.
 - `build.sh` — runs the three steps and muxes `out/ArchMAP-1.4-release.mp4`.
