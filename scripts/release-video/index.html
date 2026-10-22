@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>ArchMAP 1.4 Release Video</title>
+<style>
+:root{
+  --bg:#021123; --navy:#0b2340; --navy2:#12325a; --ink:#e8eef8; --mute:#8fa3bf;
+  --or:#f7801e; --or2:#ee5a0f; --blue:#3b82f6; --green:#22c55e; --red:#ef4444; --yel:#f5b301;
+  --card:rgba(14,34,62,.72); --line:rgba(143,163,191,.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.mono{font-family:"JetBrains Mono",monospace}
+#bg{position:absolute;inset:0}
+.glow{position:absolute;border-radius:50%;filter:blur(120px);opacity:.55}
+#stage{position:absolute;inset:0}
+.scene{position:absolute;inset:0;padding:120px 140px 190px;opacity:0;display:flex;flex-direction:column}
+.center{align-items:center;justify-content:center;text-align:center}
+.eyebrow{font-size:22px;letter-spacing:.32em;text-transform:uppercase;color:var(--or);font-weight:700}
+h1{font-size:96px;font-weight:800;letter-spacing:-.03em;line-height:1.02}
+h2{font-size:64px;font-weight:800;letter-spacing:-.025em;line-height:1.05}
+h3{font-size:30px;font-weight:700}
+.sub{font-size:28px;color:var(--mute);line-height:1.4;font-weight:500}
+.or{background:linear-gradient(90deg,var(--or),var(--or2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.card{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:36px;
+  box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);backdrop-filter:blur(8px)}
+.chip{display:inline-flex;align-items:center;gap:10px;padding:12px 22px;border-radius:999px;font-size:22px;font-weight:600;
+  background:rgba(255,255,255,.06);border:1px solid var(--line)}
+.chip.o{background:rgba(247,128,30,.14);border-color:rgba(247,128,30,.5);color:#ffb070}
+.chip.b{background:rgba(59,130,246,.14);border-color:rgba(59,130,246,.45);color:#9cc2ff}
+.chip.g{background:rgba(34,197,94,.13);border-color:rgba(34,197,94,.45);color:#86efac}
+.chip.r{background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.45);color:#fca5a5}
+.row{display:flex;gap:24px}
+.ico{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;flex:none;
+  background:linear-gradient(135deg,var(--or),var(--or2));box-shadow:0 10px 30px rgba(247,128,30,.35)}
+.ico svg{width:30px;height:30px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ico.b{background:linear-gradient(135deg,#3b82f6,#1d4ed8);box-shadow:0 10px 30px rgba(59,130,246,.35)}
+.term{background:#050d1a;border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.term .bar{height:46px;background:#0b1a2e;display:flex;align-items:center;gap:10px;padding:0 20px}
+.term .bar i{width:14px;height:14px;border-radius:50%;display:block}
+.term .body{padding:26px 30px;font-family:"JetBrains Mono",monospace;font-size:23px;line-height:1.6;white-space:pre}
+.prompt{color:var(--or)} .dim{color:#5f7593} .ok{color:#4ade80} .bad{color:#f87171} .hl{color:#93c5fd}
+.badge{font-family:"JetBrains Mono",monospace;font-size:17px;font-weight:700;padding:4px 10px;border-radius:8px}
+.badge.high{background:rgba(239,68,68,.18);color:#fca5a5}
+.badge.med{background:rgba(245,179,1,.18);color:#fcd34d}
+.stat .n{font-size:110px;font-weight:800;letter-spacing:-.04em;line-height:1}
+.stat .l{font-size:24px;color:var(--mute);font-weight:600;margin-top:10px}
+
+/* chrome */
+#chrome{position:absolute;inset:0;pointer-events:none}
+#brand{position:absolute;left:56px;top:44px;display:flex;align-items:center;gap:14px;font-weight:800;font-size:26px;letter-spacing:-.01em}
+#brand img{width:52px;height:52px}
+#tag{position:absolute;right:56px;top:52px;font-size:18px;letter-spacing:.24em;color:var(--mute);font-weight:700}
+#tag b{color:var(--or)}
+#progress{position:absolute;left:0;bottom:0;height:6px;background:linear-gradient(90deg,var(--or),var(--or2));box-shadow:0 0 18px var(--or)}
+#caption{position:absolute;left:50%;bottom:56px;transform:translateX(-50%);max-width:1500px;text-align:center;
+  font-size:38px;font-weight:700;line-height:1.3;padding:16px 34px;border-radius:18px;background:rgba(2,10,22,.72);
+  border:1px solid rgba(255,255,255,.08);box-shadow:0 20px 50px rgba(0,0,0,.4);white-space:nowrap}
+#caption span{opacity:.35;transition:none}
+#caption span.on{opacity:1}
+#caption span.cur{color:var(--or)}
+#wipe{position:absolute;top:-20%;height:140%;width:900px;transform:skewX(-18deg);
+  background:linear-gradient(90deg,transparent,var(--or) 20%,var(--or2) 80%,transparent);opacity:0}
+#flash{position:absolute;inset:0;background:#fff;opacity:0}
+
+/* scene specific */
+.road{position:relative;width:1500px;height:300px;margin-top:70px}
+.road .track{position:absolute;left:60px;top:120px;height:6px;background:linear-gradient(90deg,var(--blue),var(--or));border-radius:3px}
+.road .node{position:absolute;top:84px;width:78px;height:78px;border-radius:50%;display:grid;place-items:center;
+  background:var(--navy2);border:4px solid var(--blue);font-weight:800;font-size:22px}
+.road .node.next{border-color:var(--or);background:#2a1606;box-shadow:0 0 0 0 rgba(247,128,30,.6)}
+.road .lbl{position:absolute;top:190px;width:460px;margin-left:-191px;text-align:center}
+.road .lbl b{display:block;font-size:34px;font-weight:800}
+.road .lbl span{font-size:22px;color:var(--mute);font-weight:600}
+.big-ver{font-size:300px;font-weight:900;letter-spacing:-.06em;line-height:.9}
+.fmt{display:flex;flex-wrap:wrap;gap:14px;max-width:760px}
+.fmt .chip{font-family:"JetBrains Mono",monospace;font-size:21px;padding:10px 18px}
+.entropy{display:flex;align-items:flex-end;gap:5px;height:120px;margin-top:10px}
+.entropy i{display:block;width:13px;border-radius:3px 3px 0 0;background:linear-gradient(180deg,#60a5fa,#2563eb)}
+.find{display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:16px;background:rgba(255,255,255,.04);
+  border-left:5px solid var(--red);margin-top:14px;font-size:22px;font-weight:600}
+.find.m{border-left-color:var(--yel)}
+.rank{margin-top:16px}
+.rank .t{display:flex;justify-content:space-between;font-family:"JetBrains Mono",monospace;font-size:21px;margin-bottom:8px}
+.rank .tr{height:16px;border-radius:8px;background:rgba(255,255,255,.07);overflow:hidden}
+.rank .tr i{display:block;height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,var(--or),var(--or2))}
+.shots{position:relative;width:1180px;height:704px;border-radius:24px;overflow:hidden;border:1px solid var(--line);
+  box-shadow:0 40px 100px rgba(0,0,0,.6);background:#f4f6fa}
+.shots img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top left;opacity:0}
+.vlist .it{display:flex;align-items:center;gap:16px;padding:18px 22px;border-radius:16px;font-size:26px;font-weight:700;color:var(--mute);margin-bottom:10px;border:1px solid transparent}
+.vlist .it.on{color:#fff;background:rgba(247,128,30,.14);border-color:rgba(247,128,30,.45)}
+.vlist .it i{width:12px;height:12px;border-radius:50%;background:currentColor}
+.flow{position:relative;width:1640px;height:330px;margin-top:40px}
+.flow .fn{position:absolute;top:90px;width:300px;padding:22px 20px;border-radius:20px;background:var(--card);border:2px solid var(--line);
+  font-family:"JetBrains Mono",monospace;font-size:20px;line-height:1.45}
+.flow .fn small{display:block;font-family:Inter;font-size:16px;letter-spacing:.18em;font-weight:800;color:var(--mute);margin-bottom:8px}
+.flow .fn.src small{color:#93c5fd}.flow .fn.sink small{color:#fca5a5}
+.flow svg{position:absolute;inset:0;overflow:visible}
+.gauge{position:relative;width:360px;height:360px}
+.gauge svg{width:100%;height:100%;transform:rotate(-90deg)}
+.gauge .v{position:absolute;inset:0;display:grid;place-items:center;font-size:92px;font-weight:900;letter-spacing:-.04em}
+.barc{display:flex;align-items:flex-end;gap:60px;height:380px;padding-top:20px}
+.barc .col{width:170px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.barc .col i{display:block;width:100%;border-radius:16px 16px 6px 6px}
+.barc .col b{font-size:44px;font-weight:900;margin-bottom:12px}
+.barc .col span{font-size:20px;color:var(--mute);font-weight:700;margin-top:14px}
+.hub{position:relative;height:260px}
+.hub .n{position:absolute;top:70px;width:200px;height:120px;border-radius:24px;display:grid;place-items:center;font-weight:800;font-size:26px;text-align:center}
+.pulse{position:absolute;width:18px;height:18px;border-radius:50%;background:var(--or);box-shadow:0 0 22px var(--or)}
+.chk{display:flex;align-items:center;gap:16px;font-size:24px;font-weight:600;margin-top:18px}
+.chk svg{width:34px;height:34px;flex:none}
+.grid6{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;width:1560px;margin-top:50px}
+.grid6 .card{padding:34px 40px}
+.clock{position:relative;width:380px;height:380px;border-radius:50%;border:10px solid rgba(255,255,255,.12);
+  background:radial-gradient(circle,#132a4a,#071427)}
+.clock .h,.clock .m{position:absolute;left:50%;bottom:50%;transform-origin:50% 100%;border-radius:8px;background:#fff}
+.clock .h{width:14px;height:100px;margin-left:-7px}
+.clock .m{width:9px;height:150px;margin-left:-4.5px;background:var(--or)}
+.clock .dot{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px;border-radius:50%;background:var(--or)}
+.clock .tick{position:absolute;left:50%;top:14px;width:6px;height:24px;margin-left:-3px;background:rgba(255,255,255,.5);transform-origin:50% 176px;border-radius:3px}
+.ring{position:absolute;border-radius:50%;border:4px solid var(--or)}
+.cal{width:300px;border-radius:28px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5);text-align:center;background:#fff;color:#0b2340}
+.cal .top{background:linear-gradient(90deg,var(--or),var(--or2));color:#fff;font-weight:800;font-size:28px;letter-spacing:.2em;padding:18px}
+.cal .d{font-size:150px;font-weight:900;line-height:1.05;letter-spacing:-.04em}
+.cal .w{font-size:28px;font-weight:800;padding-bottom:22px;letter-spacing:.12em;color:#5a6b85}
+</style>
+</head>
+<body>
+<canvas id="bg" width="1920" height="1080"></canvas>
+<div class="glow" id="g1" style="width:900px;height:900px;background:#1d4ed8"></div>
+<div class="glow" id="g2" style="width:800px;height:800px;background:#f7801e;opacity:.28"></div>
+
+<div id="stage">
+
+<!-- S1 intro -->
+<section class="scene center" data-s="0" data-e="6.2" id="s1">
+  <div style="position:relative;width:640px;height:640px" data-a="blur 0.2 1.4">
+    <div class="ring" id="r1" style="inset:40px"></div>
+    <div class="ring" id="r2" style="inset:40px;border-color:#3b82f6"></div>
+    <img src="assets/logo-neg.png" style="width:640px;height:640px;filter:drop-shadow(0 0 40px rgba(59,130,246,.35))" alt="">
+  </div>
+  <div class="row" style="margin-top:-40px">
+    <span class="chip o" data-a="up 1.6">● Release notes</span>
+    <span class="chip b" data-a="up 1.8">v1.4.0</span>
+    <span class="chip b" data-a="up 2.0">v1.4.1</span>
+  </div>
+</section>
+
+<!-- S2 roadmap -->
+<section class="scene center" data-s="6" data-e="12.2" id="s2">
+  <div class="eyebrow" data-a="up 0.1">Outubro 2026</div>
+  <h1 style="margin-top:16px" data-a="up 0.25">Uma semana. <span class="or">Duas releases.</span></h1>
+  <div class="road">
+    <div class="track" id="track"></div>
+    <div class="node" style="left:60px" data-a="pop 0.8">1.4.0</div>
+    <div class="lbl" style="left:60px" data-a="up 1.0"><b>v1.4.0</b><span>17 OUT · engenharia reversa + IA</span></div>
+    <div class="node" style="left:720px" data-a="pop 1.6">1.4.1</div>
+    <div class="lbl" style="left:720px" data-a="up 1.8"><b>v1.4.1</b><span>21 OUT · segurança + precisão</span></div>
+    <div class="node next" id="nextNode" style="left:1380px" data-a="pop 2.6">
+      <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#f7801e" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+    <div class="lbl" style="left:1380px" data-a="up 2.8"><b class="or">Próxima</b><span>DOMINGO · 22h</span></div>
+  </div>
+</section>
+
+<!-- S3 header 1.4.0 -->
+<section class="scene center" data-s="12" data-e="15.2" id="s3">
+  <div class="eyebrow" data-a="up 0.15">Release</div>
+  <div class="big-ver" data-a="zoom 0.1 0.9">1.4<span class="or">.0</span></div>
+  <div class="row" style="margin-top:30px">
+    <span class="chip" data-a="up 0.7">🔬 Engenharia reversa</span>
+    <span class="chip" data-a="up 0.85">📊 Qualidade da análise</span>
+    <span class="chip" data-a="up 1.0">🤖 Agentes de IA</span>
+  </div>
+</section>
+
+<!-- S4 inspect -->
+<section class="scene" data-s="15" data-e="23.2" id="s4">
+  <div class="row" style="gap:70px;align-items:flex-start">
+    <div style="width:780px">
+      <div class="row" style="align-items:center;gap:20px" data-a="left 0.1">
+        <div class="ico"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/></svg></div>
+        <span class="eyebrow">Novo comando</span>
+      </div>
+      <h2 class="mono" style="margin-top:22px;font-size:66px" data-a="left 0.25">archmap <span class="or">inspect</span></h2>
+      <p class="sub" style="margin-top:18px" data-a="left 0.4">Engenharia reversa estática de qualquer arquivo ou pasta — nada é executado.</p>
+      <div class="fmt" style="margin-top:34px" id="fmts"></div>
+      <div class="row" style="margin-top:34px">
+        <span class="chip o mono" data-a="up 3.4">archmap hexdump</span>
+        <span class="chip o mono" data-a="up 3.6">archmap strings</span>
+      </div>
+    </div>
+    <div class="term" style="width:760px;margin-top:10px" data-a="right 0.5">
+      <div class="bar"><i style="background:#ef4444"></i><i style="background:#f5b301"></i><i style="background:#22c55e"></i></div>
+      <div class="body"><span class="prompt">$ </span><span data-type="archmap inspect bin/jansi.dll" data-t="1.0" data-cps="28"></span>
+<span data-a="fade 2.2"><span class="dim">type   </span> PE32+ x86-64 DLL · Windows</span>
+<span data-a="fade 2.4"><span class="dim">sha256 </span> 7020260c8db51160…</span>
+<span data-a="fade 2.6"><span class="dim">imports</span> <span class="hl">49</span>  <span class="dim">exports</span> <span class="hl">41</span></span>
+<span data-a="fade 2.8"><span class="ok">✓ ASLR  ✓ DEP  ✓ HighEntropyVA</span></span>
+<span data-a="fade 3.0"><span class="bad">✗ CFG  ✗ signed</span></span>
+<span data-a="fade 3.2" class="dim">entropy profile</span>
+<div class="entropy" id="entropy"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- S5 audit + context -->
+<section class="scene" style="justify-content:center" data-s="23" data-e="31.2" id="s5">
+  <div class="row" style="gap:44px;align-items:stretch;margin-top:10px">
+    <div class="card" style="flex:1" data-a="up 0.1">
+      <div class="row" style="align-items:center;gap:18px">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <h3 class="mono" style="font-size:40px">archmap <span class="or">audit</span></h3>
+      </div>
+      <p class="sub" style="margin-top:14px;font-size:24px">Segredos commitados (SEC-*) e configuração de agentes de IA (AGENT-*) — offline.</p>
+      <div class="find" data-a="left 0.9"><span class="badge high">HIGH</span><span class="mono" style="color:var(--mute)">AGENT-001</span> Bash(*) liberado sem prompt</div>
+      <div class="find" data-a="left 1.2"><span class="badge high">HIGH</span><span class="mono" style="color:var(--mute)">SEC-002</span> chave AWS commitada · <span class="dim">AKIA••••</span></div>
+      <div class="find m" data-a="left 1.5"><span class="badge med">MED</span><span class="mono" style="color:var(--mute)">AGENT-004</span> servidor MCP sem versão fixa</div>
+      <div class="find m" data-a="left 1.8"><span class="badge med">MED</span><span class="mono" style="color:var(--mute)">AGENT-007</span> Unicode invisível no CLAUDE.md</div>
+    </div>
+    <div class="card" style="flex:1" data-a="up 0.4">
+      <div class="row" style="align-items:center;gap:18px">
+        <div class="ico b"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/></svg></div>
+        <h3 class="mono" style="font-size:40px">archmap <span style="color:#93c5fd">context</span></h3>
+      </div>
+      <p class="sub" style="margin-top:14px;font-size:24px">"adicionar login com OAuth" → os arquivos certos, no orçamento de tokens.</p>
+      <div class="rank" data-a="fade 1.6"><div class="t"><span>auth/login.py</span><span id="rk0">0.00</span></div><div class="tr"><i data-bar="94 1.8 1.2"></i></div></div>
+      <div class="rank" data-a="fade 1.8"><div class="t"><span>auth/session.py</span><span id="rk1">0.00</span></div><div class="tr"><i data-bar="81 2.0 1.2"></i></div></div>
+      <div class="rank" data-a="fade 2.0"><div class="t"><span>api/routes.py</span><span id="rk2">0.00</span></div><div class="tr"><i data-bar="66 2.2 1.2"></i></div></div>
+      <div class="rank" data-a="fade 2.2"><div class="t"><span>models/user.py</span><span id="rk3">0.00</span></div><div class="tr"><i data-bar="58 2.4 1.2"></i></div></div>
+      <div class="row" style="margin-top:26px;gap:12px"><span class="chip b" data-a="up 3.2">BM25</span><span class="chip b" data-a="up 3.35">+ grafo de dependências</span><span class="chip b" data-a="up 3.5">token budget</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- S6 MCP -->
+<section class="scene" data-s="31" data-e="37.2" id="s6">
+  <div class="row" style="gap:80px;align-items:center;flex:1">
+    <div style="width:620px;text-align:center" data-a="pop 0.1">
+      <div class="eyebrow">Servidor MCP</div>
+      <div style="font-size:260px;font-weight:900;letter-spacing:-.06em;line-height:1"><span id="mcpN" class="or">8</span></div>
+      <div style="font-size:34px;font-weight:700">ferramentas para agentes</div>
+      <div class="sub" style="margin-top:8px">antes: 8 · agora: 15</div>
+    </div>
+    <div style="flex:1">
+      <div class="fmt" style="max-width:none" id="tools"></div>
+      <div class="card" style="margin-top:40px;padding:28px 32px" data-a="up 2.6">
+        <div class="row" style="align-items:center;gap:16px">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/></svg></div>
+          <div><h3>Plugin Claude Code + skill portátil</h3><div class="sub" style="font-size:22px">Cursor · Codex · OpenCode</div></div>
+        </div>
+        <div class="mono" style="margin-top:18px;font-size:22px;color:#ffb070"><span class="prompt">› </span><span data-type="/plugin marketplace add Kaua-KGzin/ArchMAP" data-t="3.0" data-cps="34"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S7 Web UI -->
+<section class="scene" data-s="37" data-e="46.2" id="s7">
+  <div class="row" style="gap:60px;align-items:center;flex:1">
+    <div style="width:420px">
+      <div class="eyebrow" data-a="left 0.1">Web UI</div>
+      <h2 style="margin-top:14px" data-a="left 0.2"><span class="or">5</span> novas views</h2>
+      <p class="sub" style="margin:14px 0 30px" data-a="left 0.3">em 6 idiomas e no layout mobile</p>
+      <div class="vlist" id="vlist">
+        <div class="it" data-a="left 0.5"><i></i>Findings</div>
+        <div class="it" data-a="left 0.6"><i></i>Inspector</div>
+        <div class="it" data-a="left 0.7"><i></i>Task context</div>
+        <div class="it" data-a="left 0.8"><i></i>Confiança da análise</div>
+        <div class="it" data-a="left 0.9"><i></i>Inspect · inventário</div>
+      </div>
+    </div>
+    <div class="shots" data-a="right 0.3 0.9" id="shots">
+      <img src="../../docs/assets/ui/ui-findings.png" alt=""><img src="../../docs/assets/ui/ui-inspector.png" alt="">
+      <img src="../../docs/assets/ui/ui-context.png" alt=""><img src="../../docs/assets/ui/ui-quality.png" alt="">
+      <img src="../../docs/assets/ui/ui-inspect-inventory.png" alt="">
+    </div>
+  </div>
+</section>
+
+<!-- S8 header 1.4.1 -->
+<section class="scene center" data-s="46" data-e="49.2" id="s8">
+  <div class="eyebrow" data-a="up 0.15">Release</div>
+  <div class="big-ver" data-a="zoom 0.1 0.9">1.4<span class="or">.1</span></div>
+  <div class="row" style="margin-top:30px">
+    <span class="chip" data-a="up 0.7">🛡️ Segurança de código</span>
+    <span class="chip" data-a="up 0.85">🎯 Precisão</span>
+    <span class="chip" data-a="up 1.0">🔗 Arch line</span>
+  </div>
+</section>
+
+<!-- S9 taint -->
+<section class="scene" style="justify-content:center" data-s="49" data-e="58.2" id="s9">
+  <div class="eyebrow" data-a="left 0.1">archmap audit · TAINT-*</div>
+  <h2 style="margin-top:12px" data-a="left 0.2">Análise de taint <span class="or">interprocedural</span></h2>
+  <p class="sub" style="margin-top:12px" data-a="left 0.3">Segue a entrada não confiável entre funções e arquivos até o sink perigoso.</p>
+  <div class="flow" id="flow">
+    <svg viewBox="0 0 1640 330"><path id="fpath" d="M300 152 H420 M720 152 H840 M1140 152 H1260" stroke="rgba(143,163,191,.35)" stroke-width="4" stroke-dasharray="10 10" fill="none"/></svg>
+    <div class="fn src" style="left:0" data-a="pop 0.8"><small>SOURCE · routes.py</small>id = request<br>  .args["id"]</div>
+    <div class="fn" style="left:420px" data-a="pop 1.1"><small>ASSIGN</small>q = "… WHERE id=" <br>  + id</div>
+    <div class="fn" style="left:840px" data-a="pop 1.4"><small>CALL · repo.py</small>find_user(q)</div>
+    <div class="fn sink" style="left:1260px" data-a="pop 1.7"><small>SINK</small>cursor.execute(sql)</div>
+    <div class="pulse" id="tp" style="top:143px;left:0;opacity:0"></div>
+    <div style="position:absolute;left:1240px;top:250px" class="row">
+      <span class="chip r" data-a="pop 4.6">CWE-89 · SQL injection</span>
+    </div>
+    <div style="position:absolute;left:0;top:250px" class="row"><span class="chip g" data-a="up 5.0">fix → parâmetros vinculados</span><span class="chip" data-a="up 5.2">Python · JS/TS · C# · Java</span></div>
+  </div>
+  <div class="fmt" style="max-width:none;margin-top:6px" id="sinks"></div>
+</section>
+
+<!-- S10 code -->
+<section class="scene" style="justify-content:center" data-s="58" data-e="64.2" id="s10">
+  <div class="eyebrow" data-a="left 0.1">archmap audit · CODE-*</div>
+  <h2 style="margin-top:12px" data-a="left 0.2">SAST offline, <span class="or">zero dependências</span></h2>
+  <div class="row" style="gap:28px;margin-top:44px">
+    <div class="card stat" style="flex:1" data-a="up 0.4"><div class="n or">~<span data-count="0 40 0.6 1.4">0</span></div><div class="l">regras com CWE</div></div>
+    <div class="card stat" style="flex:1" data-a="up 0.55"><div class="n"><span data-count="0 8 0.8 1.2">0</span></div><div class="l">linguagens</div></div>
+    <div class="card stat" style="flex:1" data-a="up 0.7"><div class="n">2.1<span class="or">.0</span></div><div class="l">SARIF → GitHub code scanning</div></div>
+  </div>
+  <div class="fmt" style="max-width:none;margin-top:34px" id="langs"></div>
+  <div class="term" style="margin-top:30px;width:980px" data-a="up 2.4"><div class="body" style="padding:20px 28px"><span class="prompt">$ </span><span data-type="archmap audit --sarif results.sarif" data-t="2.7" data-cps="30"></span></div></div>
+</section>
+
+<!-- S11 precision -->
+<section class="scene" style="justify-content:center" data-s="64" data-e="72.2" id="s11">
+  <div class="eyebrow" data-a="left 0.1">Precisão do grafo</div>
+  <h2 style="margin-top:12px" data-a="left 0.2">Menos ruído. <span class="or">Mais verdade.</span></h2>
+  <div class="row" style="gap:40px;margin-top:40px;align-items:stretch">
+    <div class="card" style="flex:1.25" data-a="up 0.4">
+      <h3>C# · backend ASP.NET real (170 arquivos)</h3>
+      <div class="sub" style="font-size:22px">dependências detectadas</div>
+      <div class="row" style="align-items:flex-end;gap:50px">
+        <div class="barc">
+          <div class="col"><b data-count="0 2371 0.8 1.0">0</b><i id="barA" style="background:#475a78;height:0"></i><span>antes</span></div>
+          <div class="col"><b class="or" data-count="2371 767 2.0 1.4">2371</b><i id="barB" style="background:linear-gradient(180deg,var(--or),var(--or2));height:0"></i><span>agora</span></div>
+        </div>
+        <div style="padding-bottom:50px">
+          <div style="font-size:120px;font-weight:900;letter-spacing:-.05em" class="or" data-a="pop 3.4">−68%</div>
+          <div class="chip g" data-a="up 3.8">ciclos fantasmas eliminados</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="flex:.75;display:flex;flex-direction:column;align-items:center" data-a="up 0.6">
+      <h3>NestJS · resolução de imports</h3>
+      <div class="gauge" style="margin-top:26px">
+        <svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="84" stroke="rgba(255,255,255,.08)" stroke-width="18" fill="none"/>
+          <circle id="garc" cx="100" cy="100" r="84" stroke="url(#gg)" stroke-width="18" fill="none" stroke-linecap="round" stroke-dasharray="527.8" stroke-dashoffset="527.8"/>
+          <defs><linearGradient id="gg"><stop offset="0" stop-color="#f7801e"/><stop offset="1" stop-color="#22c55e"/></linearGradient></defs></svg>
+        <div class="v"><span><span id="gv">0</span>%</span></div>
+      </div>
+      <div class="sub" style="font-size:22px;margin-top:10px">./user.service · ./app.module · ESM .js→.ts</div>
+    </div>
+  </div>
+</section>
+
+<!-- S12 arch line + security -->
+<section class="scene" style="justify-content:center" data-s="72" data-e="78.2" id="s12">
+  <div class="row" style="gap:40px;align-items:stretch;margin-top:20px">
+    <div class="card" style="flex:1.1" data-a="up 0.1">
+      <div class="row" style="align-items:center;gap:18px"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M9 11l6-4M9 13l6 4"/></svg></div><h3 style="font-size:36px">Arch line integration</h3></div>
+      <div class="hub">
+        <div class="n" style="left:20px;background:var(--navy2);border:2px solid var(--blue)">archmap<br>serve</div>
+        <div class="n" style="right:20px;background:#2a1606;border:2px solid var(--or)">Arch Hub</div>
+        <div style="position:absolute;left:220px;right:220px;top:128px;height:4px;background:rgba(255,255,255,.12)"></div>
+        <div class="pulse" id="hp1" style="top:121px"></div><div class="pulse" id="hp2" style="top:121px;background:#60a5fa;box-shadow:0 0 22px #60a5fa"></div>
+        <div style="position:absolute;left:0;right:0;top:150px;text-align:center"><span class="chip g" data-a="fade 1.0">● UP · heartbeat</span></div>
+      </div>
+      <div class="mono" style="font-size:22px;color:#ffb070"><span class="prompt">$ </span><span data-type="archmap hub-report --strict" data-t="1.4" data-cps="26"></span></div>
+      <div class="row" style="margin-top:16px;gap:12px"><span class="chip" data-a="up 2.4">score</span><span class="chip" data-a="up 2.5">grade</span><span class="chip" data-a="up 2.6">ciclos</span><span class="chip" data-a="up 2.7">findings</span></div>
+    </div>
+    <div class="card" style="flex:.9" data-a="up 0.3">
+      <div class="row" style="align-items:center;gap:18px"><div class="ico" style="background:linear-gradient(135deg,#22c55e,#15803d);box-shadow:0 10px 30px rgba(34,197,94,.3)"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><h3 style="font-size:36px">Segurança</h3></div>
+      <div style="font-size:84px;font-weight:900;margin-top:20px;letter-spacing:-.04em" data-a="pop 0.8"><span class="ok">0</span> <span style="font-size:32px;color:var(--mute);letter-spacing:0">vulnerabilidades · npm audit</span></div>
+      <div class="chk" data-a="left 1.2"><svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.6"><circle cx="12" cy="12" r="10"/><path d="M7 12l3 3 7-7"/></svg>fast-glob removido (braces/micromatch)</div>
+      <div class="chk" data-a="left 1.5"><svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.6"><circle cx="12" cy="12" r="10"/><path d="M7 12l3 3 7-7"/></svg>proxy-addr crítico corrigido</div>
+      <div class="chk" data-a="left 1.8"><svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.6"><circle cx="12" cy="12" r="10"/><path d="M7 12l3 3 7-7"/></svg>qs 6.16.1 · body-parser 2.3.0</div>
+      <div class="chk" data-a="left 2.1"><svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.6"><circle cx="12" cy="12" r="10"/><path d="M7 12l3 3 7-7"/></svg>serve:web em 127.0.0.1 por padrão</div>
+    </div>
+  </div>
+</section>
+
+<!-- S13 recap -->
+<section class="scene center" data-s="78" data-e="84.2" id="s13">
+  <div class="eyebrow" data-a="up 0.1">Em números</div>
+  <h2 style="margin-top:12px" data-a="up 0.2">ArchMAP <span class="or">1.4.x</span></h2>
+  <div class="grid6">
+    <div class="card stat" data-a="pop 0.4"><div class="n or"><span data-count="9 0 0.5 1.2">9</span></div><div class="l">dependências de runtime</div></div>
+    <div class="card stat" data-a="pop 0.55"><div class="n"><span data-count="0 15 0.6 1.2">0</span></div><div class="l">ferramentas MCP</div></div>
+    <div class="card stat" data-a="pop 0.7"><div class="n"><span data-count="0 11 0.7 1.2">0</span></div><div class="l">classes de sink no taint</div></div>
+    <div class="card stat" data-a="pop 0.85"><div class="n">~<span data-count="0 40 0.8 1.2">0</span></div><div class="l">regras CODE-* com CWE</div></div>
+    <div class="card stat" data-a="pop 1.0"><div class="n"><span data-count="0 6 0.9 1.2">0</span></div><div class="l">idiomas na Web UI</div></div>
+    <div class="card stat" data-a="pop 1.15"><div class="n or"><span data-count="0 880 1.0 1.4">0</span>+</div><div class="l">testes automatizados</div></div>
+  </div>
+</section>
+
+<!-- S14 sunday -->
+<section class="scene" data-s="84" data-e="92.2" id="s14">
+  <div class="row" style="gap:90px;align-items:center;flex:1;justify-content:center">
+    <div style="position:relative;width:380px;height:380px" data-a="pop 0.5 0.9">
+      <div class="ring" id="cr1" style="inset:0"></div><div class="ring" id="cr2" style="inset:0"></div>
+      <div class="clock" id="clock"><div class="h" id="ch"></div><div class="m" id="cm"></div><div class="dot"></div></div>
+    </div>
+    <div style="width:820px">
+      <div class="eyebrow" data-a="left 0.1">E não para por aqui</div>
+      <h1 style="margin-top:16px;font-size:110px" data-a="left 0.3">Mais updates<br><span class="or">domingo, 22h</span></h1>
+      <div class="row" style="margin-top:36px;align-items:center;gap:30px">
+        <div class="cal" data-a="pop 1.2"><div class="top">OUT 2026</div><div class="d">25</div><div class="w">DOMINGO</div></div>
+        <div>
+          <div class="chip o" style="font-size:28px;padding:16px 28px" data-a="up 1.6">⏰ 22:00</div>
+          <div class="sub" style="margin-top:20px;font-size:26px" data-a="up 1.9">Ative as notificações do repositório<br>para não perder.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S15 outro -->
+<section class="scene center" data-s="92" data-e="97" id="s15">
+  <img src="assets/logo-neg.png" style="width:520px;height:520px" data-a="blur 0.1 1.0" alt="">
+  <div class="row" style="margin-top:-30px">
+    <span class="chip o mono" data-a="up 0.8">pip install KG-ARCHMAP</span>
+    <span class="chip mono" data-a="up 1.0">github.com/Kaua-KGzin/ArchMAP</span>
+  </div>
+</section>
+
+</div>
+
+<div id="chrome">
+  <div id="brand"><img src="assets/logo-neg-mark.png" alt="">ArchMAP</div>
+  <div id="tag">RELEASE NOTES · <b>1.4.0 + 1.4.1</b></div>
+  <div id="wipe"></div>
+  <div id="caption"></div>
+  <div id="progress"></div>
+  <div id="flash"></div>
+</div>
+
+<script>
+const DUR = 96;
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const E={out:p=>1-Math.pow(1-p,3),
+  back:p=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(p-1,3)+c1*Math.pow(p-1,2)},
+  inout:p=>p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2};
+const prog=(l,d,u)=>clamp((l-d)/u);
+
+/* ---- generated content ---- */
+const fill=(id,items,cls,start,step,anim='pop')=>{document.getElementById(id).innerHTML=
+  items.map((x,i)=>`<span class="chip ${cls}" data-a="${anim} ${(start+i*step).toFixed(2)}">${x}</span>`).join('')};
+fill('fmts',['ELF','PE','Mach-O','WASM','DEX','.class','.pyc','APK','JAR','ZIP','tar','7z','SQLite','PDF','pcap','LLVM bc'],'b',0.9,0.1);
+fill('tools',['get_relevant_context','get_analysis_quality','list_findings','inspect_path','hexdump','extract_strings','audit_project'].map(x=>'<span class="mono" style="font-size:21px">'+x+'</span>'),'o',1.0,0.18);
+fill('sinks',['SQL','shell','eval','template','deserialização','path','SSRF','XSS','redirect','NoSQL','regex'],'r',5.6,0.09,'up');
+fill('langs',['Python','JS/TS','C/C++','C#','Java','Go','Rust','PHP'],'b',1.2,0.1);
+const ent=document.getElementById('entropy');
+const EV=[.62,.95,.9,.92,.94,.97,.7,.95,.93,.2,.96,.97,.96,.97,.96,.9,.97,.96,.92,.97,.88,.85,.86,.9,.95,.92,.6,.5,.48,.45,.5,.55,.5,.66,.62,.63,.7,.74,.73,.82,.88,.84];
+ent.innerHTML=EV.map(()=>'<i></i>').join('');
+
+/* ---- captions (narração) ---- */
+const CAP=[
+ [0.6,5.8,'ArchMAP: o que chegou nas versões 1.4.0 e 1.4.1'],
+ [6.3,11.8,'Duas releases em uma semana — e a próxima já tem hora marcada'],
+ [12.3,14.9,'Começando pela 1.4.0'],
+ [15.3,22.8,'archmap inspect: ELF, PE, Mach-O, WASM e mais, com entropia e mitigações'],
+ [23.3,27.2,'archmap audit encontra segredos e configs de agentes inseguras'],
+ [27.2,30.9,'archmap context entrega os arquivos certos para cada tarefa'],
+ [31.3,36.9,'O servidor MCP saltou de 8 para 15 ferramentas, agora também como plugin'],
+ [37.3,45.9,'Na Web UI: cinco novas views, em seis idiomas'],
+ [46.3,48.9,'Agora, a 1.4.1'],
+ [49.3,57.9,'Análise de taint interprocedural: da entrada do usuário até o sink'],
+ [58.3,63.9,'Cerca de 40 regras de código com CWE, exportadas em SARIF'],
+ [64.3,71.9,'Grafos mais precisos: 68% menos arestas fantasmas em C#'],
+ [72.3,77.9,'Integração com o Arch Hub e npm audit zerado'],
+ [78.3,83.9,'Tudo isso sem nenhuma dependência de runtime'],
+ [84.3,91.8,'E tem mais: novas atualizações neste domingo, às 22h'],
+];
+const capEl=document.getElementById('caption');
+let capIdx=-2;
+
+/* ---- background network ---- */
+const cv=document.getElementById('bg'),cx=cv.getContext('2d');
+let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const N=Array.from({length:70},()=>({x:rnd()*1920,y:rnd()*1080,ax:30+rnd()*60,ay:30+rnd()*60,fx:.1+rnd()*.25,fy:.1+rnd()*.25,ph:rnd()*6.28,o:rnd()<.14,r:2+rnd()*3}));
+function drawBg(t){
+  const g=cx.createLinearGradient(0,0,1920,1080);g.addColorStop(0,'#03142a');g.addColorStop(1,'#020b18');
+  cx.fillStyle=g;cx.fillRect(0,0,1920,1080);
+  cx.strokeStyle='rgba(143,163,191,.045)';cx.lineWidth=1;
+  const off=(t*12)%80;
+  for(let x=-80+off;x<1920;x+=80){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,1080);cx.stroke()}
+  for(let y=-80+off;y<1080;y+=80){cx.beginPath();cx.moveTo(0,y);cx.lineTo(1920,y);cx.stroke()}
+  const P=N.map(n=>({x:n.x+Math.sin(t*n.fx+n.ph)*n.ax,y:n.y+Math.cos(t*n.fy+n.ph)*n.ay,o:n.o,r:n.r}));
+  for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){
+    const dx=P[i].x-P[j].x,dy=P[i].y-P[j].y,d=Math.hypot(dx,dy);
+    if(d<210){cx.strokeStyle=`rgba(96,140,200,${(1-d/210)*.22})`;cx.beginPath();cx.moveTo(P[i].x,P[i].y);cx.lineTo(P[j].x,P[j].y);cx.stroke()}}
+  for(const p of P){cx.fillStyle=p.o?'rgba(247,128,30,.85)':'rgba(120,160,215,.5)';cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill();
+    if(p.o){cx.fillStyle='rgba(247,128,30,.12)';cx.beginPath();cx.arc(p.x,p.y,p.r*5,0,7);cx.fill()}}
+  // vignette
+  const v=cx.createRadialGradient(960,540,300,960,540,1150);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.55)');
+  cx.fillStyle=v;cx.fillRect(0,0,1920,1080);
+}
+
+/* ---- element animation ---- */
+function applyAnim(el,l){
+  const [type,d,u]=el.dataset.a.split(' ');const dl=+d,du=+(u||0.6);
+  const p=prog(l,dl,du);let e=E.out(p),tr='',op=e,f='';
+  switch(type){
+    case 'up':tr=`translateY(${(1-e)*50}px)`;break;
+    case 'left':tr=`translateX(${(1-e)*-70}px)`;break;
+    case 'right':tr=`translateX(${(1-e)*90}px)`;break;
+    case 'pop':tr=`scale(${0.5+0.5*E.back(p)})`;break;
+    case 'zoom':tr=`scale(${1.35-0.35*e})`;f=`blur(${(1-e)*18}px)`;break;
+    case 'blur':tr=`scale(${1.15-0.15*e})`;f=`blur(${(1-e)*24}px)`;break;
+    case 'fade':break;
+  }
+  el.style.opacity=op;el.style.transform=tr;el.style.filter=f;
+}
+const scenes=[...document.querySelectorAll('.scene')].map(s=>({el:s,s:+s.dataset.s,e:+s.dataset.e,
+  anims:[...s.querySelectorAll('[data-a]')],types:[...s.querySelectorAll('[data-type]')],
+  counts:[...s.querySelectorAll('[data-count]')],bars:[...s.querySelectorAll('[data-bar]')]}));
+const fmtN=n=>Math.round(n).toLocaleString('pt-BR');
+
+const hooks={
+ s1(l,t){const a=(l*0.6)%1,b=(l*0.6+.5)%1;
+   for(const [id,k] of [['r1',a],['r2',b]]){const r=document.getElementById(id);r.style.transform=`scale(${0.7+k*0.6})`;r.style.opacity=(1-k)*.5*clamp(l-0.6)}},
+ s2(l){document.getElementById('track').style.width=(1320*E.inout(prog(l,0.5,2.4)))+'px';
+   const k=(l*0.9)%1;document.getElementById('nextNode').style.boxShadow=`0 0 0 ${k*40}px rgba(247,128,30,${(1-k)*.5*clamp(l-2.8)})`},
+ s4(l){[...document.querySelectorAll('#entropy i')].forEach((b,i)=>{const p=E.out(prog(l,3.2+i*0.035,0.5));b.style.height=(EV[i]*118*p)+'px'})},
+ s5(l){[94,81,66,58].forEach((v,i)=>{document.getElementById('rk'+i).textContent=(v/100*E.out(prog(l,1.8+i*0.2,1.2))).toFixed(2)})},
+ s6(l){const p=E.inout(prog(l,0.6,1.6));document.getElementById('mcpN').textContent=Math.round(8+7*p)},
+ s7(l){const imgs=[...document.querySelectorAll('#shots img')],its=[...document.querySelectorAll('#vlist .it')];
+   const per=1.6,st=0.6;const idx=clamp(Math.floor((l-st)/per),0,4);
+   imgs.forEach((im,i)=>{const lo=l-st-i*per;const fi=i===0?1:E.out(clamp(lo/0.45));const fo=i<4?1-E.out(clamp((lo-per)/0.45)):1;
+     im.style.opacity=Math.min(fi,fo);const z=1.0+0.08*clamp(lo/(per+0.5));im.style.transform=`scale(${z}) translateY(${-clamp(lo/(per+.5))*18}px)`;im.style.transformOrigin='30% 20%'});
+   its.forEach((it,i)=>it.classList.toggle('on',i===idx&&l>st))},
+ s9(l){const tp=document.getElementById('tp');const p=prog(l,2.0,2.6);
+   const xs=[150,570,990,1410];const pos=p*3;const seg=Math.min(2,Math.floor(pos));const f=E.inout(pos-seg);
+   tp.style.left=(xs[seg]+(xs[seg+1]-xs[seg])*(p>=1?1:f)-9)+'px';tp.style.opacity=p>0&&p<1?1:0;
+   document.querySelectorAll('#flow .fn').forEach((n,i)=>{const lit=p*3>=i-0.05&&l>2.0;
+     n.style.borderColor=lit?(i===3?'#ef4444':'#f7801e'):'';n.style.boxShadow=lit?(i===3?'0 0 40px rgba(239,68,68,.5)':'0 0 30px rgba(247,128,30,.35)'):''});
+   document.getElementById('fpath').style.strokeDashoffset=-l*40},
+ s11(l){document.getElementById('barA').style.height=(300*E.out(prog(l,0.8,1.0)))+'px';
+   const b=E.out(prog(l,0.8,1.0))*300-(300-97)*E.inout(prog(l,2.0,1.4));document.getElementById('barB').style.height=b+'px';
+   const g=61*E.out(prog(l,1.0,1.0))+39*E.inout(prog(l,2.6,1.4));document.getElementById('gv').textContent=Math.round(g);
+   document.getElementById('garc').style.strokeDashoffset=527.8*(1-g/100)},
+ s12(l){const k=(l*0.55)%1,k2=((l*0.55)+.5)%1;const L=240,R=1920/2-140;
+   const w=document.querySelector('#s12 .hub').clientWidth;
+   document.getElementById('hp1').style.left=(220+(w-440)*E.inout(k)-9)+'px';
+   document.getElementById('hp2').style.left=(w-220-(w-440)*E.inout(k2)-9)+'px'},
+ s14(l,t){const h=E.inout(prog(l,0.6,2.2));document.getElementById('ch').style.transform=`rotate(${h*1020}deg)`;
+   document.getElementById('cm').style.transform=`rotate(${h*360*8}deg)`;
+   for(const [id,o] of [['cr1',0],['cr2',.5]]){const k=((l*0.7)+o)%1;const r=document.getElementById(id);
+     r.style.transform=`scale(${1+k*0.55})`;r.style.opacity=(1-k)*.7*clamp(l-1.2)}},
+ s15(){}
+};
+
+function seek(t){
+  drawBg(t);
+  const g1=document.getElementById('g1'),g2=document.getElementById('g2');
+  g1.style.transform=`translate(${-200+Math.sin(t*.15)*260}px,${-300+Math.cos(t*.11)*160}px)`;
+  g2.style.transform=`translate(${1300+Math.cos(t*.13)*240}px,${500+Math.sin(t*.17)*160}px)`;
+  for(const sc of scenes){
+    const l=t-sc.s;const vis=t>=sc.s-0.01&&t<=sc.e;
+    if(!vis){sc.el.style.opacity=0;sc.el.style.display='none';continue}
+    sc.el.style.display='flex';
+    const fin=E.out(clamp(l/0.4)),fout=E.out(clamp((sc.e-t)/0.45));
+    sc.el.style.opacity=Math.min(fin,fout);
+    const outp=1-fout;sc.el.style.transform=`scale(${1+outp*0.05})`;sc.el.style.filter=outp>0.01?`blur(${outp*10}px)`:'';
+    sc.anims.forEach(el=>applyAnim(el,l));
+    sc.types.forEach(el=>{const n=Math.floor(clamp((l-+el.dataset.t)*+el.dataset.cps,0,el.dataset.type.length));
+      const caret=(l>+el.dataset.t-0.5&&Math.floor(l*2.4)%2===0)?'▍':'';el.textContent=el.dataset.type.slice(0,n)+caret});
+    sc.counts.forEach(el=>{const [a,b,d,u]=el.dataset.count.split(' ').map(Number);el.textContent=fmtN(a+(b-a)*E.inout(prog(l,d,u)))});
+    sc.bars.forEach(el=>{const [w,d,u]=el.dataset.bar.split(' ').map(Number);el.style.width=(w*E.out(prog(l,d,u)))+'%'});
+    hooks[sc.el.id]&&hooks[sc.el.id](l,t);
+  }
+  // caption
+  const ci=CAP.findIndex(c=>t>=c[0]&&t<=c[1]);
+  if(ci!==capIdx){capIdx=ci;capEl.innerHTML=ci<0?'':CAP[ci][2].split(' ').map(w=>`<span>${w}</span>`).join(' ')}
+  if(ci>=0){const [a,b]=CAP[ci];const sp=capEl.children;const p=clamp((t-a)/((b-a)*0.75));const k=Math.floor(p*sp.length);
+    for(let i=0;i<sp.length;i++){sp[i].className=i<k?'on':(i===k?'on cur':'')}
+    const fi=E.out(clamp((t-a)/0.3)),fo=E.out(clamp((b-t)/0.25));capEl.style.opacity=Math.min(fi,fo);
+    capEl.style.transform=`translateX(-50%) translateY(${(1-fi)*20}px)`}else capEl.style.opacity=0;
+  // wipe & flash on section headers
+  const wipe=document.getElementById('wipe');let wo=0,wx=-1200;
+  for(const s of [12,46,84]){const p=prog(t,s-0.35,0.7);if(p>0&&p<1){wo=1;wx=-1200+p*(1920+2400)}}
+  wipe.style.opacity=wo;wipe.style.left=wx+'px';
+  let fl=0;for(const s of [12,46]){const d=t-s;if(d>0&&d<0.4)fl=Math.max(fl,(0.4-d)/0.4*.35)}
+  document.getElementById('flash').style.opacity=fl;
+  document.getElementById('progress').style.width=(t/DUR*100)+'%';
+  const chromeOn=clamp((t-1)/0.6)*clamp((DUR-0.5-t)/0.5);
+  document.getElementById('brand').style.opacity=t>92?0:chromeOn;document.getElementById('tag').style.opacity=t>92?0:chromeOn;
+}
+window.seek=seek;window.DUR=DUR;
+if(!location.search.includes('render')){const t0=performance.now();(function loop(){seek(((performance.now()-t0)/1000)%DUR);requestAnimationFrame(loop)})()}
+</script>
+</body>
+</html>
