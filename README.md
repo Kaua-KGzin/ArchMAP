@@ -7,7 +7,7 @@
     <img src="https://github.com/Kaua-KGzin/ArchMAP/actions/workflows/ci.yml/badge.svg" alt="CI"/>
   </a>
   <a href="https://www.python.org/">
-    <img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue" alt="Python"/>
+    <img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue" alt="Python"/>
   </a>
   <a href="./LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/>
