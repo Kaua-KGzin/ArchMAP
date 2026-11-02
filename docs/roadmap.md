@@ -2,6 +2,11 @@
 
 ## Released
 
+### v1.4.2 (2026-11-02) — GitHub Action and toolchain fixes
+- **GitHub Action**: installs `KG-ARCHMAP` (it installed an unrelated `archmap` PyPI package), `sarif` and `fail-on-explosions` inputs fixed, inputs passed via `env`.
+- **Python 3.14** in CI and the Docker image; `express` 5.3 / `body-parser` 2.4 (GHSA-27r3-jxmh-p828); Node `>=22`.
+- **Release guard**: tag/version mismatch fails the release workflows before anything is built or published.
+
 ### v1.4.1 (2026-10-21) — security and accuracy review
 - Interprocedural taint analysis (`TAINT-*`) across files for Python, JS/TS, C# and Java; insecure-code checks (`CODE-*`); SARIF export for `audit`; context-aware secret ranking.
 - Accuracy fixes from a field test on real repositories: precise C# `using` resolution, NestJS/Angular dotted imports, vendored code excluded from risk ranking, `--no-cache` and `--show-unresolved=all` fixed.

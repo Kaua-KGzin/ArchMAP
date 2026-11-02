@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-11-02
+
 ### Fixed
 - **GitHub Action (`action.yml`) installed the wrong package.** It ran
   `pip install archmap`, which is an unrelated third-party project on PyPI
@@ -28,6 +30,11 @@ All notable changes to this project are documented in this file.
   high-severity DoS). `engines.node` raised to `>=22` (Node 20 is EOL).
 - Dev tool minimums raised to the versions CI runs (pytest 9, pytest-cov 7,
   ruff 0.17, mypy 2, pip-audit 2.10); `mkdocs-material>=9.8`.
+- **Release workflows refuse a tag that does not match the package version.**
+  `publish`, `release` and `docker` now fail first when the pushed `vX.Y.Z`
+  differs from `archmap.__version__` (v1.4.1 and the first v1.4.2 tag were both
+  cut before the bump, so they built the previous version and PyPI skipped
+  the upload).
 
 ## [1.4.1] - 2026-10-21
 
