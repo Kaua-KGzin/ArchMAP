@@ -263,6 +263,12 @@ change state only answer loopback requests that send JSON. See
 
 ## What's new
 
+- **1.4.2**: GitHub Action fixed — it installed an unrelated `archmap`
+  package from PyPI instead of `KG-ARCHMAP`, and the `sarif` and
+  `fail-on-explosions` inputs crashed the run; Python 3.14 supported (CI,
+  Docker image on `python:3.14-slim`); `express` 5.3 / `body-parser` 2.4
+  (GHSA-27r3-jxmh-p828); release workflows now reject a tag that does not
+  match the package version.
 - **1.4.1**: security and accuracy review from a field test on real
   repositories — interprocedural taint analysis (`TAINT-*`) across files for
   Python, JS/TS, C# and Java; CWE-tagged insecure-code checks (`CODE-*`);
