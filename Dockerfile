@@ -1,9 +1,9 @@
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 LABEL org.opencontainers.image.title="ArchMAP" \
       org.opencontainers.image.description="Static architecture analysis and visualization for software projects." \
-      org.opencontainers.image.url="https://github.com/KGzin/ArchMAP" \
-      org.opencontainers.image.source="https://github.com/KGzin/ArchMAP" \
+      org.opencontainers.image.url="https://github.com/Kaua-KGzin/ArchMAP" \
+      org.opencontainers.image.source="https://github.com/Kaua-KGzin/ArchMAP" \
       org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app

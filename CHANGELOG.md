@@ -4,6 +4,31 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **GitHub Action (`action.yml`) installed the wrong package.** It ran
+  `pip install archmap`, which is an unrelated third-party project on PyPI
+  (`archmap` 0.5), instead of `KG-ARCHMAP`. It now installs `KG-ARCHMAP`
+  (pinned with `archmap-version` when given).
+- **Action `fail-on-explosions` input crashed the run** — it passed
+  `--fail-on-explosions`, which `archmap analyze` does not accept; it now maps
+  to `--fail-on-dependency-explosions`.
+- **Action `sarif: true` crashed the run** — it passed the path to the boolean
+  `--sarif` flag; it now uses `--sarif --out-sarif <path>`.
+- Action inputs are passed to the shell through `env` instead of `${{ }}`
+  interpolation (no script injection, paths with spaces work), outputs are
+  written even when a quality gate fails, the SARIF is uploaded in that case
+  too, and `health-score` is empty (not a fake `100`) when the report is
+  unreadable.
+- Docker image OCI labels pointed to `github.com/KGzin/ArchMAP`.
+
+### Changed
+- Python 3.14 is now tested in CI and declared in the classifiers; the Docker
+  image is built on `python:3.14-slim`.
+- `express` 5.3.0 (lockfile: `body-parser` 2.4.0, fixes GHSA-27r3-jxmh-p828,
+  high-severity DoS). `engines.node` raised to `>=22` (Node 20 is EOL).
+- Dev tool minimums raised to the versions CI runs (pytest 9, pytest-cov 7,
+  ruff 0.17, mypy 2, pip-audit 2.10); `mkdocs-material>=9.8`.
+
 ## [1.4.1] - 2026-10-21
 
 ### Added

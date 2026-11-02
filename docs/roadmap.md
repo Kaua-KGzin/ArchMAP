@@ -83,7 +83,7 @@
 
 ### v0.9.0
 - **Parser resolution rate** — `resolutionRate` metric in all reports. CLI warns when < 70%. `--min-resolution-rate PCT` gate for CI.
-- **Shell completion** — `archmap --print-completion bash|zsh|fish`. Install: `pip install archmap[completion]`.
+- **Shell completion** — `archmap --print-completion bash|zsh|fish`. Install: `pip install "KG-ARCHMAP[completion]"`.
 - **Web UI PNG export** — Download button in canvas toolbar, 2× scale, zero deps. ✅
 - **Docker image** — `ghcr.io/kaua-kgzin/archmap:latest` published automatically on each release via GitHub Actions. ✅
 - **i18n — 6 languages** — English, Português (Brasil), Español, Français, Deutsch, 中文 (简体). Instant switch, persisted.
