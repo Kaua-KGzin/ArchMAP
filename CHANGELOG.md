@@ -35,6 +35,11 @@ All notable changes to this project are documented in this file.
   differs from `archmap.__version__` (v1.4.1 and the first v1.4.2 tag were both
   cut before the bump, so they built the previous version and PyPI skipped
   the upload).
+- Third-party actions that hold release credentials are pinned by commit SHA:
+  `pypa/gh-action-pypi-publish` v1.14.3 (it was on the mutable
+  `release/v1` branch, with `id-token: write`) and
+  `softprops/action-gh-release` v3.0.3 (`contents: write`). Dependabot keeps
+  SHA pins up to date.
 
 ## [1.4.1] - 2026-10-21
 
