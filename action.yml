@@ -158,7 +158,7 @@ runs:
     - name: Upload SARIF to GitHub Code Scanning
       # Upload even when a quality gate failed, so findings still reach Code Scanning.
       if: ${{ !cancelled() && inputs.sarif == 'true' && steps.analyze.outputs.sarif-path != '' }}
-      uses: github/codeql-action/upload-sarif@v4.37.4
+      uses: github/codeql-action/upload-sarif@v4.39.3
       with:
         sarif_file: ${{ inputs.sarif-path }}
         category: archmap
