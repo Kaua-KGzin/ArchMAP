@@ -2,6 +2,15 @@
 
 ## Released
 
+### v1.4.2 (2026-11-02) — GitHub Action and toolchain fixes
+- **GitHub Action**: installs `KG-ARCHMAP` (it installed an unrelated `archmap` PyPI package), `sarif` and `fail-on-explosions` inputs fixed, inputs passed via `env`.
+- **Python 3.14** in CI and the Docker image; `express` 5.3 / `body-parser` 2.4 (GHSA-27r3-jxmh-p828); Node `>=22`.
+- **Release guard**: tag/version mismatch fails the release workflows before anything is built or published.
+
+### v1.4.1 (2026-10-21) — security and accuracy review
+- Interprocedural taint analysis (`TAINT-*`) across files for Python, JS/TS, C# and Java; insecure-code checks (`CODE-*`); SARIF export for `audit`; context-aware secret ranking.
+- Accuracy fixes from a field test on real repositories: precise C# `using` resolution, NestJS/Angular dotted imports, vendored code excluded from risk ranking, `--no-cache` and `--show-unresolved=all` fixed.
+
 ### v1.4.0 (2026-10-17)
 - **`archmap inspect`, `hexdump`, `strings`** — static reverse engineering:
   format identification by magic bytes, ELF/PE/Mach-O/WebAssembly parsing with
@@ -106,7 +115,7 @@
 
 ### v0.9.0
 - **Parser resolution rate** — `resolutionRate` metric in all reports. CLI warns when < 70%. `--min-resolution-rate PCT` gate for CI.
-- **Shell completion** — `archmap --print-completion bash|zsh|fish`. Install: `pip install archmap[completion]`.
+- **Shell completion** — `archmap --print-completion bash|zsh|fish`. Install: `pip install "KG-ARCHMAP[completion]"`.
 - **Web UI PNG export** — Download button in canvas toolbar, 2× scale, zero deps. ✅
 - **Docker image** — `ghcr.io/kaua-kgzin/archmap:latest` published automatically on each release via GitHub Actions. ✅
 - **i18n — 6 languages** — English, Português (Brasil), Español, Français, Deutsch, 中文 (简体). Instant switch, persisted.

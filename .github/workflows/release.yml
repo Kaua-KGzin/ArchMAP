@@ -17,6 +17,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check tag matches package version
+        run: python3 scripts/check_tag_version.py "$GITHUB_REF_NAME"
+
       - name: Setup Python
         uses: actions/setup-python@v7
         with:

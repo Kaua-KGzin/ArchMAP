@@ -50,3 +50,16 @@ class JSParser(ParserPlugin):
                 if dep:
                     resolved.append(dep)
         return resolved
+
+    def is_import_known(
+        self, entry: Any, file_id: str, file_ids: set[str], **kwargs: Any
+    ) -> bool:
+        """Stylesheet/asset imports are handled by the bundler, not unresolved code."""
+        from pathlib import PurePosixPath
+
+        from archmap.core.parser import ASSET_EXTENSIONS
+
+        if not isinstance(entry, str):
+            return False
+        path = entry.split("?", 1)[0]
+        return PurePosixPath(path).suffix.lower() in ASSET_EXTENSIONS

@@ -35,8 +35,11 @@ def detect_architectural_risks(
     layer_order: dict[str, int] | None = None,
 ) -> dict:
     active_layer_order = build_layer_order(layer_order)
-    file_nodes = [node for node in nodes if node.get("type") == "file"]
-    file_ids = {node["id"] for node in file_nodes}
+    all_file_nodes = [node for node in nodes if node.get("type") == "file"]
+    file_ids = {node["id"] for node in all_file_nodes}
+    # Vendored third-party code is not the project's to refactor: it stays in
+    # the graph (and in layer checks) but is not ranked or used for thresholds.
+    file_nodes = [node for node in all_file_nodes if not node.get("vendored")]
 
     outgoing_values = [int(node.get("outgoing", 0)) for node in file_nodes]
     total_connections = [

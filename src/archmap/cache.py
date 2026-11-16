@@ -9,6 +9,8 @@ _CACHE_DIR = ".archmap"
 _CACHE_FILE = "cache.json"
 # Hard cap: refuse to write cache files larger than 50 MB to prevent disk exhaustion.
 _MAX_CACHE_BYTES = 50 * 1024 * 1024
+# Bump when an analysis change must invalidate reports cached by the same version.
+_REPORT_SCHEMA = 2
 
 
 def compute_fingerprint(project_root: Path, config: Any) -> str:
@@ -18,9 +20,14 @@ def compute_fingerprint(project_root: Path, config: Any) -> str:
     source file so that any change — including config edits or file additions
     and deletions — causes a cache miss.
     """
+    from archmap import __version__
     from archmap.utils.file_utils import discover_source_files
 
-    config_blob = json.dumps(config, sort_keys=True, default=str)
+    # The analyzer itself is part of the input: a report produced by an older
+    # ArchMAP must not be served after an upgrade that changes the analysis.
+    config_blob = f"archmap {__version__} schema {_REPORT_SCHEMA}\n" + json.dumps(
+        config, sort_keys=True, default=str
+    )
 
     source_files = sorted(discover_source_files(project_root))
     file_meta_parts: list[str] = []

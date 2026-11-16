@@ -43,10 +43,41 @@ class CSharpParser(ParserPlugin):
         file_ids: set[str],
         **kwargs: Any,
     ) -> list[Dependency]:
-        from archmap.core.parser.resolvers import _resolve_csharp_dependency
+        from archmap.core.parser.csharp_index import index_for
+        from archmap.core.parser.resolvers import (
+            _make_file_dependency,
+            _resolve_csharp_dependency,
+        )
 
-        resolved: list[Dependency] = []
-        for entry in import_entries:
-            if isinstance(entry, str):
+        usings = [_strip_static(e) for e in import_entries if isinstance(e, str)]
+        index = index_for(file_ids, kwargs.get("get_file_content"))
+        if index is None or file_id not in index.files:
+            # No project view (e.g. a direct call without file access): fall
+            # back to the namespace-directory heuristic.
+            resolved: list[Dependency] = []
+            for entry in usings:
                 resolved.extend(_resolve_csharp_dependency(entry, file_id, file_ids))
+            return resolved
+
+        resolved = [
+            _make_file_dependency(target)
+            for target in sorted(index.dependencies_of(file_id, usings))
+        ]
+        for entry in usings:
+            if not index.is_known(entry):
+                resolved.extend(_resolve_csharp_dependency(entry, file_id, set()))
         return resolved
+
+    def is_import_known(
+        self, entry: Any, file_id: str, file_ids: set[str], **kwargs: Any
+    ) -> bool:
+        """A ``using`` of a project namespace is resolved even when it adds no edge."""
+        from archmap.core.parser.csharp_index import index_for
+
+        index = index_for(file_ids, kwargs.get("get_file_content"))
+        return bool(index and isinstance(entry, str) and index.is_known(_strip_static(entry)))
+
+
+def _strip_static(specifier: str) -> str:
+    specifier = specifier.strip()
+    return specifier[7:].strip() if specifier.startswith("static ") else specifier

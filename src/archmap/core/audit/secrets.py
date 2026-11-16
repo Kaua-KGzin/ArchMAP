@@ -149,6 +149,26 @@ _PLACEHOLDERS = re.compile(
 )
 
 
+# Dev/CI defaults that appear in every `.env.example` and docker-compose file.
+_PLACEHOLDER_PASSWORDS = frozenset({
+    "pass", "password", "passwd", "pwd", "secret", "changeme", "change_me", "example",
+    "test", "testing", "dummy", "user", "username", "postgres", "root", "admin",
+    "guest", "mysql", "redis", "mongo", "sa", "dev", "local", "xxx", "placeholder",
+})
+_URL_CREDENTIALS = re.compile(r"://([^\s:/@]+):([^\s:/@]+)@([^\s/:?#]+)")
+
+
+def _placeholder_url_credentials(url: str) -> bool:
+    """``postgresql://user:password@localhost`` is a template, not a leak."""
+    found = _URL_CREDENTIALS.search(url)
+    if not found:
+        return False
+    password = found.group(2)
+    if password.startswith(("$", "%", "<", "{")) or set(password) <= {"*", "x", "X"}:
+        return True
+    return password.casefold() in _PLACEHOLDER_PASSWORDS
+
+
 def redact(value: str) -> str:
     """Keep just enough of a secret to recognise it: ``AKIA****WXYZ``."""
     if len(value) <= 8:
@@ -177,6 +197,8 @@ def scan_text(text: str, max_matches: int = 200) -> list[SecretMatch]:
             value = found.group(0)
             key = (rule["id"], found.start(), value)
             if key in seen:
+                continue
+            if rule["id"] == "url-credentials" and _placeholder_url_credentials(value):
                 continue
             seen.add(key)
             matches.append({

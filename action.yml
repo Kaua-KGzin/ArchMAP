@@ -18,7 +18,7 @@ inputs:
     default: "3.13"
 
   archmap-version:
-    description: "ArchMAP version to install (e.g. '0.8.0'). Defaults to latest."
+    description: "KG-ARCHMAP version to install from PyPI (e.g. '1.4.1'). Defaults to latest."
     required: false
     default: ""
 
@@ -82,7 +82,7 @@ outputs:
     value: ${{ steps.analyze.outputs.sarif-path }}
 
   health-score:
-    description: "Architecture health score (0–100)."
+    description: "Architecture health score (0–100); empty if the report could not be read."
     value: ${{ steps.analyze.outputs.health-score }}
 
 runs:
@@ -95,11 +95,14 @@ runs:
 
     - name: Install ArchMAP
       shell: bash
+      env:
+        ARCHMAP_VERSION: ${{ inputs.archmap-version }}
       run: |
-        if [ -n "${{ inputs.archmap-version }}" ]; then
-          pip install "archmap==${{ inputs.archmap-version }}" --quiet
+        # The PyPI distribution is KG-ARCHMAP; "archmap" on PyPI is an unrelated project.
+        if [ -n "$ARCHMAP_VERSION" ]; then
+          python -m pip install "KG-ARCHMAP==${ARCHMAP_VERSION}" --quiet
         else
-          pip install archmap --quiet
+          python -m pip install KG-ARCHMAP --quiet
         fi
 
     - name: Run analysis
@@ -107,53 +110,54 @@ runs:
       shell: bash
       env:
         CI: "true"
+        IN_PATH: ${{ inputs.path }}
+        IN_FORMAT: ${{ inputs.format }}
+        IN_OUT: ${{ inputs.out }}
+        IN_SARIF: ${{ inputs.sarif }}
+        IN_SARIF_PATH: ${{ inputs.sarif-path }}
+        IN_FAIL_ON_CYCLES: ${{ inputs.fail-on-cycles }}
+        IN_FAIL_ON_GOD_MODULES: ${{ inputs.fail-on-god-modules }}
+        IN_FAIL_ON_EXPLOSIONS: ${{ inputs.fail-on-explosions }}
+        IN_FAIL_ON_CUSTOM_RULES: ${{ inputs.fail-on-custom-rules }}
+        IN_MIN_HEALTH: ${{ inputs.min-health }}
+        IN_QUIET: ${{ inputs.quiet }}
       run: |
-        ARGS="--format ${{ inputs.format }} --out ${{ inputs.out }}"
+        # Inputs are read from env (never interpolated into the script) to avoid
+        # shell injection; arguments are collected in an array to keep quoting.
+        ARGS=(--format "$IN_FORMAT" --out "$IN_OUT")
+        [ "$IN_FAIL_ON_CYCLES" = "true" ] && ARGS+=(--fail-on-cycles)
+        [ "$IN_FAIL_ON_GOD_MODULES" = "true" ] && ARGS+=(--fail-on-god-modules)
+        [ "$IN_FAIL_ON_EXPLOSIONS" = "true" ] && ARGS+=(--fail-on-dependency-explosions)
+        [ "$IN_FAIL_ON_CUSTOM_RULES" = "true" ] && ARGS+=(--fail-on-custom-rules)
+        [ "$IN_MIN_HEALTH" != "0" ] && ARGS+=(--min-health "$IN_MIN_HEALTH")
+        [ "$IN_QUIET" = "true" ] && ARGS+=(--quiet)
+        [ "$IN_SARIF" = "true" ] && ARGS+=(--sarif --out-sarif "$IN_SARIF_PATH")
 
-        if [ "${{ inputs.fail-on-cycles }}" = "true" ]; then
-          ARGS="$ARGS --fail-on-cycles"
-        fi
-        if [ "${{ inputs.fail-on-god-modules }}" = "true" ]; then
-          ARGS="$ARGS --fail-on-god-modules"
-        fi
-        if [ "${{ inputs.fail-on-explosions }}" = "true" ]; then
-          ARGS="$ARGS --fail-on-explosions"
-        fi
-        if [ "${{ inputs.fail-on-custom-rules }}" = "true" ]; then
-          ARGS="$ARGS --fail-on-custom-rules"
-        fi
-        if [ "${{ inputs.min-health }}" != "0" ]; then
-          ARGS="$ARGS --min-health ${{ inputs.min-health }}"
-        fi
-        if [ "${{ inputs.quiet }}" = "true" ]; then
-          ARGS="$ARGS --quiet"
-        fi
-        if [ "${{ inputs.sarif }}" = "true" ]; then
-          ARGS="$ARGS --sarif ${{ inputs.sarif-path }}"
-        fi
+        # Record the exit code so outputs are still written when a gate fails.
+        set +e
+        python -m archmap.cli.main analyze "$IN_PATH" "${ARGS[@]}"
+        STATUS=$?
+        set -e
 
-        python -m archmap.cli.main analyze ${{ inputs.path }} $ARGS
-
-        JSON_ABS="$(realpath "${{ inputs.out }}" 2>/dev/null || echo "")"
-        echo "json-path=${JSON_ABS}" >> "$GITHUB_OUTPUT"
-
-        if [ "${{ inputs.sarif }}" = "true" ]; then
-          SARIF_ABS="$(realpath "${{ inputs.sarif-path }}" 2>/dev/null || echo "")"
-          echo "sarif-path=${SARIF_ABS}" >> "$GITHUB_OUTPUT"
+        echo "json-path=$(realpath "$IN_OUT" 2>/dev/null || echo "")" >> "$GITHUB_OUTPUT"
+        if [ "$IN_SARIF" = "true" ]; then
+          echo "sarif-path=$(realpath "$IN_SARIF_PATH" 2>/dev/null || echo "")" >> "$GITHUB_OUTPUT"
         else
           echo "sarif-path=" >> "$GITHUB_OUTPUT"
         fi
 
-        # Extract health score from JSON report
-        if command -v python3 &>/dev/null && [ -f "${{ inputs.out }}" ]; then
-          HEALTH=$(python3 -c "import json,sys; d=json.load(open('${{ inputs.out }}')); print(d.get('architecture',{}).get('health',{}).get('score',100))" 2>/dev/null || echo "100")
-          echo "health-score=${HEALTH}" >> "$GITHUB_OUTPUT"
-        else
-          echo "health-score=100" >> "$GITHUB_OUTPUT"
+        # Extract health score from the JSON report (empty when unavailable).
+        HEALTH=""
+        if [ -f "$IN_OUT" ]; then
+          HEALTH=$(python -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("architecture",{}).get("health",{}).get("score",""))' "$IN_OUT" 2>/dev/null || echo "")
         fi
+        echo "health-score=${HEALTH}" >> "$GITHUB_OUTPUT"
+
+        exit "$STATUS"
 
     - name: Upload SARIF to GitHub Code Scanning
-      if: inputs.sarif == 'true'
+      # Upload even when a quality gate failed, so findings still reach Code Scanning.
+      if: ${{ !cancelled() && inputs.sarif == 'true' && steps.analyze.outputs.sarif-path != '' }}
       uses: github/codeql-action/upload-sarif@v4.37.4
       with:
         sarif_file: ${{ inputs.sarif-path }}

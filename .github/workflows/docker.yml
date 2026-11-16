@@ -18,6 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Check tag matches package version
+        if: github.ref_type == 'tag'
+        run: python3 scripts/check_tag_version.py "$GITHUB_REF_NAME"
+
       - name: Log in to GHCR
         uses: docker/login-action@v4
         with:

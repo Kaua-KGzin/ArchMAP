@@ -2,6 +2,16 @@
 
 ## Released
 
+### v1.4.2 (2026-11-02) — GitHub Action and toolchain fixes
+- **GitHub Action**: installs `KG-ARCHMAP` (it installed an unrelated `archmap` PyPI package), `sarif` and `fail-on-explosions` inputs fixed, inputs passed via `env`.
+- **Python 3.14** in CI and the Docker image; `express` 5.3 / `body-parser` 2.4 (GHSA-27r3-jxmh-p828); Node `>=22`.
+- **Release guard**: tag/version mismatch fails the release workflows before anything is built or published.
+
+### v1.4.1 (2026-10-21) — security and accuracy review
+- **Interprocedural taint analysis (`TAINT-*`)** in `archmap audit`: untrusted input followed across files (dependency-graph-scoped call resolution) to SQL, shell, eval, template, deserialization, path, SSRF, XSS, redirect, NoSQL and regex sinks — Python (AST), JS/TS, C#, Java.
+- **Insecure code patterns (`CODE-*`)**, **SARIF export**, **context-aware secret ranking**.
+- **Accuracy fixes found on real repositories**: C# `using` resolution by referenced types, NestJS/Angular dotted imports, ESM `.js`→`.ts`, vendored code out of risk ranking, `--no-cache`, `--show-unresolved=all`.
+
 ### v1.1.0 (2026-08-12)
 - **`archmap netscan`** — nmap-style network discovery and port scanning built into ArchMAP: host discovery, threaded TCP port scanning, service fingerprinting, and per-port risk classification, all stdlib-only so it runs on Termux/Android without root. Uses a system `nmap` install automatically when present (`--no-nmap`/`--use-nmap` to override), adding OS detection (`--os-detection`) and NSE scripts (`--scripts`). First step past static-code-only analysis.
 - **Web UI mobile/Termux fixes** — responsive toolbar/nav-rail layout at tablet and phone widths, and the "Open project" button now falls back to a manual path prompt instead of doing nothing when no native folder picker is available (the common case on Termux).
@@ -42,7 +52,7 @@
 
 ### v0.9.0
 - **Parser resolution rate** — `resolutionRate` metric in all reports. CLI warns when < 70%. `--min-resolution-rate PCT` gate for CI.
-- **Shell completion** — `archmap --print-completion bash|zsh|fish`. Install: `pip install archmap[completion]`.
+- **Shell completion** — `archmap --print-completion bash|zsh|fish`. Install: `pip install "KG-ARCHMAP[completion]"`.
 - **Web UI PNG export** — Download button in canvas toolbar, 2× scale, zero deps. ✅
 - **Docker image** — `ghcr.io/kaua-kgzin/archmap:latest` published automatically on each release via GitHub Actions. ✅
 - **i18n — 6 languages** — English, Português (Brasil), Español, Français, Deutsch, 中文 (简体). Instant switch, persisted.

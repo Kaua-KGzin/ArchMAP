@@ -4,7 +4,11 @@ from __future__ import annotations
 def annotate_nodes_with_complexity(
     nodes: list[dict], cycle_membership: dict[str, int]
 ) -> list[dict]:
-    file_nodes = [node for node in nodes if node.get("type") == "file"]
+    # Normalize against the project's own code so a vendored giant (imgui.cpp)
+    # does not flatten every other file's score.
+    file_nodes = [
+        node for node in nodes if node.get("type") == "file" and not node.get("vendored")
+    ] or [node for node in nodes if node.get("type") == "file"]
     max_outgoing = max((node.get("outgoing", 0) for node in file_nodes), default=0)
     max_incoming = max((node.get("incoming", 0) for node in file_nodes), default=0)
     max_connections = max(
@@ -60,7 +64,7 @@ def annotate_nodes_with_complexity(
 def summarize_complexity(nodes: list[dict]) -> list[dict]:
     summary = []
     for node in nodes:
-        if node.get("type") != "file":
+        if node.get("type") != "file" or node.get("vendored"):
             continue
         summary.append(
             {
@@ -80,7 +84,7 @@ def summarize_complexity(nodes: list[dict]) -> list[dict]:
 def summarize_critical_files(nodes: list[dict]) -> list[dict]:
     summary = []
     for node in nodes:
-        if node.get("type") != "file":
+        if node.get("type") != "file" or node.get("vendored"):
             continue
         summary.append(
             {

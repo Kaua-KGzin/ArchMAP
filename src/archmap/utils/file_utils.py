@@ -47,6 +47,26 @@ DEFAULT_IGNORE_DIRS = {
 }
 
 
+# Third-party code copied into a repository. It is kept in the graph (it is
+# real code the project links) but must not dominate risk rankings or be
+# reported as the project's own vulnerabilities.
+VENDOR_DIR_NAMES = frozenset({
+    "vendor", "vendors", "vendored", "third_party", "third-party", "thirdparty",
+    "3rdparty", "extern", "ext", "deps", "external_libs", "contrib",
+})
+VENDOR_LIBRARY_NAMES = frozenset({
+    "imgui", "stb", "glad", "glfw", "glm", "minhook", "detours", "nlohmann", "rapidjson",
+    "spdlog", "freetype", "lua", "luajit", "sqlite3", "zlib", "curl", "openssl", "boost",
+    "eigen", "catch2", "gtest", "googletest", "doctest", "json-c", "cjson", "miniaudio",
+})
+
+
+def is_vendored_path(file_id: str) -> bool:
+    """True when ``file_id`` sits in a vendored/third-party directory."""
+    parts = [p.casefold() for p in normalize_file_id(file_id).split("/")[:-1]]
+    return any(p in VENDOR_DIR_NAMES or p in VENDOR_LIBRARY_NAMES for p in parts)
+
+
 def normalize_file_id(file_id: str) -> str:
     normalized = str(PurePosixPath(file_id.replace("\\", "/")))
     if normalized.startswith("./"):
