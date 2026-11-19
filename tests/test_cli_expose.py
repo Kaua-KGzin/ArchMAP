@@ -179,3 +179,29 @@ def test_run_expose_no_findings(monkeypatch, capsys) -> None:
 
     assert exit_code == 0
     assert "No open ports found." in capsys.readouterr().out
+
+
+def test_run_expose_snapshot_flag_persists_the_report(monkeypatch, tmp_path, capsys) -> None:
+    _patch_pipeline(monkeypatch)
+
+    exit_code = cli_commands.run_expose(
+        _base_args(path=str(tmp_path), snapshot=True, json=True)
+    )
+
+    assert exit_code == 0
+    stored = list((tmp_path / ".archmap" / "network").glob("*.json"))
+    assert len(stored) == 1
+    payload = json.loads(stored[0].read_text(encoding="utf-8"))
+    assert payload["kind"] == "expose"
+    assert payload["report"] == _CORRELATE_RESULT
+    # Kept off stdout so `--json` output stays pipeable.
+    assert "Snapshot saved" in capsys.readouterr().err
+
+
+def test_run_expose_without_snapshot_flag_writes_nothing(monkeypatch, tmp_path) -> None:
+    _patch_pipeline(monkeypatch)
+
+    exit_code = cli_commands.run_expose(_base_args(path=str(tmp_path)))
+
+    assert exit_code == 0
+    assert not (tmp_path / ".archmap").exists()

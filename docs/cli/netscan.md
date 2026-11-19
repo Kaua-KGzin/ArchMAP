@@ -52,6 +52,7 @@ Accepted target formats:
 | `--concurrency N` | `200` | Max concurrent connections for discovery/port scanning (Python engine only) |
 | `--json` | off | Output results as JSON |
 | `--out PATH` | — | Write the JSON scan report to a file |
+| `--snapshot` | off | Also store the scan under `.archmap/network/` for [`archmap network diff`](network.md) |
 
 ## Port analysis
 

@@ -4,6 +4,86 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Network observation snapshots + `archmap network diff`** — `netscan` and
+  `expose` results were fire-and-forget: every run re-scanned from scratch
+  and there was no way to ask "what changed since last time" the way
+  `archmap diff` already answers that for code. `archmap netscan`/`archmap
+  expose` now accept `--snapshot`, which stores the report verbatim under
+  `<path>/.archmap/network/` (same `.archmap/` convention `archmap memory`
+  writes into), one timestamp-named JSON file per scan, pruned to the 30
+  newest. Opt-in on purpose — a scan writing into your project by default
+  would be a surprise.
+- **`archmap network diff` / `archmap network list`** — diffs two stored
+  snapshots: ports opened and closed, services and risk levels that changed
+  on a port that stayed open, hosts that appeared or disappeared, and
+  `[network.rules]` drift violations that are new or resolved. Snapshots are
+  referenced as `latest`, `previous`, an age index, or a file path
+  (`--from`/`--to`). Because both report shapes are normalized into one
+  observation per `host:port/protocol` first, a bare `netscan` snapshot and
+  a correlated `expose` snapshot of the same target diff cleanly against
+  each other. `--fail-on-new-ports` makes it a CI gate; `--json`/`--out`
+  give the machine-readable diff.
+- **`archmap memory` network section** — when the project has a stored
+  network snapshot, the digest now folds in its drift violations and
+  notable exposed services, so an AI agent's session-start context covers
+  network exposure without a separate command or MCP call. "Notable" means
+  the network rates the port risky, correlation rated the finding
+  `high`/`critical`, a config literal in the codebase points at it
+  (confidence ≥ 0.7), or it breaks a declared `[network.rules]` boundary —
+  a `/24` with fifty boring open ports can't crowd out the code-side
+  digest. The section carries the snapshot's `capturedAt` so an agent can
+  judge staleness, and is absent entirely for projects that never scan;
+  `--no-network` opts out even when a snapshot exists.
+- **Public helpers** — `archmap.core.exposure` now exports `save_snapshot`,
+  `list_snapshots`, `load_snapshot`, `resolve_snapshot`, `latest_snapshot`,
+  and `diff_network_snapshots`.
+
+### Fixed
+- **`archmap audit` scanned untracked framework build output.** Only a fixed
+  list of build dirs (`dist`, `build`, `target`, ...) was skipped when git did
+  not track them, so `.next/`, `.nuxt/`, `.svelte-kit/`, `.vercel/`, `.turbo/`,
+  `.output/`, `.angular/`, `.gradle/` and .NET `obj/` were audited. On a Next.js
+  app this produced high TAINT findings inside Next's own bundled server chunks
+  (`.next/dev`) and spent 431 of 558 scanned files on generated code. They are
+  now skipped like `dist/`, and still audited when git tracks them.
+- **`archmap serve` exited 1 on a read-only project.** It wrote the report files
+  (`.codeatlas/graph.json`, ...) before listening, so the Docker image run with
+  `-v repo:/project:ro` died with `EROFS` and never served the UI. A write failure
+  is now a warning and the UI is served anyway.
+- **The Docker image logged nothing while serving.** Python block-buffers stdout
+  without a TTY, so `docker logs` stayed empty — not even the Web UI address. The
+  image now sets `PYTHONUNBUFFERED=1`.
+- **`archmap serve --host 0.0.0.0` advertised loopback to the Arch Hub silently.**
+  From a container or another machine the Hub cannot reach that address (or reaches
+  something else on the same port). Serve now warns to set `ARCHHUB_PUBLIC_URL`,
+  like System-PVD does.
+- **Arch line adapter: a down Hub was polled every 2s forever in register-only
+  mode.** With `ARCHHUB_HEARTBEAT_SECONDS=0` the retry backoff was capped at
+  `max(heartbeat, 2)` = 2 seconds, so the exponential backoff never grew and
+  an unreachable Hub got hit twice a second per system. The ceiling is now the
+  heartbeat period when there is one, and `MAX_RETRY_SECONDS` (300s) when
+  there isn't. `_run()` had no test coverage at all, which is why this went
+  unnoticed; the backoff schedule is now pinned for both modes.
+- **Arch line adapter: a rejected heartbeat counted as a successful one.**
+  Only HTTP 404 sent the adapter back to registration, so a 401/403 from a
+  rotated or mis-scoped token — or any 5xx — left `archmap serve` heartbeating
+  into a Hub that refused it, silently, forever, while the Hub's `stale-after`
+  window quietly marked it down. Now only 2xx keeps the registration; 404
+  re-registers as before, and every other status warns once and re-registers.
+- **`archmap hub-report` crashed on a report with null metrics.**
+  `build_architecture_payload` called `int()` straight on `filesAnalyzed` and
+  `circularDependencyCount`; a key that was present but `null` raised
+  `TypeError` (not caught by the `URLError/OSError/ValueError` handler around
+  the publish), failing the CI job instead of publishing a zero. Values that
+  aren't usable numbers now coerce to `0`, and a non-string `grade` to `null`.
+- `_slugify` could emit a trailing hyphen when a long directory name was cut
+  at 63 characters, because the strip ran before the truncation.
+- Two tests only failed on Windows, which made the local suite red at baseline
+  regardless of the change under test: `test_audit.py` wrote invisible Unicode
+  with no `encoding=` (cp1252 can't encode U+200B/U+202E) and
+  `test_cli_server.py` set `HOME` where `Path.expanduser()` reads `USERPROFILE`.
+
 ## [1.4.2] - 2026-11-02
 
 ### Fixed

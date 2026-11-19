@@ -809,3 +809,97 @@ def test_get_project_mtimes_handles_oserror(monkeypatch, tmp_path) -> None:
     result = cli_commands._get_project_mtimes(tmp_path)
     assert isinstance(result, dict)
     assert str(src_file) not in result
+
+
+def _stub_serve(monkeypatch, tmp_path, export_outputs, seen: dict[str, object]) -> Namespace:
+    """run_serve with every collaborator stubbed; serve_forever returns at once."""
+    static_dir = tmp_path / "static"
+    static_dir.mkdir(exist_ok=True)
+    state = type("State", (), {"path": tmp_path, "report": {"graph": True}})()
+
+    class StubReportState:
+        @classmethod
+        def from_path(cls, _path, **kwargs):
+            return state
+
+    class FakeServer:
+        def __init__(self, address, handler):
+            seen["address"] = address
+
+        def serve_forever(self) -> None:
+            seen["served"] = True
+            raise KeyboardInterrupt
+
+        def server_close(self) -> None:
+            pass
+
+    monkeypatch.setattr(cli_commands, "ReportState", StubReportState)
+    monkeypatch.setattr(cli_commands, "export_outputs", export_outputs)
+    for name in ("print_summary", "print_human_insights", "print_project_explanation"):
+        monkeypatch.setattr(cli_commands, name, lambda *_a, **_k: None)
+    monkeypatch.setattr(cli_commands, "print_top_complexity", lambda *_a: None)
+    monkeypatch.setattr(cli_commands, "print_top_risks", lambda *_a: None)
+    monkeypatch.setattr(
+        cli_commands,
+        "print_export_summary",
+        lambda payload: seen.update({"export_summary": payload}),
+    )
+    monkeypatch.setattr(cli_commands, "resolve_static_dir", lambda: static_dir)
+    monkeypatch.setattr(cli_commands, "build_http_handler", lambda _state, _static_dir: "handler")
+    monkeypatch.setattr(cli_commands, "ThreadingHTTPServer", FakeServer)
+    monkeypatch.setattr(
+        cli_commands, "start_arch_hub_registration", lambda *_a, **_k: seen.update({"hub": True})
+    )
+    return Namespace(
+        path=str(tmp_path), format="json", out=".codeatlas/graph.json", out_mermaid=None,
+        out_cytoscape=None, include_cytoscape=False, no_subgraphs=False,
+        host="0.0.0.0", port=3000, no_open=True,
+    )
+
+
+def test_run_serve_keeps_serving_when_the_project_is_read_only(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    # Found running the Docker image with `-v repo:/project:ro`: serve wrote
+    # .codeatlas/graph.json first, got EROFS, and exited 1 without ever listening.
+    seen: dict[str, object] = {}
+
+    def read_only(**_kwargs):
+        raise OSError(30, "Read-only file system", "/project/.codeatlas/graph.json")
+
+    args = _stub_serve(monkeypatch, tmp_path, read_only, seen)
+
+    assert cli_commands.run_serve(args) == 0
+    assert seen.get("served") is True
+    assert "export_summary" not in seen  # nothing was written, nothing to summarize
+    out = capsys.readouterr().out
+    assert "[warn]" in out and "graph.json" in out
+
+
+def test_run_serve_warns_when_a_wildcard_bind_is_advertised_to_the_hub(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    # Bound to 0.0.0.0 the adapter falls back to http://localhost:<port>, which from a Hub
+    # outside this container/host is some other service (or nothing at all).
+    seen: dict[str, object] = {}
+    args = _stub_serve(monkeypatch, tmp_path, lambda **_kw: {"jsonPath": "g.json"}, seen)
+    monkeypatch.setenv("ARCHHUB_URL", "http://hub:8080")
+    monkeypatch.delenv("ARCHHUB_PUBLIC_URL", raising=False)
+
+    cli_commands.run_serve(args)
+
+    out = capsys.readouterr().out
+    assert "ARCHHUB_PUBLIC_URL" in out
+
+
+def test_run_serve_does_not_warn_about_the_hub_when_public_url_is_set(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    seen: dict[str, object] = {}
+    args = _stub_serve(monkeypatch, tmp_path, lambda **_kw: {"jsonPath": "g.json"}, seen)
+    monkeypatch.setenv("ARCHHUB_URL", "http://hub:8080")
+    monkeypatch.setenv("ARCHHUB_PUBLIC_URL", "http://archmap.lan:3000")
+
+    cli_commands.run_serve(args)
+
+    assert "ARCHHUB_PUBLIC_URL" not in capsys.readouterr().out

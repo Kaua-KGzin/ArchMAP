@@ -162,6 +162,20 @@ Summary: 2 open port(s), 1 matched to code, 1 high/critical.
 }
 ```
 
+## Keeping history (`--snapshot`)
+
+`expose` is fire-and-forget by default. Pass `--snapshot` to also store the
+report under `<path>/.archmap/network/`:
+
+```bash
+archmap expose 192.168.1.0/24 . --snapshot
+```
+
+Stored snapshots are what [`archmap network diff`](network.md) compares
+("what opened, closed, or drifted since the last scan"), and what
+[`archmap memory`](memory.md) folds into its digest so an AI agent's
+session-start context covers network exposure too.
+
 ## Requirements
 
 Same as [`archmap netscan`](netscan.md) (stdlib-only Python engine by

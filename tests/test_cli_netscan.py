@@ -229,3 +229,20 @@ def test_run_netscan_no_hosts_found(monkeypatch, capsys) -> None:
     assert exit_code == 0
     out = capsys.readouterr().out
     assert "No live hosts found." in out
+
+
+def test_run_netscan_snapshot_flag_persists_the_scan(monkeypatch, tmp_path, capsys) -> None:
+    report = {"target": "10.0.0.1", "engine": "python", "hosts": [], "durationSeconds": 0.0}
+    monkeypatch.setattr(cli_commands, "_scan_network", lambda target, **kwargs: report)
+
+    exit_code = cli_commands.run_netscan(
+        _base_args(path=str(tmp_path), snapshot=True, json=True)
+    )
+
+    assert exit_code == 0
+    stored = list((tmp_path / ".archmap" / "network").glob("*.json"))
+    assert len(stored) == 1
+    payload = json.loads(stored[0].read_text(encoding="utf-8"))
+    assert payload["kind"] == "netscan"
+    assert payload["report"] == report
+    assert "Snapshot saved" in capsys.readouterr().err

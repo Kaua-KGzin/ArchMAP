@@ -6,6 +6,11 @@ LABEL org.opencontainers.image.title="ArchMAP" \
       org.opencontainers.image.source="https://github.com/Kaua-KGzin/ArchMAP" \
       org.opencontainers.image.licenses="MIT"
 
+# Without PYTHONUNBUFFERED a long-running `serve` printed nothing to `docker logs`:
+# stdout is block-buffered when there is no TTY, so not even the Web UI address showed.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
 WORKDIR /app
 
 COPY pyproject.toml README.md LICENSE ./

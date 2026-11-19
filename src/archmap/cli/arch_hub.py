@@ -32,6 +32,11 @@ from archmap import __version__
 SYSTEM_ID = "archmap"
 DEFAULT_HEARTBEAT_SECONDS = 20
 REQUEST_TIMEOUT_SECONDS = 5
+INITIAL_RETRY_SECONDS = 2.0
+# Ceiling for the retry backoff in register-only mode (``ARCHHUB_HEARTBEAT_SECONDS=0``),
+# where there is no heartbeat period to cap it. Without it a Hub that is down gets
+# polled every 2s forever by every system on the line.
+MAX_RETRY_SECONDS = 300.0
 
 # (url, body, headers) -> HTTP status. Injected in tests.
 Poster = Callable[[str, bytes | None, dict[str, str]], int]
@@ -119,45 +124,75 @@ class ArchHubRegistrar:
         hub = self.config.hub_url
         try:
             if self._registered:
-                status = self._post(
-                    f"{hub}/api/v1/systems/{SYSTEM_ID}/heartbeat", None, self._headers(False)
-                )
-                self._registered = status != 404
+                self._heartbeat(hub)
             else:
-                body = json.dumps(self.payload()).encode("utf-8")
-                status = self._post(f"{hub}/api/v1/systems", body, self._headers(True))
-                self._registered = 200 <= status < 300
-                if self._registered:
-                    self._log(f"[info] Registered in Arch Hub {hub} as '{SYSTEM_ID}'")
-                    self._warned = False
-                elif not self._warned:
-                    self._log(f"[warn] Arch Hub rejected registration: HTTP {status}")
-                    self._warned = True
+                self._register(hub)
         except (URLError, OSError, ValueError) as exc:
             self._registered = False
             if not self._warned:
                 self._log(f"[warn] Arch Hub unreachable at {hub}: {exc}")
                 self._warned = True
 
+    def _heartbeat(self, hub: str) -> None:
+        status = self._post(
+            f"{hub}/api/v1/systems/{SYSTEM_ID}/heartbeat", None, self._headers(False)
+        )
+        if 200 <= status < 300:
+            self._warned = False
+            return
+        # 404 means the Hub restarted without persistence and forgot us — the contract
+        # says go back to registering. Any other rejection (401/403 from a rotated or
+        # mis-scoped token, 5xx) would otherwise keep us heartbeating into the void
+        # forever, so re-register on those too instead of assuming we are still known.
+        self._registered = False
+        if status != 404 and not self._warned:
+            self._log(f"[warn] Arch Hub rejected the heartbeat: HTTP {status}; re-registering")
+            self._warned = True
+
+    def _register(self, hub: str) -> None:
+        body = json.dumps(self.payload()).encode("utf-8")
+        status = self._post(f"{hub}/api/v1/systems", body, self._headers(True))
+        self._registered = 200 <= status < 300
+        if self._registered:
+            self._log(f"[info] Registered in Arch Hub {hub} as '{SYSTEM_ID}'")
+            self._warned = False
+        elif not self._warned:
+            self._log(f"[warn] Arch Hub rejected registration: HTTP {status}")
+            self._warned = True
+
+    @property
+    def _retry_ceiling(self) -> float:
+        """How long the backoff may grow to: the heartbeat period, or a cap without one."""
+        heartbeat = float(self.config.heartbeat_seconds)
+        return heartbeat if heartbeat > 0 else MAX_RETRY_SECONDS
+
     def _run(self) -> None:
-        retry = 2.0
+        retry = INITIAL_RETRY_SECONDS
         while not self._stop.is_set():
             self.tick()
             if self._registered and self.config.heartbeat_seconds == 0:
                 return
             if self._registered:
-                delay, retry = float(self.config.heartbeat_seconds), 2.0
+                delay, retry = float(self.config.heartbeat_seconds), INITIAL_RETRY_SECONDS
             else:
                 delay = retry
-                retry = min(retry * 2, max(float(self.config.heartbeat_seconds), 2.0))
+                retry = min(retry * 2, self._retry_ceiling)
             self._stop.wait(delay)
 
     def start(self) -> None:
+        if self._thread is not None and self._thread.is_alive():
+            return
+        self._stop.clear()
         self._thread = threading.Thread(target=self._run, name="arch-hub", daemon=True)
         self._thread.start()
 
-    def stop(self) -> None:
+    def stop(self, timeout: float = 1.0) -> None:
+        """Signals the loop to stop and waits briefly. The thread is a daemon, so a
+        request still in flight never holds up process exit."""
         self._stop.set()
+        thread, self._thread = self._thread, None
+        if thread is not None and thread.is_alive():
+            thread.join(timeout)
 
 
 def start_arch_hub_registration(
@@ -178,8 +213,18 @@ _SLUG_ALLOWED = set("abcdefghijklmnopqrstuvwxyz0123456789-")
 
 
 def _slugify(name: str) -> str:
-    slug = "".join(ch if ch in _SLUG_ALLOWED else "-" for ch in name.lower()).strip("-")
-    return slug[:63] or "project"
+    slug = "".join(ch if ch in _SLUG_ALLOWED else "-" for ch in name.lower())
+    # Strip after truncating too: a cut at 63 chars can land on a hyphen.
+    return slug.strip("-")[:63].strip("-") or "project"
+
+
+def _as_int(value: object, default: int = 0) -> int:
+    """Report fields are whatever the analyzer produced; a null or a string must not
+    crash ``hub-report`` in CI."""
+    try:
+        return int(value)  # type: ignore[call-overload]
+    except (TypeError, ValueError):
+        return default
 
 
 def resolve_system_id(project: Path, explicit: str | None = None) -> str:
@@ -210,11 +255,12 @@ def build_architecture_payload(
     metrics = report.get("metrics")
     metrics = metrics if isinstance(metrics, dict) else {}
     findings = report.get("findings")
+    grade = health.get("grade")
     payload: dict[str, object] = {
-        "score": int(health.get("score") or metrics.get("architectureHealthScore") or 0),
-        "grade": health.get("grade"),
-        "files": int(metrics.get("filesAnalyzed", 0)),
-        "cycles": int(metrics.get("circularDependencyCount", 0)),
+        "score": _as_int(health.get("score") or metrics.get("architectureHealthScore") or 0),
+        "grade": grade if isinstance(grade, str) else None,
+        "files": _as_int(metrics.get("filesAnalyzed")),
+        "cycles": _as_int(metrics.get("circularDependencyCount")),
         "findings": len(findings) if isinstance(findings, list) else 0,
         "commit": (commit or "")[:64] or None,
         "ref": ref,

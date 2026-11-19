@@ -242,13 +242,22 @@ archmap expose 192.168.1.0/24 .
 
 Runs a netscan and cross-references the results against your codebase's dependency graph: if an open port's service (say, Redis on `6379`) matches a package your code actually imports, ArchMAP surfaces that package's already-computed blast radius (how many files depend on it) right next to the port's network risk rating — combined into one severity. Each finding also carries a `confidence` score: an exact host:port literal found in a `.env` file or connection string scores far higher than a bare service-name guess. Declare expected consumer→service relationships in `.archmap.toml`'s `[network.rules]` (same `forbid`/`allow` syntax as `[architecture.rules]`) and a high-confidence connection that breaks a rule is flagged as a drift violation. Accepts every `archmap netscan` option (`--ports`, `--use-nmap`, `--scripts`, etc.) plus the project path to analyze. See [`archmap expose`](docs/cli/expose.md) for the full option list and JSON schema.
 
+### Network diff (what changed since the last scan)
+
+```bash
+archmap expose 192.168.1.0/24 . --snapshot   # capture
+archmap network diff .                       # compare against the previous one
+```
+
+`--snapshot` persists a scan under `.archmap/network/`; `archmap network diff` then answers for the network what [`archmap diff`](docs/cli/diff.md) answers for the code — ports opened and closed, services and risk levels that changed on a port that stayed open, hosts that appeared or went away, and `[network.rules]` drift violations that are new or resolved. `netscan` and `expose` snapshots normalize to the same shape, so they diff cleanly against each other. `--fail-on-new-ports` turns it into a CI gate. See [`archmap network`](docs/cli/network.md).
+
 ### Memory (persistent context for AI agents)
 
 ```bash
 archmap memory .
 ```
 
-Renders the project's health score, top risk files, cycles, and violations into a compact markdown digest (`.archmap/memory.md`) an AI coding agent can read at session start instead of re-exploring the codebase from scratch. It's cheap to re-run (reuses `archmap analyze`'s own cache) and idempotent (a no-op change doesn't touch the file). Pair it with a Claude Code `SessionStart` hook to inject it straight into context and a `PostToolUse` hook to keep it fresh after every edit — see [`archmap memory`](docs/cli/memory.md) for ready-to-paste hook config.
+Renders the project's health score, top risk files, cycles, and violations into a compact markdown digest (`.archmap/memory.md`) an AI coding agent can read at session start instead of re-exploring the codebase from scratch. When the project has a stored network snapshot, its drift violations and notable exposed services are folded in too, so session-start context covers code *and* network in one read. It's cheap to re-run (reuses `archmap analyze`'s own cache) and idempotent (a no-op change doesn't touch the file). Pair it with a Claude Code `SessionStart` hook to inject it straight into context and a `PostToolUse` hook to keep it fresh after every edit — see [`archmap memory`](docs/cli/memory.md) for ready-to-paste hook config.
 
 ### MCP server (AI assistant integration)
 
