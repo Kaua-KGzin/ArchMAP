@@ -40,6 +40,24 @@ All notable changes to this project are documented in this file.
   and `diff_network_snapshots`.
 
 ### Fixed
+- **`archmap audit` scanned untracked framework build output.** Only a fixed
+  list of build dirs (`dist`, `build`, `target`, ...) was skipped when git did
+  not track them, so `.next/`, `.nuxt/`, `.svelte-kit/`, `.vercel/`, `.turbo/`,
+  `.output/`, `.angular/`, `.gradle/` and .NET `obj/` were audited. On a Next.js
+  app this produced high TAINT findings inside Next's own bundled server chunks
+  (`.next/dev`) and spent 431 of 558 scanned files on generated code. They are
+  now skipped like `dist/`, and still audited when git tracks them.
+- **`archmap serve` exited 1 on a read-only project.** It wrote the report files
+  (`.codeatlas/graph.json`, ...) before listening, so the Docker image run with
+  `-v repo:/project:ro` died with `EROFS` and never served the UI. A write failure
+  is now a warning and the UI is served anyway.
+- **The Docker image logged nothing while serving.** Python block-buffers stdout
+  without a TTY, so `docker logs` stayed empty — not even the Web UI address. The
+  image now sets `PYTHONUNBUFFERED=1`.
+- **`archmap serve --host 0.0.0.0` advertised loopback to the Arch Hub silently.**
+  From a container or another machine the Hub cannot reach that address (or reaches
+  something else on the same port). Serve now warns to set `ARCHHUB_PUBLIC_URL`,
+  like System-PVD does.
 - **Arch line adapter: a down Hub was polled every 2s forever in register-only
   mode.** With `ARCHHUB_HEARTBEAT_SECONDS=0` the retry backoff was capped at
   `max(heartbeat, 2)` = 2 seconds, so the exponential backoff never grew and

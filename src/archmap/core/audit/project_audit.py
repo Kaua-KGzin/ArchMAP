@@ -87,9 +87,16 @@ def _git_tracked(root: Path) -> set[str] | None:
 _AUDIT_SKIP_DIRS = {
     ".git", "node_modules", "__pycache__", ".pytest_cache", ".codeatlas", "bower_components",
 } | _EXTRA_SKIP_DIRS
-_BUILD_DIRS = {
-    d.casefold() for d in DEFAULT_IGNORE_DIRS
-} - {d.casefold() for d in _AUDIT_SKIP_DIRS} - {"tests", "examples"}
+# Framework output directories: regenerated on every build/dev run and full of
+# bundled third-party server code. Untracked, they produced high TAINT findings
+# inside Next.js' own chunks (`.next/dev`) instead of in the project's code.
+_FRAMEWORK_BUILD_DIRS = {
+    ".next", ".nuxt", ".svelte-kit", ".vercel", ".turbo", ".output", ".angular",
+    ".parcel-cache", ".docusaurus", ".expo", ".gradle", "obj",
+}
+_BUILD_DIRS = (
+    {d.casefold() for d in DEFAULT_IGNORE_DIRS} | _FRAMEWORK_BUILD_DIRS
+) - {d.casefold() for d in _AUDIT_SKIP_DIRS} - {"tests", "examples"}
 
 
 def _iter_text_files(root: Path, tracked: set[str] | None = None) -> Iterator[Path]:

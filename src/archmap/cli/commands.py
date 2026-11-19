@@ -190,14 +190,25 @@ def run_serve(args: argparse.Namespace) -> int:
         "sarif_output": _resolve_sarif_path(args),
     }
 
-    export_result = export_outputs(**export_kwargs)
+    # The exports are a by-product: serve's job is the web UI. A read-only project (the
+    # Docker image run with `-v repo:/project:ro`, a protected checkout) used to make serve
+    # exit 1 before it ever listened.
+    try:
+        export_result = export_outputs(**export_kwargs)
+    except OSError as exc:
+        export_result = None
+        print(
+            f"[warn] Could not write the report files ({exc}); serving without them. "
+            "Pass --out to a writable path to keep them."
+        )
 
     print_summary(state.report)
     print_human_insights(state.report)
     print_project_explanation(state.report)
     print_top_complexity(state.report, DEFAULT_TOP_ITEMS)
     print_top_risks(state.report, DEFAULT_TOP_ITEMS)
-    print_export_summary(export_result)
+    if export_result is not None:
+        print_export_summary(export_result)
 
     static_dir = resolve_static_dir()
     if not static_dir.exists():
@@ -232,6 +243,19 @@ def run_serve(args: argparse.Namespace) -> int:
             "network. Local-only endpoints (open file, switch project, advise) stay "
             "restricted to loopback, but anyone who can reach this port can read the "
             "dependency graph. Use --host 127.0.0.1 if that is not intended."
+        )
+    if (
+        os.environ.get("ARCHHUB_URL", "").strip()
+        and not os.environ.get("ARCHHUB_PUBLIC_URL", "").strip()
+        and not _is_loopback_host(args.host)
+    ):
+        # Same warning System-PVD gives: from a container or another machine the Hub
+        # cannot reach the advertised loopback address, so only heartbeats keep the
+        # status up (and with ARCHHUB_HEARTBEAT_SECONDS=0, nothing does).
+        print(
+            f"[warn] Bound to {args.host} without ARCHHUB_PUBLIC_URL: announcing "
+            f"{browser_url} to the Arch Hub. If the Hub runs on another machine or "
+            "outside this container, set ARCHHUB_PUBLIC_URL to the published address."
         )
     hub_registrar = start_arch_hub_registration(state.path, browser_url)
     print("[info] Press Ctrl+C to stop.")
