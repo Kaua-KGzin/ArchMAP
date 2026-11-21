@@ -484,6 +484,7 @@ function bindControls() {
   document.getElementById("navBtnContext")?.addEventListener("click",  () => switchLeftView("context"));
   document.getElementById("navBtnInspect")?.addEventListener("click",  () => switchLeftView("inspect"));
   document.getElementById("navBtnAudit")?.addEventListener("click",    () => switchLeftView("audit"));
+  document.getElementById("navBtnNetwork")?.addEventListener("click",  () => switchLeftView("network"));
   const _railLogo = document.getElementById("railLogo");
   _railLogo?.addEventListener("click", () => switchLeftView("graph"));
   _railLogo?.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") switchLeftView("graph"); });
@@ -618,10 +619,11 @@ const LP_NAV = {
   context: ["lpContext",  "navBtnContext",  "rail-btn-active"],
   inspect: ["lpInspect",  "navBtnInspect",  "rail-btn-active"],
   audit:   ["lpAudit",    "navBtnAudit",    "rail-btn-active"],
+  network: ["lpNetwork",  "navBtnNetwork",  "rail-btn-active"],
   config:  ["lpConfig",   "navBtnConfig",   "rail-btn-active"],
 };
 
-const TOOLKIT_VIEWS = new Set(["findings", "context", "inspect", "audit"]);
+const TOOLKIT_VIEWS = new Set(["findings", "context", "inspect", "audit", "network"]);
 
 function activeLeftView() {
   return Object.entries(LP_NAV).find(([, [vid]]) => !document.getElementById(vid)?.classList.contains("lp-hidden"))?.[0];

@@ -52,6 +52,10 @@
         <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
         <span class="rail-tooltip" data-i18n="navAudit">Security audit</span>
       </button>
+      <button class="rail-btn" id="navBtnNetwork" type="button" data-i18n-title="navNetwork" aria-label="Network exposure">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v4M12 11.5l-5.5 5.5M12 11.5l5.5 5.5"/></svg>
+        <span class="rail-tooltip" data-i18n="navNetwork">Network exposure</span>
+      </button>
       <div class="rail-divider"></div>
       <button class="rail-btn" id="openProjectBtn" type="button" data-i18n-title="navOpenProject" aria-label="Open project">
         <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
@@ -275,6 +279,19 @@
           </div>
         </header>
         <div id="auditContent" style="display:contents"></div>
+      </div>
+
+      <!-- VIEW: Network exposure (read-only: stored snapshots, never scans) -->
+      <div class="lp-view lp-hidden" id="lpNetwork">
+        <header class="card panel-header">
+          <div class="card-body">
+            <p class="eyebrow" data-i18n="navNetwork">Network exposure</p>
+            <h1 class="title" data-i18n="netTitle">Network exposure</h1>
+            <p class="subtitle" data-i18n="netSub">Open ports, NET-* findings and [network.rules] drift from the latest stored snapshot, compared with the previous one. This view never scans.</p>
+            <button id="tkNetworkRun" type="button" class="primary tk-full" data-i18n="netRefresh">Refresh</button>
+          </div>
+        </header>
+        <div id="networkContent" style="display:contents"></div>
       </div>
 
       <!-- VIEW: Config -->

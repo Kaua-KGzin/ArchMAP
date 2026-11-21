@@ -564,3 +564,8 @@ button svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.7
   .tk-mostlinked{columns:1}
   .tk-form-row{flex-direction:column;align-items:stretch}
 }
+
+/* Network exposure view */
+.tk-net-drift{margin:4px 0 0;color:var(--danger)}
+.tk-net-new{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:600;background:var(--accent-soft);color:var(--accent-ink)}
+.tk-net-cmd{margin:8px 0;padding:8px 10px;border-radius:6px;background:var(--line-2);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}

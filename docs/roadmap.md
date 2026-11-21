@@ -159,9 +159,8 @@
 
 ## Now (v1.5.0) — closing the v1.3.x slice
 
-Three of the four items below are done and sit in `CHANGELOG.md` under
-`[Unreleased]`, so they ship as **v1.5.0**. The fourth is half delivered —
-see its entry.
+All four items below are done and sit in `CHANGELOG.md` under
+`[Unreleased]`, so they ship as **v1.5.0**.
 
 ArchMAP's strategic direction ("Code, Architecture & Network Intelligence")
 is to correlate three domains that normally live in separate tools —
@@ -191,15 +190,12 @@ are the next slice, each buildable directly on what's already shipped.
   opened/closed, service and risk changes, hosts appearing/disappearing,
   drift violations new/resolved), and `archmap network list` shows the
   history. `--fail-on-new-ports` turns it into a CI gate.
-- **Declared vs. observed, surfaced in the web UI** — 🟡 Half done. v1.4.0's
-  **Findings** view renders every `ARCH-*` finding, and `[architecture.rules]`
-  violations became `ARCH-*` findings in v1.3.0 — so the declared-vs-observed
-  work on the *code* side is already in the browser, with severity filters
-  and *Show in graph*. Still open: the `[network.rules]` side. Drift
-  violations are `NET-*` findings produced by `archmap expose`, and
-  `archmap serve` only ever runs `analyze`, so they have no surface in the
-  web UI at all. Needs an exposure/network view (or an expose run wired into
-  the server), not another findings panel.
+- **Declared vs. observed, surfaced in the web UI** — ✅ Done. The code side
+  (`[architecture.rules]` → `ARCH-*`) has been in the **Findings** view since
+  v1.4.0. The network side now has its own **Network exposure** view: it
+  reads the latest `--snapshot` (so `archmap serve` still never scans), lists
+  `NET-*` findings and `[network.rules]` drift, and diffs against the
+  previous snapshot. It is served by a local-only `POST /api/network`.
 
 ---
 
