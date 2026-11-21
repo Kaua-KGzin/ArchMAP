@@ -264,6 +264,11 @@ change state only answer loopback requests that send JSON. See
 
 ## What's new
 
+- **1.5.0**: network history — `--snapshot` on `netscan`/`expose`,
+  `archmap network diff|list` (with a `--fail-on-new-ports` CI gate), a
+  network section in `archmap memory`, and a read-only **Network exposure**
+  view in the web UI; Arch line adapter, `serve`, Docker logging and
+  `audit` fixes.
 - **1.4.2**: GitHub Action fixed — it installed an unrelated `archmap`
   package from PyPI instead of `KG-ARCHMAP`, and the `sarif` and
   `fail-on-explosions` inputs crashed the run; Python 3.14 supported (CI,
