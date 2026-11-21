@@ -128,7 +128,7 @@ def test_toolkit_endpoints_are_local_only(project: Path, tmp_path: Path) -> None
     handler = cli_server.build_http_handler(state, static_dir)
     handler._is_local_request = lambda self: False  # type: ignore[method-assign]
     with run_handler_server(handler) as url:
-        for endpoint in ("/api/context", "/api/inspect", "/api/audit"):
+        for endpoint in ("/api/context", "/api/inspect", "/api/audit", "/api/network"):
             status, _ = request_json(f"{url}{endpoint}", method="POST", payload={"path": "."})
             assert status == 403
 
@@ -138,3 +138,37 @@ def test_bounded_int() -> None:
     assert cli_server._bounded_int("abc", 5, 1, 10) == 5
     assert cli_server._bounded_int(99, 5, 1, 10) == 10
     assert cli_server._bounded_int(-3, 5, 1, 10) == 1
+
+
+def test_network_endpoint_without_snapshot_returns_hint(base_url: str) -> None:
+    status, body = _post(base_url, "/api/network", {})
+    assert status == 200
+    assert body["result"]["available"] is False
+    assert "--snapshot" in body["result"]["hint"]
+
+
+def test_network_endpoint_reads_the_stored_snapshot(project: Path, base_url: str) -> None:
+    from archmap.core.exposure.snapshots import save_snapshot
+
+    save_snapshot(
+        project,
+        {
+            "target": "10.0.0.5",
+            "hosts": [
+                {
+                    "ip": "10.0.0.5",
+                    "hostname": None,
+                    "openPorts": [
+                        {"port": 23, "protocol": "tcp", "service": "telnet",
+                         "risk": {"level": "high", "reason": "cleartext"}},
+                    ],
+                }
+            ],
+        },
+    )
+    status, body = _post(base_url, "/api/network", {})
+    assert status == 200
+    result = body["result"]
+    assert result["available"] is True
+    assert result["summary"]["notable"] == 1
+    assert result["ports"][0]["service"] == "telnet"

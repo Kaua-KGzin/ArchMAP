@@ -39,6 +39,22 @@ All notable changes to this project are documented in this file.
   `list_snapshots`, `load_snapshot`, `resolve_snapshot`, `latest_snapshot`,
   and `diff_network_snapshots`.
 
+- **Network exposure view in the web UI** — the last open item of the
+  v1.5.0 slice. `[network.rules]` drift and `NET-*` findings came only from
+  `archmap expose`, and `archmap serve` only ever runs `analyze`, so they had
+  no surface in the browser. A new **Network exposure** view reads the
+  latest snapshot stored by `--snapshot` and diffs it against the previous
+  one. It shows hosts, open ports (most urgent first: drift, then
+  high/critical), `NET-*` IDs, confidence, drift violations, ports *new*
+  since the last scan, and ports closed since then. The view **never scans**:
+  a scan started from an HTTP handler would block the UI and turn the server
+  into a port scanner for anyone who can reach it. It is served by a
+  **local-only POST `/api/network`**, the same guard as the toolkit
+  endpoints, because a network's hosts and open ports must not be readable
+  from another machine when `serve` binds `0.0.0.0` (Docker). The list is
+  capped at 500 ports, and the summary still counts every port. Translated
+  into all 6 UI languages.
+
 ### Fixed
 - **`archmap audit` scanned untracked framework build output.** Only a fixed
   list of build dirs (`dist`, `build`, `target`, ...) was skipped when git did

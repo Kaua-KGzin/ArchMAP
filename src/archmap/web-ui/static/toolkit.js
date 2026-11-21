@@ -1,7 +1,7 @@
 /* ============================================================
    ArchMAP toolkit views (v1.4.0)
    Analysis-quality card, Findings, Task context, Inspect (static
-   reverse engineering + Inspector canvas), and Security audit.
+   reverse engineering + Inspector canvas), Security audit and Network exposure.
    app.js owns the graph and navigation; it hands this module a small
    host API through initToolkit().
    ============================================================ */
@@ -12,6 +12,8 @@ const HEX_PAGE = 512;
 let host = null;
 const tk = {
   auditResult: null,
+  networkResult: null,
+  networkLoading: false,
   inspectResult: null,
   inspectPath: "",
   hexOffset: 0,
@@ -44,6 +46,10 @@ export function onViewShown(key, report) {
   if (key === "context") renderContextIdle();
   if (key === "inspect") renderInspectPanel();
   if (key === "audit") renderAudit();
+  if (key === "network") {
+    // Loads once on first visit; Refresh re-reads after a new `--snapshot` scan.
+    if (tk.networkResult) renderNetwork(); else runNetwork();
+  }
 }
 
 export function onReportUpdated(report, activeView) {
@@ -671,6 +677,114 @@ async function runAudit() {
 }
 
 /* ------------------------------------------------------------
+   6. Network exposure view (stored snapshots only)
+   ------------------------------------------------------------ */
+
+const NET_LEVELS = ["critical", "high", "medium", "low", "info"];
+
+function netLevel(port) {
+  for (const level of NET_LEVELS) {
+    if (port.severity === level || port.riskLevel === level) return level;
+  }
+  return "info";
+}
+
+function formatCaptured(iso) {
+  const when = Date.parse(iso || "");
+  if (Number.isNaN(when)) return esc(iso || "");
+  const hours = Math.max(0, Math.round((Date.now() - when) / 3600000));
+  const age = hours < 1 ? t("netJustNow") : hours < 48 ? t("netHoursAgo", { n: hours }) : t("netDaysAgo", { n: Math.round(hours / 24) });
+  return `${esc(new Date(when).toLocaleString())} · ${esc(age)}`;
+}
+
+/** One open port as a compact two-line item: it has to fit the narrow left panel. */
+function portRow(p) {
+  const level = netLevel(p);
+  const name = p.hostname ? `${esc(p.host)} <span class="tk-muted">(${esc(p.hostname)})</span>` : esc(p.host);
+  const conf = typeof p.confidence === "number" ? Math.round(p.confidence * 100) : null;
+  return `
+    <li class="tk-finding tk-border-${level}">
+      <div class="tk-finding-head">
+        ${sevBadge(level)}
+        ${p.id ? `<span class="tk-id">${esc(p.id)}</span>` : ""}
+        ${p.isNew ? `<span class="tk-net-new">${esc(t("netNew"))}</span>` : ""}
+        ${conf !== null ? `<span class="tk-conf" title="${esc(t("fConfidence"))}">${conf}%</span>` : ""}
+      </div>
+      <p class="tk-finding-msg"><b>${esc(p.service)}</b> · ${name}:<b>${Number(p.port)}</b>/${esc(p.protocol)}</p>
+      ${p.drift ? `<p class="tk-small tk-net-drift">${esc(p.drift)}</p>` : ""}
+    </li>`;
+}
+
+function formatWhen(iso) {
+  const when = Date.parse(iso || "");
+  return Number.isNaN(when) ? String(iso || "") : new Date(when).toLocaleString();
+}
+
+function renderNetwork() {
+  const container = document.getElementById("networkContent");
+  if (!container) return;
+  const r = tk.networkResult;
+  if (tk.networkLoading && !r) {
+    container.innerHTML = `<p class="selection-muted tk-pad">${esc(t("netLoading"))}</p>`;
+    return;
+  }
+  if (!r) { container.innerHTML = ""; return; }
+  if (!r.available) {
+    container.innerHTML = r.error
+      ? errorBox(r.error)
+      : `<section class="card"><div class="card-body"><p class="selection-muted">${esc(t("netEmpty"))}</p>
+           <pre class="tk-net-cmd">archmap expose &lt;target&gt; . --snapshot</pre>
+           <p class="tk-muted tk-small">${esc(t("netAuthorized"))}</p></div></section>`;
+    return;
+  }
+  const s = r.summary;
+  const diff = r.diff
+    ? `<p class="tk-muted tk-small">${esc(t("netComparedWith", { when: formatWhen(r.diff.from.capturedAt) }))} · +${Number(s.portsOpened)} / −${Number(s.portsClosed)}</p>`
+    : `<p class="tk-muted tk-small">${esc(t("netSingle"))}</p>`;
+  const drift = (r.driftViolations || []).map(v => `<li>${esc(v.message || `${v.source} → ${v.target}`)}</li>`).join("");
+  const closed = (r.closedPorts || []).map(p => `<li>${esc(p.host)}:${Number(p.port)}/${esc(p.protocol)} · ${esc(p.service)}</li>`).join("");
+  container.innerHTML = `
+    <section class="card">
+      <div class="card-body">
+        <div class="tk-stat-grid">
+          <div><span>${esc(t("netHosts"))}</span><b>${Number(s.hosts)}</b></div>
+          <div><span>${esc(t("netPorts"))}</span><b>${Number(s.openPorts)}</b></div>
+          <div><span>${esc(t("netNotable"))}</span><b>${Number(s.notable)}</b></div>
+          <div><span>${esc(t("netDrift"))}</span><b>${Number(s.driftViolations)}</b></div>
+        </div>
+        <p class="tk-muted tk-small">${esc(r.latest.kind)} · ${esc(r.latest.target)} · ${formatCaptured(r.latest.capturedAt)}</p>
+        ${diff}
+      </div>
+    </section>
+    ${drift ? `<section class="card"><div class="card-head"><h2>${esc(t("netDrift"))}</h2><span class="count-pill">${Number(s.driftViolations)}</span></div><ul class="tk-pad">${drift}</ul></section>` : ""}
+    <section class="card">
+      <div class="card-head"><h2>${esc(t("netPorts"))}</h2><span class="count-pill">${Number(s.openPorts)}</span></div>
+      ${r.ports.length
+        ? `<ul class="tk-findings">${r.ports.map(portRow).join("")}</ul>
+           ${r.truncated ? `<p class="tk-muted tk-small tk-pad">${esc(t("netTruncated", { n: r.ports.length, total: s.openPorts }))}</p>` : ""}`
+        : `<p class="selection-muted tk-pad">${esc(t("netNoPorts"))}</p>`}
+    </section>
+    ${closed ? `<details class="tk-details tk-pad"><summary>${esc(t("netClosed"))} (${Number(s.portsClosed)})</summary><ul>${closed}</ul></details>` : ""}`;
+}
+
+async function runNetwork() {
+  const btn = document.getElementById("tkNetworkRun");
+  const container = document.getElementById("networkContent");
+  tk.networkLoading = true;
+  renderNetwork();
+  if (btn) btn.disabled = true;
+  try {
+    tk.networkResult = await postJson("/api/network", {});
+    renderNetwork();
+  } catch (err) {
+    if (container) container.innerHTML = errorBox(err.message);
+  } finally {
+    tk.networkLoading = false;
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* ------------------------------------------------------------
    Static controls (rendered in index.html)
    ------------------------------------------------------------ */
 
@@ -682,6 +796,7 @@ function bindStaticControls() {
   document.getElementById("tkInspectRun")?.addEventListener("click", () => runInspect());
   document.getElementById("tkInspectPath")?.addEventListener("keydown", (e) => { if (e.key === "Enter") runInspect(); });
   document.getElementById("tkAuditRun")?.addEventListener("click", runAudit);
+  document.getElementById("tkNetworkRun")?.addEventListener("click", runNetwork);
 }
 
 /* ------------------------------------------------------------
@@ -690,6 +805,7 @@ function bindStaticControls() {
 
 export const TOOLKIT_TRANSLATIONS = {
   en: {
+    navNetwork:"Network exposure",netTitle:"Network exposure",netSub:"Open ports, NET-* findings and [network.rules] drift from the latest stored snapshot, compared with the previous one. This view never scans.",netRefresh:"Refresh",netLoading:"Reading snapshots…",netEmpty:"No network snapshot in this project yet. Scan once with --snapshot, then refresh.",netAuthorized:"Only scan networks and hosts you own or are authorized to test.",netSingle:"Only one snapshot stored: nothing to compare yet.",netComparedWith:"Compared with the snapshot from {when}",netHosts:"Hosts",netPorts:"Open ports",netNotable:"Notable",netDrift:"Rule drift",netNew:"new",netClosed:"Closed since previous",netNoPorts:"No open ports in this snapshot.",netTruncated:"Showing {n} of {total} ports, most urgent first.",netJustNow:"just now",netHoursAgo:"{n} h ago",netDaysAgo:"{n} days ago",
     navFindings:"Findings",navContext:"Task context",navInspect:"Inspect files",navAudit:"Security audit",
     tkError:"Error",tkUnavailable:"This server doesn't support this feature. Run `archmap serve` from ArchMAP 1.4.0 or later.",tkNotLocal:"Only available when the UI is opened from localhost.",
     qualTitle:"Analysis confidence",qualExplain:"How much of the project made it into the graph. Below 'high', 'no dependents' and small blast radii are lower bounds.",qualParsed:"Files parsed",qualResolution:"Import resolution",qualFailures:"Parse failures",qualSkipped:"Skipped (encoding/size)",qualByLang:"Language",qualFiles:"Files",qualNoWarnings:"No gaps: every discovered source file was parsed.",qualLevel_high:"High",qualLevel_medium:"Medium",qualLevel_low:"Low",kpiConfidence:"Confidence",
@@ -702,6 +818,7 @@ export const TOOLKIT_TRANSLATIONS = {
     auTitle:"Security audit",auSub:"Committed secrets and risky AI-agent configuration: MCP servers, permissions, hooks, hidden Unicode. Offline; secret values are always redacted.",auRun:"Run audit",auRunning:"Auditing…",auSecrets:"Secrets",auCode:"Code",auFlow:"Data flow",auAgent:"Agent config",auFiles:"{n} text files scanned",auGitAware:"git-aware",auNotGit:"not a git repository",auClean:"No secrets or risky agent configuration found.",auNotes:"Notes",auHint:"Run the audit to scan this project for secrets and AI-agent configuration risks.",
   },
   pt: {
+    navNetwork:"Exposição de rede",netTitle:"Exposição de rede",netSub:"Portas abertas, findings NET-* e drift de [network.rules] do último snapshot salvo, comparado com o anterior. Esta tela nunca faz scan.",netRefresh:"Atualizar",netLoading:"Lendo snapshots…",netEmpty:"Ainda não há snapshot de rede neste projeto. Faça um scan com --snapshot e atualize.",netAuthorized:"Só escaneie redes e hosts seus ou que você tem autorização para testar.",netSingle:"Só um snapshot salvo: ainda não há com o que comparar.",netComparedWith:"Comparado com o snapshot de {when}",netHosts:"Hosts",netPorts:"Portas abertas",netNotable:"Relevantes",netDrift:"Drift de regras",netNew:"nova",netClosed:"Fechadas desde o anterior",netNoPorts:"Nenhuma porta aberta neste snapshot.",netTruncated:"Mostrando {n} de {total} portas, as mais urgentes primeiro.",netJustNow:"agora",netHoursAgo:"há {n} h",netDaysAgo:"há {n} dias",
     navFindings:"Findings",navContext:"Contexto da tarefa",navInspect:"Inspecionar arquivos",navAudit:"Auditoria de segurança",
     tkError:"Erro",tkUnavailable:"Este servidor não suporta este recurso. Use `archmap serve` do ArchMAP 1.4.0 ou superior.",tkNotLocal:"Disponível apenas quando a interface é aberta via localhost.",
     qualTitle:"Confiança da análise",qualExplain:"Quanto do projeto entrou no grafo. Abaixo de 'alta', 'sem dependentes' e raios de impacto pequenos são limites inferiores.",qualParsed:"Arquivos parseados",qualResolution:"Resolução de imports",qualFailures:"Falhas de parse",qualSkipped:"Ignorados (codificação/tamanho)",qualByLang:"Linguagem",qualFiles:"Arquivos",qualNoWarnings:"Sem lacunas: todo arquivo-fonte encontrado foi parseado.",qualLevel_high:"Alta",qualLevel_medium:"Média",qualLevel_low:"Baixa",kpiConfidence:"Confiança",
@@ -714,6 +831,7 @@ export const TOOLKIT_TRANSLATIONS = {
     auTitle:"Auditoria de segurança",auSub:"Segredos commitados e configuração arriscada de agentes de IA: servidores MCP, permissões, hooks, Unicode oculto. Offline; valores secretos sempre ocultados.",auRun:"Executar auditoria",auRunning:"Auditando…",auSecrets:"Segredos",auCode:"Código",auFlow:"Fluxo de dados",auAgent:"Config. de agentes",auFiles:"{n} arquivos de texto verificados",auGitAware:"considera o git",auNotGit:"não é um repositório git",auClean:"Nenhum segredo ou configuração arriscada de agentes encontrado.",auNotes:"Observações",auHint:"Execute a auditoria para procurar segredos e riscos de configuração de agentes de IA neste projeto.",
   },
   es: {
+    navNetwork:"Exposición de red",netTitle:"Exposición de red",netSub:"Puertos abiertos, hallazgos NET-* y desvíos de [network.rules] del último snapshot guardado, comparado con el anterior. Esta vista nunca escanea.",netRefresh:"Actualizar",netLoading:"Leyendo snapshots…",netEmpty:"Aún no hay snapshot de red en este proyecto. Escanea una vez con --snapshot y actualiza.",netAuthorized:"Escanea solo redes y hosts propios o que estés autorizado a probar.",netSingle:"Solo hay un snapshot: todavía no hay con qué comparar.",netComparedWith:"Comparado con el snapshot de {when}",netHosts:"Hosts",netPorts:"Puertos abiertos",netNotable:"Relevantes",netDrift:"Desvío de reglas",netNew:"nuevo",netClosed:"Cerrados desde el anterior",netNoPorts:"No hay puertos abiertos en este snapshot.",netTruncated:"Mostrando {n} de {total} puertos, los más urgentes primero.",netJustNow:"ahora",netHoursAgo:"hace {n} h",netDaysAgo:"hace {n} días",
     navFindings:"Hallazgos",navContext:"Contexto de tarea",navInspect:"Inspeccionar archivos",navAudit:"Auditoría de seguridad",
     tkError:"Error",tkUnavailable:"Este servidor no admite esta función. Usa `archmap serve` de ArchMAP 1.4.0 o superior.",tkNotLocal:"Solo disponible cuando la interfaz se abre desde localhost.",
     qualTitle:"Confianza del análisis",qualExplain:"Cuánto del proyecto entró en el grafo. Por debajo de 'alta', 'sin dependientes' y radios de impacto pequeños son cotas inferiores.",qualParsed:"Archivos analizados",qualResolution:"Resolución de imports",qualFailures:"Fallos de análisis",qualSkipped:"Omitidos (codificación/tamaño)",qualByLang:"Lenguaje",qualFiles:"Archivos",qualNoWarnings:"Sin huecos: se analizaron todos los archivos fuente encontrados.",qualLevel_high:"Alta",qualLevel_medium:"Media",qualLevel_low:"Baja",kpiConfidence:"Confianza",
@@ -726,6 +844,7 @@ export const TOOLKIT_TRANSLATIONS = {
     auTitle:"Auditoría de seguridad",auSub:"Secretos confirmados y configuración arriesgada de agentes de IA: servidores MCP, permisos, hooks, Unicode oculto. Sin conexión; los secretos siempre se ocultan.",auRun:"Ejecutar auditoría",auRunning:"Auditando…",auSecrets:"Secretos",auCode:"Código",auFlow:"Flujo de datos",auAgent:"Config. de agentes",auFiles:"{n} archivos de texto analizados",auGitAware:"tiene en cuenta git",auNotGit:"no es un repositorio git",auClean:"No se encontraron secretos ni configuración arriesgada de agentes.",auNotes:"Notas",auHint:"Ejecuta la auditoría para buscar secretos y riesgos de configuración de agentes de IA en este proyecto.",
   },
   fr: {
+    navNetwork:"Exposition réseau",netTitle:"Exposition réseau",netSub:"Ports ouverts, constats NET-* et dérives [network.rules] du dernier snapshot enregistré, comparé au précédent. Cette vue ne scanne jamais.",netRefresh:"Actualiser",netLoading:"Lecture des snapshots…",netEmpty:"Aucun snapshot réseau dans ce projet. Lancez un scan avec --snapshot, puis actualisez.",netAuthorized:"Ne scannez que des réseaux et hôtes qui vous appartiennent ou que vous êtes autorisé à tester.",netSingle:"Un seul snapshot enregistré : rien à comparer pour l'instant.",netComparedWith:"Comparé au snapshot du {when}",netHosts:"Hôtes",netPorts:"Ports ouverts",netNotable:"Notables",netDrift:"Dérive des règles",netNew:"nouveau",netClosed:"Fermés depuis le précédent",netNoPorts:"Aucun port ouvert dans ce snapshot.",netTruncated:"{n} ports affichés sur {total}, les plus urgents d'abord.",netJustNow:"à l'instant",netHoursAgo:"il y a {n} h",netDaysAgo:"il y a {n} jours",
     navFindings:"Constats",navContext:"Contexte de tâche",navInspect:"Inspecter des fichiers",navAudit:"Audit de sécurité",
     tkError:"Erreur",tkUnavailable:"Ce serveur ne prend pas en charge cette fonction. Utilisez `archmap serve` d'ArchMAP 1.4.0 ou plus.",tkNotLocal:"Disponible uniquement lorsque l'interface est ouverte depuis localhost.",
     qualTitle:"Fiabilité de l'analyse",qualExplain:"Part du projet présente dans le graphe. En dessous de 'élevée', « aucun dépendant » et les petits rayons d'impact sont des bornes inférieures.",qualParsed:"Fichiers analysés",qualResolution:"Résolution des imports",qualFailures:"Échecs d'analyse",qualSkipped:"Ignorés (encodage/taille)",qualByLang:"Langage",qualFiles:"Fichiers",qualNoWarnings:"Aucune lacune : tous les fichiers source trouvés ont été analysés.",qualLevel_high:"Élevée",qualLevel_medium:"Moyenne",qualLevel_low:"Faible",kpiConfidence:"Fiabilité",
@@ -738,6 +857,7 @@ export const TOOLKIT_TRANSLATIONS = {
     auTitle:"Audit de sécurité",auSub:"Secrets commités et configuration risquée des agents IA : serveurs MCP, permissions, hooks, Unicode invisible. Hors ligne ; les secrets sont toujours masqués.",auRun:"Lancer l'audit",auRunning:"Audit en cours…",auSecrets:"Secrets",auCode:"Code",auFlow:"Flux de données",auAgent:"Config. des agents",auFiles:"{n} fichiers texte analysés",auGitAware:"tient compte de git",auNotGit:"pas un dépôt git",auClean:"Aucun secret ni configuration d'agent risquée trouvé.",auNotes:"Notes",auHint:"Lancez l'audit pour rechercher les secrets et les risques de configuration des agents IA dans ce projet.",
   },
   de: {
+    navNetwork:"Netzwerk-Exposition",netTitle:"Netzwerk-Exposition",netSub:"Offene Ports, NET-*-Befunde und [network.rules]-Abweichungen aus dem neuesten gespeicherten Snapshot, verglichen mit dem vorherigen. Diese Ansicht scannt nie.",netRefresh:"Aktualisieren",netLoading:"Snapshots werden gelesen…",netEmpty:"Noch kein Netzwerk-Snapshot in diesem Projekt. Einmal mit --snapshot scannen, dann aktualisieren.",netAuthorized:"Scanne nur Netzwerke und Hosts, die dir gehören oder für die du eine Testfreigabe hast.",netSingle:"Nur ein Snapshot gespeichert: noch nichts zum Vergleichen.",netComparedWith:"Verglichen mit dem Snapshot vom {when}",netHosts:"Hosts",netPorts:"Offene Ports",netNotable:"Auffällig",netDrift:"Regelabweichung",netNew:"neu",netClosed:"Seit dem vorherigen geschlossen",netNoPorts:"Keine offenen Ports in diesem Snapshot.",netTruncated:"{n} von {total} Ports, dringendste zuerst.",netJustNow:"gerade eben",netHoursAgo:"vor {n} Std.",netDaysAgo:"vor {n} Tagen",
     navFindings:"Befunde",navContext:"Aufgabenkontext",navInspect:"Dateien untersuchen",navAudit:"Sicherheitsaudit",
     tkError:"Fehler",tkUnavailable:"Dieser Server unterstützt diese Funktion nicht. Nutze `archmap serve` aus ArchMAP 1.4.0 oder neuer.",tkNotLocal:"Nur verfügbar, wenn die Oberfläche über localhost geöffnet wird.",
     qualTitle:"Analyse-Zuverlässigkeit",qualExplain:"Wie viel des Projekts im Graphen gelandet ist. Unter 'hoch' sind „keine Abhängigen“ und kleine Auswirkungsradien Untergrenzen.",qualParsed:"Geparste Dateien",qualResolution:"Import-Auflösung",qualFailures:"Parse-Fehler",qualSkipped:"Übersprungen (Kodierung/Größe)",qualByLang:"Sprache",qualFiles:"Dateien",qualNoWarnings:"Keine Lücken: Jede gefundene Quelldatei wurde geparst.",qualLevel_high:"Hoch",qualLevel_medium:"Mittel",qualLevel_low:"Niedrig",kpiConfidence:"Zuverlässigkeit",
@@ -750,6 +870,7 @@ export const TOOLKIT_TRANSLATIONS = {
     auTitle:"Sicherheitsaudit",auSub:"Eingecheckte Geheimnisse und riskante KI-Agent-Konfiguration: MCP-Server, Berechtigungen, Hooks, unsichtbares Unicode. Offline; Geheimnisse werden immer maskiert.",auRun:"Audit starten",auRunning:"Audit läuft…",auSecrets:"Geheimnisse",auCode:"Code",auFlow:"Datenfluss",auAgent:"Agent-Konfig.",auFiles:"{n} Textdateien geprüft",auGitAware:"git-bewusst",auNotGit:"kein Git-Repository",auClean:"Keine Geheimnisse oder riskante Agent-Konfiguration gefunden.",auNotes:"Hinweise",auHint:"Starte das Audit, um dieses Projekt nach Geheimnissen und KI-Agent-Konfigurationsrisiken zu durchsuchen.",
   },
   zh: {
+    navNetwork:"网络暴露",netTitle:"网络暴露",netSub:"来自最新保存快照的开放端口、NET-* 发现和 [network.rules] 偏离，并与上一个快照对比。此视图从不扫描。",netRefresh:"刷新",netLoading:"正在读取快照…",netEmpty:"此项目还没有网络快照。先用 --snapshot 扫描一次，然后刷新。",netAuthorized:"只扫描你拥有或已获授权测试的网络和主机。",netSingle:"只保存了一个快照：暂无可比较的内容。",netComparedWith:"与 {when} 的快照对比",netHosts:"主机",netPorts:"开放端口",netNotable:"值得关注",netDrift:"规则偏离",netNew:"新增",netClosed:"自上次以来关闭",netNoPorts:"此快照中没有开放端口。",netTruncated:"显示 {total} 个端口中的 {n} 个，最紧急的在前。",netJustNow:"刚刚",netHoursAgo:"{n} 小时前",netDaysAgo:"{n} 天前",
     navFindings:"问题清单",navContext:"任务上下文",navInspect:"检查文件",navAudit:"安全审计",
     tkError:"错误",tkUnavailable:"此服务器不支持该功能。请使用 ArchMAP 1.4.0 或更高版本的 `archmap serve`。",tkNotLocal:"仅在通过 localhost 打开界面时可用。",
     qualTitle:"分析可信度",qualExplain:"项目有多少进入了依赖图。低于“高”时，“无依赖方”和较小的影响范围只是下限。",qualParsed:"已解析文件",qualResolution:"导入解析率",qualFailures:"解析失败",qualSkipped:"已跳过（编码/大小）",qualByLang:"语言",qualFiles:"文件",qualNoWarnings:"无缺口：发现的所有源文件均已解析。",qualLevel_high:"高",qualLevel_medium:"中",qualLevel_low:"低",kpiConfidence:"可信度",

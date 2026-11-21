@@ -105,6 +105,9 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             "/api/hexdump": "_handle_hexdump",
             "/api/strings": "_handle_strings",
             "/api/audit": "_handle_audit",
+            # POST + local-only like the toolkit: hosts and open ports of the
+            # user's network must not be readable by whoever reaches the port.
+            "/api/network": "_handle_network",
         }
 
         def do_POST(self):  # noqa: N802
@@ -567,6 +570,12 @@ def build_http_handler(state: ReportState, static_dir: Path) -> type[SimpleHTTPR
             from archmap.core.audit.project_audit import audit_project
 
             self._run_tool(lambda: audit_project(state.path))
+
+        def _handle_network(self) -> None:
+            from archmap.core.exposure.network_view import build_network_view
+
+            # Read-only: shows stored snapshots, never starts a scan.
+            self._run_tool(lambda: build_network_view(state.path))
 
         def log_message(self, _format: str, *args) -> None:
             return

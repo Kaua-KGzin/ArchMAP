@@ -181,6 +181,7 @@ Português, Español, Français, Deutsch, 中文) that works on desktop and phon
 | **Task context** | Describe a task; get the files to read in order with matching lines, and highlight them in the graph |
 | **Inspect files** | Inspect any file or folder in the project; the **Inspector** tab shows the entropy profile, a paged hexdump, filterable strings, and the binary→library graph |
 | **Security audit** | Run the secrets and AI-agent configuration audit |
+| **Network exposure** | Open ports, `NET-*` findings and `[network.rules]` drift from the latest `--snapshot`, with what opened or closed since the previous one (read-only: never scans) |
 | **Layers / Matrix** | Layer diagram and dependency matrix of the most connected files |
 
 === "Analysis confidence"
@@ -221,7 +222,7 @@ change state only answer loopback requests that send JSON. See
 | Agent memory digest | `memory` | — | `get_project_memory` |
 | Reverse engineering | `inspect`, `hexdump`, `strings` | Inspect files + Inspector | `inspect_path`, `hexdump`, `extract_strings` |
 | Secrets & agent config | `audit` | Security audit | `audit_project` |
-| Network exposure | `netscan`, `expose` | — | `get_network_exposure` |
+| Network exposure | `netscan`, `expose`, `network diff` | Network exposure | `get_network_exposure` |
 | LLM advice | `advise` | AI Advisor | — |
 
 ## Getting started
