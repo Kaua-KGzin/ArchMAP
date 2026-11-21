@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-21
+
 ### Added
 - **Network observation snapshots + `archmap network diff`** — `netscan` and
   `expose` results were fire-and-forget: every run re-scanned from scratch
