@@ -32,6 +32,7 @@ class BudgetsConfig(TypedDict):
 class AnalysisConfig(TypedDict):
     ignore_dirs: list[str]
     max_file_size_bytes: int
+    respect_gitignore: bool
     parallel: bool
     cache: bool
     budgets: BudgetsConfig
@@ -75,6 +76,7 @@ def default_project_config() -> ProjectConfig:
         "analysis": {
             "ignore_dirs": [],
             "max_file_size_bytes": DEFAULT_MAX_FILE_SIZE_BYTES,
+            "respect_gitignore": True,
             "parallel": True,
             "cache": True,
             "budgets": {},
@@ -116,6 +118,9 @@ def load_project_config(
         "analysis": {
             "ignore_dirs": _normalize_ignore_dirs(analysis_section),
             "max_file_size_bytes": _normalize_max_file_size(analysis_section),
+            "respect_gitignore": _normalize_bool_field(
+                analysis_section, "respect_gitignore", default=True
+            ),
             "parallel": _normalize_parallel(analysis_section),
             "cache": _normalize_bool_field(analysis_section, "cache", default=True),
             "budgets": _normalize_budgets(budgets_section),

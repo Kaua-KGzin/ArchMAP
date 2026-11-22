@@ -52,6 +52,33 @@ archmap analyze [path] [options]
 | `--parallel` / `--no-parallel` | on | Enable/disable parallel file parsing |
 | `--no-cache` | off | Skip loading and saving cached analysis results |
 
+### Which files are analysed
+
+ArchMAP walks the project and keeps files with a supported extension. These
+directories are skipped without being entered:
+
+- the built-in set: `.git`, `node_modules`, `dist`, `build`, `target`,
+  `coverage`, `.venv`, `venv`, `__pycache__`, the tool caches, `site`,
+  `tests`, `examples`;
+- every name in `[analysis] ignore_dirs` in `.archmap.toml`. For a path entry
+  such as `src/gen`, the last segment is what matches;
+- whatever git ignores (`.gitignore` at any level, `.git/info/exclude`, the
+  global excludes file), asked from git itself, so negations behave as in
+  `git status`. Tracked files are always kept, even when they match a
+  pattern. Outside a git work tree, or without git installed, this step is a
+  no-op.
+
+To analyse git-ignored files too (generated code you want in the graph, for
+example), turn the git step off:
+
+```toml
+[analysis]
+respect_gitignore = false
+```
+
+`archmap expose` still scans git-ignored `.env` files for endpoints, since
+that is where connection strings usually live.
+
 ### CI quality gates
 
 | Option | Default | Description |

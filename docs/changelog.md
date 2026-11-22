@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **`analyze` honours `.gitignore`** (`[analysis] respect_gitignore`, on by
+  default). Only a fixed list of directories and `ignore_dirs` used to be
+  skipped, so framework build output, fetched vendored trees and tool
+  folders entered the graph whenever their names were not on that list.
+  Across 16 local repos that removed, for example, 244 Next.js bundle files
+  from `.next/` in one monorepo (349 -> 102 analysed files), 124 files of a
+  downloaded `godot-cpp`, .NET `obj/` output and `.claude/skills`; repos with
+  no such directories are unchanged. ArchMAP asks git itself
+  (`ls-files --others --ignored --exclude-standard --directory`), so nested
+  `.gitignore` files and negations match `git status`. Fully ignored
+  directories are pruned unwalked, and tracked files are always kept. Outside
+  a git work tree this does nothing; the call costs about 30-50 ms. `expose`
+  is unaffected, because its endpoint scan reads git-ignored `.env` files on
+  purpose.
+
 ## [1.5.0] - 2026-11-21
 
 ### Added
