@@ -52,6 +52,33 @@ archmap analyze [path] [options]
 | `--parallel` / `--no-parallel` | on | Enable/disable parallel file parsing |
 | `--no-cache` | off | Skip loading and saving cached analysis results |
 
+### Which files are analysed
+
+ArchMAP walks the project and keeps files with a supported extension. These
+directories are skipped without being entered:
+
+- the built-in set: `.git`, `node_modules`, `dist`, `build`, `target`,
+  `coverage`, `.venv`, `venv`, `__pycache__`, the tool caches, `site`,
+  `tests`, `examples`;
+- every name in `[analysis] ignore_dirs` in `.archmap.toml`. For a path entry
+  such as `src/gen`, the last segment is what matches;
+- whatever git ignores (`.gitignore` at any level, `.git/info/exclude`, the
+  global excludes file), asked from git itself, so negations behave as in
+  `git status`. Tracked files are always kept, even when they match a
+  pattern. Outside a git work tree, or without git installed, this step is a
+  no-op.
+
+To analyse git-ignored files too (generated code you want in the graph, for
+example), turn the git step off:
+
+```toml
+[analysis]
+respect_gitignore = false
+```
+
+`archmap expose` still scans git-ignored `.env` files for endpoints, since
+that is where connection strings usually live.
+
 ### CI quality gates
 
 | Option | Default | Description |
@@ -153,6 +180,66 @@ Gaps also become `QUAL-*` entries in the unified `findings` list
 `low_resolution` for a language with at least 5 imports and under 50%
 resolved), and `archmap memory` adds the confidence line and warnings to the
 agent digest so an agent knows when "no dependents" is a lower bound.
+
+### Test mapping (`metrics.testMapping`)
+
+ArchMAP records which project files have a test referring to them. A test
+counts for a file when it imports the file, or when it is named after it by
+the language convention: `test_foo.py` / `foo_test.py`, `foo_test.go`,
+`foo.spec.ts` / `foo.test.tsx`, `FooTest.java` / `FooTests.cs`. The naming
+rule covers Go and Java tests, which share the package under test and often
+import nothing from it.
+
+A file is treated as a test when it sits under a `tests/`, `test/`,
+`__tests__/`, `spec/` or `specs/` directory, or matches one of those names.
+`tests/` stays out of the graph: its files are read only for this mapping,
+and they never become nodes or change any risk score. Imports inside them
+resolve against the project's top-level Python packages, so a `src/` layout
+works from `tests/` without an `__init__.py`.
+
+| Field | Meaning |
+|---|---|
+| `testFiles` | Test files found (in the graph or in test directories) |
+| `sourceFiles` / `testedFiles` / `untestedFiles` | Non-test files, and how many have at least one test |
+| `testedRatio` | `testedFiles / sourceFiles` |
+
+Each file node also carries `testedBy`, the list of test files that refer to
+it. The highest-risk files with an empty `testedBy` become `TEST-*` findings
+(`untested_critical_file`, severity `medium`, at most 10). Their confidence is
+`0.7` because the mapping is static and cannot see a file tested only
+indirectly, through another module. A project with no test files gets no
+`TEST-*` findings.
+
+This is a structural signal, not line coverage: use it to spot important
+code that no test even names, and a coverage tool for how much of it runs.
+
+.NET test projects (`Acme.Api.Tests/`, `Acme.UnitTests/`,
+`Acme.IntegrationTests/`) count as test directories too.
+
+### Structural bottlenecks (`metrics.centrality`)
+
+Fan-in and fan-out say how many files touch a file. They do not say how many
+dependency chains pass *through* it. ArchMAP computes betweenness centrality
+on the file graph and stores it as `betweenness` on every file node. The
+value is the share of connected import chains (ordered file pairs joined by
+a chain of imports) whose shortest route goes through the file, so `0.3`
+means "on 30% of the chains".
+
+The value is normalised by connected pairs rather than by every pair of files:
+dependency graphs are sparse, and the textbook normalisation would make every
+score look negligible.
+
+| Field | Meaning |
+|---|---|
+| `method` | `exact`, or `sampled` above 1000 files (256 source files, fixed seed, so reruns agree) |
+| `nodes` / `connectedPairs` | Files in the graph, and import chains between them (estimated when sampled) |
+| `top` | Up to 10 files with the highest `betweenness` |
+
+Files on at least 10% of the chains become `GRAPH-*` findings
+(`structural_bottleneck`, domain `code`, at most 5). Severity is `medium` from
+25% and `low` below. Confidence is `0.9`, or `0.8` when sampled. They require
+a graph with at least 50 chains, and test files are never reported.
+Betweenness does not change `riskScore` or the health score.
 
 ### Table format (`--summary-format table`)
 

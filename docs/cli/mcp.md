@@ -42,7 +42,7 @@ The server exposes fifteen tools.
 | `get_network_exposure` | Live network scan of a target, correlated against the project's dependency graph — surfaces which open ports/services map to code the project actually imports, that code's blast radius, a confidence score per finding, and any `[network.rules]` drift violations (see [`archmap expose`](expose.md)) |
 | `get_relevant_context` | Files to read for a task, in order, packed into a token budget, with reasons and best-matching lines (see [`archmap context`](context.md)) |
 | `get_analysis_quality` | Parse coverage, failures, per-language resolution, and overall confidence of the graph |
-| `list_findings` | Unified findings (`ARCH-*`, `QUAL-*`) filtered by domain and minimum severity |
+| `list_findings` | Unified findings (`ARCH-*`, `QUAL-*`, `TEST-*`) filtered by domain and minimum severity |
 
 ### Reverse engineering and security
 

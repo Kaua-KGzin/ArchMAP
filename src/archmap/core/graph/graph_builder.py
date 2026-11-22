@@ -71,6 +71,7 @@ def build_graph(parsed_project: ParsedProject) -> dict:
         "projectRoot": parsed_project["projectRoot"],
         "parsedFiles": parsed_project["parsedFiles"],
         "diagnostics": parsed_project.get("diagnostics"),
+        "testFiles": parsed_project.get("testFiles", []),
         "nodes": nodes,
         "edges": edges,
         "importStats": {

@@ -4,6 +4,49 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Structural bottlenecks: betweenness centrality on the file graph.** Fan-in
+  and fan-out (and therefore `riskScore`) count who touches a file, not how
+  many dependency chains pass *through* it. Every file node now carries
+  `betweenness`, the share of connected import chains whose shortest route
+  crosses it; `metrics.centrality` gives the method, `connectedPairs` and the
+  top 10; and files on at least 10% of the chains become `GRAPH-*` findings
+  (`structural_bottleneck`, at most 5, test files excluded). It is pure Python
+  (Brandes), exact up to 1000 files and deterministically sampled above that:
+  1-24 ms on 59-239 file projects and 347 ms on a 4411-file C/C++ tree. Risk
+  scores and health are unchanged. Real hits include a .NET API class on
+  32.5% of the chains, a React `Layout` on 30.1% and a NestJS `app.module.ts`
+  on 21.4%. .NET test projects (`*.Tests`, `*.UnitTests`,
+  `*.IntegrationTests`) now count as test directories for test mapping.
+- **Test mapping: which files have a test, and which important ones do not.**
+  `tests/` used to be skipped entirely, so ArchMAP could rank a file as the
+  riskiest in the project without knowing that no test touched it. Test files
+  are now read, but not graphed, and mapped to the files they import or are
+  named after (`test_foo.py`, `foo_test.go`, `foo.spec.ts`, `FooTest.java`, ...).
+  New outputs: `testedBy` on each file node, `metrics.testMapping`
+  (`testFiles`, `testedFiles`, `untestedFiles`, `testedRatio`), and `TEST-*`
+  findings (`untested_critical_file`, confidence 0.7) for up to 10 top-risk
+  files with no test. MCP `list_findings` accepts `domain: "testing"`. Risk
+  scores and architecture health are unchanged, as reports on six real repos
+  confirm. Python tests resolve against the project's top-level package
+  roots, so `from pkg.x import y` in `tests/` finds `src/pkg/x.py`: on ArchMAP
+  itself 97 of 101 test files resolve, and 84 of 117 source files are mapped.
+  Test files are part of the report-cache fingerprint.
+- **`analyze` honours `.gitignore`** (`[analysis] respect_gitignore`, on by
+  default). Only a fixed list of directories and `ignore_dirs` used to be
+  skipped, so framework build output, fetched vendored trees and tool
+  folders entered the graph whenever their names were not on that list.
+  Across 16 local repos that removed, for example, 244 Next.js bundle files
+  from `.next/` in one monorepo (349 -> 102 analysed files), 124 files of a
+  downloaded `godot-cpp`, .NET `obj/` output and `.claude/skills`; repos with
+  no such directories are unchanged. ArchMAP asks git itself
+  (`ls-files --others --ignored --exclude-standard --directory`), so nested
+  `.gitignore` files and negations match `git status`. Fully ignored
+  directories are pruned unwalked, and tracked files are always kept. Outside
+  a git work tree this does nothing; the call costs about 30-50 ms. `expose`
+  is unaffected, because its endpoint scan reads git-ignored `.env` files on
+  purpose.
+
 ## [1.5.0] - 2026-11-21
 
 ### Added
