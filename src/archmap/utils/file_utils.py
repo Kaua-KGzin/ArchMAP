@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from collections.abc import Iterable, Iterator
 from pathlib import Path, PurePosixPath
 
@@ -90,6 +91,7 @@ def discover_source_files(
     project_root: Path,
     extra_ignored_dirs: Iterable[str] | None = None,
     max_file_size_bytes: int = 0,
+    respect_gitignore: bool = False,
 ) -> list[Path]:
     if project_root.is_file():
         if project_root.suffix.lower() in SUPPORTED_EXTENSIONS:
@@ -104,7 +106,9 @@ def discover_source_files(
 
     files: list[Path] = []
 
-    for file_path in walk_project_files(project_root, extra_ignored_dirs):
+    for file_path in walk_project_files(
+        project_root, extra_ignored_dirs, respect_gitignore=respect_gitignore
+    ):
         if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             continue
         if max_file_size_bytes > 0:
@@ -119,7 +123,10 @@ def discover_source_files(
 
 
 def walk_project_files(
-    project_root: Path, extra_ignored_dirs: Iterable[str] | None = None
+    project_root: Path,
+    extra_ignored_dirs: Iterable[str] | None = None,
+    *,
+    respect_gitignore: bool = False,
 ) -> Iterator[Path]:
     """Yield every file under ``project_root`` outside the ignored directories.
 
@@ -128,13 +135,66 @@ def walk_project_files(
     or a virtualenv. ``project_root`` itself is never checked, so analysing a
     directory that is named ``tests`` still works. Symlinked directories are
     not followed, as with ``Path.rglob``.
+
+    With ``respect_gitignore`` the files and directories git reports as
+    ignored are skipped too (see :func:`git_ignored_paths`); outside a git
+    work tree, or without git, nothing extra is skipped.
     """
     ignored = _ignored_dir_names(extra_ignored_dirs)
+    git_dirs: set[str] = set()
+    git_files: set[str] = set()
+    if respect_gitignore:
+        git_dirs, git_files = git_ignored_paths(project_root) or (set(), set())
     for dirpath, dirnames, filenames in os.walk(project_root):
-        dirnames[:] = [d for d in dirnames if d.casefold() not in ignored]
         base = Path(dirpath)
+        rel = base.relative_to(project_root).as_posix() if git_dirs or git_files else ""
+        prefix = "" if rel == "." else rel + "/"
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if d.casefold() not in ignored and prefix + d not in git_dirs
+        ]
         for name in filenames:
+            if git_files and prefix + name in git_files:
+                continue
             yield base / name
+
+
+def git_ignored_paths(project_root: Path) -> tuple[set[str], set[str]] | None:
+    """Untracked paths git ignores under ``project_root``, as (dirs, files).
+
+    Asks git itself (``ls-files --others --ignored --exclude-standard
+    --directory``), so nested ``.gitignore`` files, negations,
+    ``.git/info/exclude`` and the global excludes file all apply exactly as
+    they do for ``git status``. Tracked files are never reported, even when
+    they match a pattern. Paths are relative to ``project_root``, and a fully
+    ignored directory is reported once, so it can be pruned unwalked.
+    Returns ``None`` outside a git work tree or when git is unavailable.
+    """
+    try:
+        completed = subprocess.run(
+            [
+                "git", "-C", str(project_root), "ls-files", "-z",
+                "--others", "--ignored", "--exclude-standard", "--directory",
+            ],
+            capture_output=True,
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    dirs: set[str] = set()
+    files: set[str] = set()
+    for entry in completed.stdout.decode("utf-8", "replace").split(chr(0)):
+        if not entry or entry.startswith("../"):
+            continue
+        if entry.endswith("/"):
+            dirs.add(entry.rstrip("/"))
+        else:
+            files.add(entry)
+    return dirs, files
 
 
 def to_file_id(project_root: Path, file_path: Path) -> str:

@@ -183,11 +183,13 @@ def _load_source_map(
 
     max_file_size_bytes = DEFAULT_MAX_FILE_SIZE_BYTES
     extra_ignored_dirs: list[str] = []
+    respect_gitignore = True
     if config:
         max_file_size_bytes = config.get("analysis", {}).get(
             "max_file_size_bytes", DEFAULT_MAX_FILE_SIZE_BYTES
         )
         extra_ignored_dirs = config.get("analysis", {}).get("ignore_dirs", [])
+        respect_gitignore = bool(config.get("analysis", {}).get("respect_gitignore", True))
 
     if virtual_files is not None:
         source_map: dict[str, str] = {}
@@ -209,6 +211,7 @@ def _load_source_map(
     for file_path in discover_source_files(
         project_root,
         extra_ignored_dirs=extra_ignored_dirs,
+        respect_gitignore=respect_gitignore,
     ):
         file_id = to_file_id(project_root, file_path)
         diag["discovered"] = diag.get("discovered", 0) + 1

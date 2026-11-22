@@ -33,7 +33,12 @@ def compute_fingerprint(project_root: Path, config: Any) -> str:
     # directory is not an input to the report and must not force a re-run.
     analysis = config.get("analysis") if isinstance(config, dict) else None
     ignore_dirs = analysis.get("ignore_dirs") if isinstance(analysis, dict) else None
-    source_files = sorted(discover_source_files(project_root, ignore_dirs or None))
+    gitignore = (
+        bool(analysis.get("respect_gitignore", True)) if isinstance(analysis, dict) else False
+    )
+    source_files = sorted(
+        discover_source_files(project_root, ignore_dirs or None, respect_gitignore=gitignore)
+    )
     file_meta_parts: list[str] = []
     for f in source_files:
         try:
