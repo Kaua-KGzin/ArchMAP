@@ -2,6 +2,12 @@
 
 ## Released
 
+### v1.5.0 (2026-11-21) — network history and the Network exposure view
+- **Network snapshots**: `netscan`/`expose --snapshot` store each scan under `.archmap/network/`; `archmap network diff|list` compares them (ports opened/closed, service/risk changes, hosts, `[network.rules]` drift), with `--fail-on-new-ports` as a CI gate.
+- **`archmap memory` network section**: drift violations and notable exposed services from the latest snapshot go into the agent's session-start digest.
+- **Web UI — Network exposure view**: the latest snapshot diffed against the previous one; read-only (never scans), served by a local-only endpoint.
+- **Fixes**: Arch line adapter (backoff ceiling, rejected heartbeats), `serve` on read-only projects and behind `0.0.0.0`, Docker logging, `audit` skipping untracked build output, `hub-report` with null metrics.
+
 ### v1.4.2 (2026-11-02) — GitHub Action and toolchain fixes
 - **GitHub Action**: installs `KG-ARCHMAP` (it installed an unrelated `archmap` PyPI package), `sarif` and `fail-on-explosions` inputs fixed, inputs passed via `env`.
 - **Python 3.14** in CI and the Docker image; `express` 5.3 / `body-parser` 2.4 (GHSA-27r3-jxmh-p828); Node `>=22`.
@@ -157,10 +163,9 @@
 
 ---
 
-## Now (v1.5.0) — closing the v1.3.x slice
+## Shipped in v1.5.0 — closing the v1.3.x slice
 
-All four items below are done and sit in `CHANGELOG.md` under
-`[Unreleased]`, so they ship as **v1.5.0**.
+All four items below shipped in **v1.5.0** (2026-11-21).
 
 ArchMAP's strategic direction ("Code, Architecture & Network Intelligence")
 is to correlate three domains that normally live in separate tools —
