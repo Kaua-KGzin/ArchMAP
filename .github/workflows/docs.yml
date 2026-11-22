@@ -12,6 +12,11 @@ on:
       - "ROADMAP.md"
       - "CONTRIBUTING.md"
       - "CODE_OF_CONDUCT.md"
+      - ".github/workflows/docs.yml"
+  # Manual redeploy: re-running a failed run cannot work, because the
+  # retried job uploads a second "github-pages" artifact into the same run
+  # and deploy-pages refuses duplicates. A fresh run starts clean.
+  workflow_dispatch:
 
 permissions:
   contents: read
