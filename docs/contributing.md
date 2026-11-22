@@ -63,7 +63,8 @@ pyinstaller archmap.spec
 
 Flow: `feat/*` (or `fix/*`, `perf/*`, `docs/*`) -> `main`; releases are tags
 on `main`. Do not stack pull requests: base each one on `main`, even when it
-depends on another (see [Branching Strategy](BRANCHING.md)).
+depends on another (see the
+[Branching Strategy](https://github.com/Kaua-KGzin/ArchMAP/blob/main/docs/BRANCHING.md)).
 
 ## Development checklist before opening a PR
 
@@ -79,7 +80,7 @@ python -m archmap.cli.main analyze . --fail-on-risks
 ```
 
 4. Update `CHANGELOG.md` (under `[Unreleased]`, mirrored in `docs/changelog.md`),
-   `README.md`, or `docs/roadmap.md` if behavior changes.
+   `README.md`, or `ROADMAP.md` if behavior changes.
 5. Open a PR using the repository template.
 
 ## Coding guidelines
