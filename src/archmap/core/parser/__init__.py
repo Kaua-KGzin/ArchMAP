@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import posixpath
 import re
+import weakref
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from typing import Any, NotRequired, TypedDict
@@ -259,6 +260,8 @@ class TsconfigAliases(TypedDict):
     # serverless entrypoint maps back to `src/app.module.ts`.
     out_dir: NotRequired[str]
     root_dir: NotRequired[str]
+    # Directory `paths` targets are joined to (root-relative).
+    paths_base: NotRequired[str]
 
 
 def _strip_jsonc(text: str) -> str:
@@ -305,70 +308,191 @@ def _strip_jsonc(text: str) -> str:
     return re.sub(r",(\s*[}\]])", r"\1", sanitised)
 
 
-def _load_tsconfig_aliases(
-    get_file_content: Callable[[str], str | None] | None,
-) -> TsconfigAliases | None:
-    """Read tsconfig.json / jsconfig.json and extract baseUrl + paths aliases."""
-    if get_file_content is None:
-        return None
+_TSCONFIG_NAMES = ("tsconfig.json", "jsconfig.json")
+_MAX_EXTENDS_DEPTH = 16
 
-    raw = None
-    for name in ("tsconfig.json", "jsconfig.json"):
-        raw = get_file_content(name)
-        if raw:
-            break
-    if not raw:
-        return None
 
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        try:
-            data = json.loads(_strip_jsonc(raw))
-        except json.JSONDecodeError:
+class _TsconfigIndex:
+    """Per-project tsconfig/jsconfig lookup, memoised by directory and file.
+
+    Mirrors how TypeScript picks a config for a source file: the nearest
+    ``tsconfig.json``/``jsconfig.json`` walking up from the file's directory,
+    with relative ``extends`` chains merged (child options override parent
+    ones). Every path option is rebased to the project root against the
+    config that declares it, as ``tsc`` does. Package ``extends``
+    (``@tsconfig/node20``) are skipped: they live in ``node_modules`` and
+    never carry project aliases.
+    """
+
+    def __init__(self, get_file_content: Callable[[str], str | None]) -> None:
+        self._read = get_file_content
+        self._by_dir: dict[str, TsconfigAliases | None] = {}
+        self._by_config: dict[str, TsconfigAliases | None] = {}
+        self._raw: dict[str, dict[str, Any] | None] = {}
+
+    def for_file(self, file_id: str) -> TsconfigAliases | None:
+        directory = normalize_file_id(posixpath.dirname(file_id))
+        directory = "" if directory == "." else directory
+        return self._for_dir(directory)
+
+    def _for_dir(self, directory: str) -> TsconfigAliases | None:
+        if directory in self._by_dir:
+            return self._by_dir[directory]
+        result: TsconfigAliases | None = None
+        found = False
+        for name in _TSCONFIG_NAMES:
+            config_id = posixpath.join(directory, name) if directory else name
+            if self._load_raw(config_id) is not None:
+                result = self._aliases(config_id)
+                found = True
+                break
+        if not found and directory:
+            parent = posixpath.dirname(directory)
+            result = self._for_dir("" if parent == "." else parent)
+        self._by_dir[directory] = result
+        return result
+
+    def _load_raw(self, config_id: str) -> dict[str, Any] | None:
+        if config_id not in self._raw:
+            self._raw[config_id] = self._parse(self._read(config_id))
+        return self._raw[config_id]
+
+    @staticmethod
+    def _parse(raw: str | None) -> dict[str, Any] | None:
+        if not raw:
             return None
-    if not isinstance(data, dict):
-        return None
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            try:
+                data = json.loads(_strip_jsonc(raw))
+            except json.JSONDecodeError:
+                return None
+        return data if isinstance(data, dict) else None
 
-    compiler_options = data.get("compilerOptions")
-    if not isinstance(compiler_options, dict):
-        return None
+    def _aliases(self, config_id: str) -> TsconfigAliases | None:
+        if config_id not in self._by_config:
+            self._by_config[config_id] = _aliases_from_options(self._merged(config_id))
+        return self._by_config[config_id]
 
-    base_url = compiler_options.get("baseUrl")
-    base_url = base_url if isinstance(base_url, str) else ""
+    def _merged(self, config_id: str) -> dict[str, Any]:
+        """Effective options, each path option already rebased to the root."""
+        chain: list[tuple[str, dict[str, Any]]] = []
+        seen: set[str] = set()
+        current: str | None = config_id
+        while current and current not in seen and len(chain) < _MAX_EXTENDS_DEPTH:
+            seen.add(current)
+            data = self._load_raw(current)
+            if data is None:
+                break
+            chain.append((current, data))
+            current = _relative_extends(current, data.get("extends"))
 
-    raw_paths = compiler_options.get("paths")
+        merged: dict[str, Any] = {}
+        for cfg_id, data in reversed(chain):  # base first, child overrides
+            cfg_dir = posixpath.dirname(cfg_id)
+            options = data.get("compilerOptions")
+            if isinstance(options, dict):
+                for key in ("baseUrl", "outDir", "rootDir"):
+                    value = options.get(key)
+                    if isinstance(value, str):
+                        merged[key] = _rebase(cfg_dir, value)
+                paths = options.get("paths")
+                if isinstance(paths, dict):
+                    merged["paths"] = paths
+                    merged["pathsDir"] = cfg_dir
+            include = data.get("include")
+            if isinstance(include, list):
+                merged["include"] = [
+                    _rebase(cfg_dir, item) for item in include if isinstance(item, str)
+                ]
+        return merged
+
+
+def _relative_extends(config_id: str, extends: Any) -> str | None:
+    """The project file a config ``extends``, or None for package/absent ones.
+
+    TypeScript 5 allows a list; only the first relative entry is followed,
+    which covers the common single-base layout.
+    """
+    candidates = extends if isinstance(extends, list) else [extends]
+    for item in candidates:
+        if isinstance(item, str) and item.startswith((".", "/")):
+            target = _rebase(posixpath.dirname(config_id), item)
+            return target if target.endswith(".json") else target + ".json"
+    return None
+
+
+def _rebase(config_dir: str, value: str) -> str:
+    joined = posixpath.normpath(posixpath.join(config_dir, value.replace("\\", "/")))
+    return "" if joined == "." else joined.lstrip("/")
+
+
+def _aliases_from_options(merged: dict[str, Any]) -> TsconfigAliases | None:
+    # A baseUrl that is the project root itself rebases to "", which would
+    # read as "unset"; keep it truthy so bare specifiers still try the root.
+    base_url = (merged["baseUrl"] or ".") if "baseUrl" in merged else ""
+    raw_paths = merged.get("paths") or {}
     paths: dict[str, list[str]] = {}
-    if isinstance(raw_paths, dict):
-        for alias, targets in raw_paths.items():
-            if not isinstance(alias, str) or not isinstance(targets, list):
-                continue
-            string_targets = [t for t in targets if isinstance(t, str)]
-            if string_targets:
-                paths[alias] = string_targets
+    for alias, targets in raw_paths.items():
+        if not isinstance(alias, str) or not isinstance(targets, list):
+            continue
+        string_targets = [t for t in targets if isinstance(t, str)]
+        if string_targets:
+            paths[alias] = string_targets
 
     result: TsconfigAliases = {"base_url": base_url, "paths": paths}
-    out_dir = compiler_options.get("outDir")
-    if isinstance(out_dir, str) and normalize_file_id(out_dir) not in ("", "."):
-        root_dir = compiler_options.get("rootDir")
-        if not isinstance(root_dir, str):
+    if paths:
+        # `paths` targets resolve against baseUrl when it is set, otherwise
+        # against the config that declares them (TypeScript 4.1+).
+        result["paths_base"] = base_url if "baseUrl" in merged else merged.get("pathsDir", "")
+    out_dir = merged.get("outDir")
+    if out_dir:
+        root_dir = merged.get("rootDir")
+        if root_dir is None:
             # tsc infers rootDir from `include`; the common `src/**/*` layout.
-            include = data.get("include")
-            first = include[0] if isinstance(include, list) and include else ""
-            root_dir = first.split("/", 1)[0] if isinstance(first, str) and "*" in first else ""
-        result["out_dir"] = normalize_file_id(out_dir)
-        result["root_dir"] = normalize_file_id(root_dir) if root_dir else ""
+            include = merged.get("include") or []
+            first = include[0] if include else ""
+            root_dir = first.split("*", 1)[0].rstrip("/") if "*" in first else ""
+        result["out_dir"] = out_dir
+        result["root_dir"] = root_dir
 
     if not base_url and not paths and "out_dir" not in result:
         return None
     return result
 
 
+_TSCONFIG_INDEXES: weakref.WeakKeyDictionary[Callable[..., Any], _TsconfigIndex] = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def _tsconfig_aliases_for(
+    file_id: str, get_file_content: Callable[[str], str | None] | None
+) -> TsconfigAliases | None:
+    """tsconfig settings that apply to ``file_id``, read once per project.
+
+    The index is keyed on the ``get_file_content`` callable, which
+    ``parse_project`` creates once per run, so configs are cached for one
+    analysis and dropped with it.
+    """
+    if get_file_content is None:
+        return None
+    try:
+        index = _TSCONFIG_INDEXES.get(get_file_content)
+    except TypeError:  # not weak-referenceable
+        return _TsconfigIndex(get_file_content).for_file(file_id)
+    if index is None:
+        index = _TsconfigIndex(get_file_content)
+        _TSCONFIG_INDEXES[get_file_content] = index
+    return index.for_file(file_id)
+
 def _resolve_alias_specifier(
     specifier: str, aliases: TsconfigAliases, file_ids: set[str]
 ) -> Dependency | None:
     """Resolve a bare specifier against tsconfig paths/baseUrl, if possible."""
     base_url = aliases["base_url"].strip("/")
+    paths_base = aliases.get("paths_base", base_url).strip("/")
 
     def _try(candidate: str) -> Dependency | None:
         normalized = normalize_file_id(candidate.lstrip("/"))
@@ -385,12 +509,12 @@ def _resolve_alias_specifier(
                 if specifier.startswith(prefix):
                     tail = specifier[len(prefix):]
                     mapped = target[:-1] + tail
-                    candidate = posixpath.join(base_url, mapped) if base_url else mapped
+                    candidate = posixpath.join(paths_base, mapped) if paths_base else mapped
                     dep = _try(candidate)
                     if dep:
                         return dep
             elif alias == specifier:
-                candidate = posixpath.join(base_url, target) if base_url else target
+                candidate = posixpath.join(paths_base, target) if paths_base else target
                 dep = _try(candidate)
                 if dep:
                     return dep

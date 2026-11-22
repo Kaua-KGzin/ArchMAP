@@ -39,9 +39,9 @@ class JSParser(ParserPlugin):
     def resolve(
         self, import_entries: list[Any], file_id: str, file_ids: set[str], **kwargs: Any
     ) -> list[Dependency]:
-        from archmap.core.parser import _load_tsconfig_aliases, _resolve_js_ts_dependency
+        from archmap.core.parser import _resolve_js_ts_dependency, _tsconfig_aliases_for
 
-        aliases = _load_tsconfig_aliases(kwargs.get("get_file_content"))
+        aliases = _tsconfig_aliases_for(file_id, kwargs.get("get_file_content"))
 
         resolved: list[Dependency] = []
         for specifier in import_entries:

@@ -79,7 +79,7 @@ Resolution is configuration-aware where the ecosystem provides it:
 | Language | Configuration honored |
 |---|---|
 | Python | absolute `from pkg import name` checked as submodule (`pkg/name.py`, `pkg/name/__init__.py`) before the package root |
-| JS / TS | `tsconfig.json` / `jsconfig.json` `baseUrl` + `paths` aliases (e.g. `@app/*` → `src/*`) |
+| JS / TS | Nearest `tsconfig.json` / `jsconfig.json` to each file (per-package configs in monorepos), relative `extends` chains merged; `baseUrl` + `paths` aliases (e.g. `@app/*` → `src/*`) and `outDir` → `rootDir` mapping, each rebased against the config that declares it |
 | Go | `go.mod` module path and local `replace` directives |
 | PHP | `composer.json` PSR-4 autoload map (longest prefix wins) |
 | Java | package → directory, wildcard packages, and inner classes (`Outer.Inner` → `Outer.java`) |
