@@ -114,6 +114,17 @@ All notable changes to this project are documented in this file.
   regardless of the change under test: `test_audit.py` wrote invisible Unicode
   with no `encoding=` (cp1252 can't encode U+200B/U+202E) and
   `test_cli_server.py` set `HOME` where `Path.expanduser()` reads `USERPROFILE`.
+- **tsconfig aliases were only read from the project root, with no `extends`.**
+  In a monorepo the `@/*` alias lives in `apps/web/tsconfig.json`, so every
+  `@/components/...` import became a fake external package (`pkg:@/components`)
+  and the internal edge was lost. On one real Next.js monorepo that was 105
+  edges into 5 fake packages: the internal graph more than doubled (121 -> 263
+  edges) once resolved, with no legitimate edge lost. Each file now uses the
+  nearest `tsconfig.json`/`jsconfig.json`; relative `extends` chains are merged
+  (child overrides parent, cycles are cut); `baseUrl`, `outDir`, `rootDir` and
+  `include` are rebased against the config that declares them; and `paths`
+  without `baseUrl` resolve against their own config (TypeScript 4.1+). Configs
+  are read and parsed once per analysis instead of once per resolved file.
 
 ## [1.4.2] - 2026-11-02
 
