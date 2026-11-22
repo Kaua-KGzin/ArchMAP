@@ -31,10 +31,11 @@ class PythonParser(ParserPlugin):
     ) -> list[Dependency]:
         from archmap.core.parser.resolvers import _resolve_python_dependency
 
+        extra_roots = tuple(kwargs.get("python_search_roots") or ())
         resolved: list[Dependency] = []
         for entry in import_entries:
             if isinstance(entry, dict):
-                resolved.extend(_resolve_python_dependency(entry, file_id, file_ids))
+                resolved.extend(_resolve_python_dependency(entry, file_id, file_ids, extra_roots))
         return resolved
 
 

@@ -14,6 +14,12 @@ from archmap.core.analyzer.impact_analyzer import build_dependents_map, calculat
 from archmap.core.analyzer.project_explainer import explain_project
 from archmap.core.analyzer.quality import build_analysis_quality, build_quality_findings
 from archmap.core.analyzer.risk_analyzer import detect_architectural_risks
+from archmap.core.analyzer.test_mapping import (
+    build_test_findings,
+    build_test_mapping,
+    is_test_file,
+    summarize_test_mapping,
+)
 from archmap.utils.file_utils import is_vendored_path
 
 
@@ -81,8 +87,15 @@ def analyze_graph(
     quality = build_analysis_quality(graph.get("diagnostics"), graph.get("parsedFiles", []))
     metrics["analysisQuality"] = quality
 
+    test_mapping, test_file_count = _map_tests(graph, file_node_ids, edges)
+    for node in nodes:
+        if node["id"] in test_mapping:
+            node["testedBy"] = test_mapping[node["id"]]
+    metrics["testMapping"] = summarize_test_mapping(test_mapping, test_file_count)
+
     findings = build_code_findings(enriched, risks, architecture)
     findings.extend(build_quality_findings(quality))
+    findings.extend(build_test_findings(test_mapping, risks, test_file_count))
 
     return {
         "projectRoot": graph["projectRoot"],
@@ -102,6 +115,27 @@ def analyze_graph(
         }),
         "explanation": explain_project(nodes, edges),
     }
+
+
+def _map_tests(
+    graph: dict, file_node_ids: list[str], edges: list[dict]
+) -> tuple[dict[str, list[str]], int]:
+    """Tests from both places they live: outside the graph (``testFiles``,
+    from ignored ``tests/`` dirs) and inside it (``foo.spec.ts`` next to
+    ``foo.ts``, Maven ``src/test/java``), whose import edges are graph edges.
+    """
+    file_set = set(file_node_ids)
+    test_deps: dict[str, list[str]] = {
+        t["id"]: list(t.get("dependencies", [])) for t in graph.get("testFiles", [])
+    }
+    for fid in file_node_ids:
+        if is_test_file(fid):
+            test_deps.setdefault(fid, [])
+    for edge in edges:
+        source, target = edge.get("source"), edge.get("target")
+        if source in test_deps and target in file_set:
+            test_deps[source].append(target)
+    return build_test_mapping(file_node_ids, test_deps), len(test_deps)
 
 
 def _build_file_adjacency(

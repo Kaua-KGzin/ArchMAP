@@ -39,6 +39,16 @@ def compute_fingerprint(project_root: Path, config: Any) -> str:
     source_files = sorted(
         discover_source_files(project_root, ignore_dirs or None, respect_gitignore=gitignore)
     )
+    # Test files feed metrics.testMapping, so they are inputs too.
+    from archmap.core.analyzer.test_mapping import discover_test_files
+
+    source_set = set(source_files)
+    source_files += sorted(
+        p
+        for p in discover_test_files(project_root, analysis if isinstance(analysis, dict) else None)
+        .values()
+        if p not in source_set
+    )
     file_meta_parts: list[str] = []
     for f in source_files:
         try:

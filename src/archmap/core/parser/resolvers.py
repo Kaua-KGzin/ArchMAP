@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import posixpath
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -36,13 +36,16 @@ def _resolve_js_ts_dependency(
 
 
 def _resolve_python_dependency(
-    import_entry: Mapping[str, Any], file_id: str, file_ids: set[str]
+    import_entry: Mapping[str, Any],
+    file_id: str,
+    file_ids: set[str],
+    extra_roots: Sequence[str] = (),
 ) -> list[Dependency]:
     import_type = import_entry.get("type")
     module_name = str(import_entry.get("module", ""))
 
     if import_type == "import":
-        internal_path = _find_python_absolute_module(module_name, file_ids, file_id)
+        internal_path = _find_python_absolute_module(module_name, file_ids, file_id, extra_roots)
         if internal_path:
             return [_make_file_dependency(internal_path)]
 
@@ -58,7 +61,7 @@ def _resolve_python_dependency(
                 file_ids,
             )
 
-        internal_path = _find_python_absolute_module(module_name, file_ids, file_id)
+        internal_path = _find_python_absolute_module(module_name, file_ids, file_id, extra_roots)
 
         # Check each imported name as a potential submodule of module_name.
         # e.g. `from pkg import utils` may resolve to `pkg/utils.py`.
@@ -66,7 +69,9 @@ def _resolve_python_dependency(
         for name in import_entry.get("names", []):
             if name == "*":
                 continue
-            sub_path = _find_python_absolute_module(f"{module_name}.{name}", file_ids, file_id)
+            sub_path = _find_python_absolute_module(
+                f"{module_name}.{name}", file_ids, file_id, extra_roots
+            )
             if sub_path:
                 submodule_deps.append(_make_file_dependency(sub_path))
 
@@ -231,7 +236,10 @@ def _infer_python_package_root(file_id: str, file_ids: set[str]) -> str:
 
 
 def _find_python_absolute_module(
-    module_name: str, file_ids: set[str], importer_file_id: str | None = None
+    module_name: str,
+    file_ids: set[str],
+    importer_file_id: str | None = None,
+    extra_roots: Sequence[str] = (),
 ) -> str | None:
     if not module_name:
         return None
@@ -244,6 +252,12 @@ def _find_python_absolute_module(
             candidate = _safe_norm_join(root, base)
             if candidate and candidate not in candidates:
                 candidates.append(candidate)
+    # Project-level roots (e.g. `src`) for importers outside every package,
+    # such as tests/ without an __init__.py.
+    for root in extra_roots:
+        candidate = _safe_norm_join(root, base)
+        if candidate and candidate not in candidates:
+            candidates.append(candidate)
 
     for candidate in candidates:
         resolved = _find_python_module(candidate, file_ids)
