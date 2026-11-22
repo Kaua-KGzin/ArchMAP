@@ -4,8 +4,8 @@ Describe the purpose of this PR in 2-5 lines.
 
 ## Branch Flow
 
-- Source branch: `feat/*` or `fix/*` or `docs/*`
-- Target branch: `dev` (default) or `release/*` (stabilization only)
+- Source branch: `feat/*`, `fix/*`, `perf/*`, `docs/*` or `release/<version>`
+- Target branch: `main` (base every PR on `main`; do not stack PRs)
 
 ## Checklist
 
