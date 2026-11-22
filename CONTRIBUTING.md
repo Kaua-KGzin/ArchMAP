@@ -53,19 +53,21 @@ pyinstaller archmap.spec
 
 ## Branching model
 
-- `main`: stable branch only
-- `dev`: integration branch for upcoming release
+- `main`: the only long-lived branch; every pull request targets it
 - `feat/*`: one feature per branch
-- `feature/*`: legacy alias supported
 - `fix/*`: bugfix branches
+- `perf/*`: performance work with no behaviour change
 - `docs/*`: documentation-only changes
-- `release/*`: stabilization and release prep
+- `release/<version>`: the version-bump pull request for a release
+- `feature/*`: legacy alias of `feat/*`
 
-Flow: `feat/* -> dev -> release/* -> main`
+Flow: `feat/*` (or `fix/*`, `perf/*`, `docs/*`) -> `main`; releases are tags
+on `main`. Do not stack pull requests: base each one on `main`, even when it
+depends on another (see [Branching Strategy](docs/BRANCHING.md)).
 
 ## Development checklist before opening a PR
 
-1. Branch from `dev` (or `main` only for urgent production fixes).
+1. Branch from `main`.
 2. Implement changes with tests.
 3. Run quality gates:
 
@@ -76,7 +78,8 @@ archmap analyze . --format both --out .codeatlas/local-graph.json --out-mermaid 
 python -m archmap.cli.main analyze . --fail-on-risks
 ```
 
-4. Update `CHANGELOG.md`, `README.md`, or `ROADMAP.md` if behavior changes.
+4. Update `CHANGELOG.md` (under `[Unreleased]`, mirrored in `docs/changelog.md`),
+   `README.md`, or `docs/roadmap.md` if behavior changes.
 5. Open a PR using the repository template.
 
 ## Coding guidelines

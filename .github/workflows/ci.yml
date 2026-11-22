@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - dev
       - feat/**
       - release/**
       - feature/**
       - fix/**
+      - perf/**
       - docs/**
   pull_request:
 

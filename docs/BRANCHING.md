@@ -1,36 +1,45 @@
 # Branching Strategy
 
-This repository follows a staged promotion model to protect `main`.
+`main` is the only long-lived branch. Every change reaches it through a pull
+request that CI must pass, and releases are tags on `main`.
 
 ## Branch roles
 
-- `main`: production-ready code only.
-- `dev`: integration branch for ongoing work.
-- `feat/*`: feature implementation branches.
-- `feature/*`: legacy alias supported for compatibility.
-- `fix/*`: bugfix branches.
-- `docs/*`: documentation-only branches.
-- `release/*`: release hardening and final validation.
+- `main`: protected by a ruleset; always releasable. Every pull request
+  targets it.
+- `feat/*`: new features.
+- `fix/*`: bug fixes.
+- `perf/*`: performance work with no behaviour change.
+- `docs/*`: documentation-only changes.
+- `release/<version>`: the version-bump pull request for a release (see below).
+- `feature/*`: legacy alias of `feat/*`, still accepted by CI.
 
-## Promotion flow
-
-`feat/*` -> `dev` -> `release/*` -> `main`
+Branches are short-lived: delete them once their pull request is merged.
 
 ## Merge policy
 
-1. Never merge `feat/*` directly into `main`.
-2. `release/*` accepts only stabilization changes:
-   bug fixes, tests, documentation, and release metadata.
+1. Branch from `main` and target `main`.
+2. **Do not stack pull requests** (pull request B based on pull request A's
+   branch). When A merges, GitHub does not retarget B, so B merges into A's
+   old branch and never reaches `main`. If B depends on A, base B on `main`
+   anyway, say "merge after #A" in its description, and rebase it once A
+   lands.
 3. All pull requests must pass CI before merge.
 4. Every code change must include or update tests.
-5. Changelog entry is required for user-visible behavior changes.
+5. A user-visible change adds a `CHANGELOG.md` entry under `[Unreleased]`,
+   mirrored in `docs/changelog.md`.
+6. Pull requests opened or updated by an AI agent fill the "AI assistance &
+   supervision" section of the template (see `CLAUDE.md`).
 
-## Recommended release cadence
+## Release process
 
-1. Open `release/<version>` from `dev`.
-2. Freeze feature work in release branch.
-3. Run full quality gate:
-   `ruff`, `pytest`, smoke analysis, and executable smoke test.
-4. Merge `release/<version>` into `main`.
-5. Tag and publish release.
-6. Back-merge release fixes into `dev`.
+1. Open `release/<version>` from `main`. It bumps `__version__` in
+   `src/archmap/__init__.py` and renames `[Unreleased]` in both changelogs to
+   `[<version>] - <date>`.
+2. Run the full quality gate: `ruff`, `mypy`, `pytest`, a smoke analysis, and
+   the executable smoke test.
+3. Merge it into `main`.
+4. Tag the merge commit `v<version>` and push the tag. The `publish`,
+   `release` and `docker` workflows build and publish from the tag, and
+   `scripts/check_tag_version.py` refuses a tag that does not match the
+   package version.
