@@ -125,6 +125,14 @@ All notable changes to this project are documented in this file.
   `include` are rebased against the config that declares them; and `paths`
   without `baseUrl` resolve against their own config (TypeScript 4.1+). Configs
   are read and parsed once per analysis instead of once per resolved file.
+- **C/C++ include resolution scanned every file for each `#include`.** The
+  `-I`-style fallback (`"foo/bar.h"` found at `include/foo/bar.h`) tested
+  every project file with `endswith`, once per unresolved include and again
+  in the per-entry unresolved check: 109 million calls on a 4411-file tree
+  with ffmpeg sources. A basename index, built once per file set, narrows the
+  check to files with the same name. That analysis drops from 46 s to 27 s,
+  and the rest is tree-sitter parsing. Three other C/C++ repos are 15-60%
+  faster. All four reports are byte-identical.
 
 ## [1.4.2] - 2026-11-02
 

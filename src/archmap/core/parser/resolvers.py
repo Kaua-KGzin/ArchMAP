@@ -546,6 +546,25 @@ def _resolve_java_dependency(
     return [_make_package_dependency(specifier)]
 
 
+# One-slot cache: a parse resolves every include against the same file set,
+# so the basename index is built once per analysis instead of the old full
+# scan per unresolved include (~100 s on a 4k-file C/C++ tree). The set object
+# itself is kept and compared by identity, so a different set rebuilds.
+_BASENAME_INDEX: tuple[set[str], int, dict[str, list[str]]] | None = None
+
+
+def _files_by_basename(file_ids: set[str]) -> dict[str, list[str]]:
+    global _BASENAME_INDEX
+    cached = _BASENAME_INDEX
+    if cached is not None and cached[0] is file_ids and cached[1] == len(file_ids):
+        return cached[2]
+    index: dict[str, list[str]] = {}
+    for fid in file_ids:
+        index.setdefault(posixpath.basename(fid), []).append(fid)
+    _BASENAME_INDEX = (file_ids, len(file_ids), index)
+    return index
+
+
 def _resolve_cpp_dependency(
     import_entry: Mapping[str, Any], file_id: str, file_ids: set[str]
 ) -> list[Dependency]:
@@ -573,7 +592,8 @@ def _resolve_cpp_dependency(
         # included as "foo/bar.h" frequently lives at include/foo/bar.h or
         # src/foo/bar.h. Match by unique path suffix.
         suffix = "/" + absolute_candidate
-        suffix_matches = [fid for fid in file_ids if fid.endswith(suffix)]
+        same_name = _files_by_basename(file_ids).get(posixpath.basename(absolute_candidate), ())
+        suffix_matches = [fid for fid in same_name if fid.endswith(suffix)]
         if len(suffix_matches) == 1:
             return [_make_file_dependency(suffix_matches[0])]
 
