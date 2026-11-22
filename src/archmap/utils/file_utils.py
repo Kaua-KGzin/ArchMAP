@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+import os
+from collections.abc import Iterable, Iterator
 from pathlib import Path, PurePosixPath
 
 SUPPORTED_EXTENSIONS = {
@@ -101,18 +102,10 @@ def discover_source_files(
             return [project_root]
         return []
 
-    extra = {d.casefold() for d in (extra_ignored_dirs or [])}
     files: list[Path] = []
 
-    for file_path in project_root.rglob("*"):
-        if not file_path.is_file():
-            continue
+    for file_path in walk_project_files(project_root, extra_ignored_dirs):
         if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-            continue
-        parts = file_path.relative_to(project_root).parts
-        if should_ignore_parts(parts):
-            continue
-        if extra and any(p.casefold() in extra for p in parts):
             continue
         if max_file_size_bytes > 0:
             try:
@@ -123,6 +116,25 @@ def discover_source_files(
         files.append(file_path)
 
     return sorted(files)
+
+
+def walk_project_files(
+    project_root: Path, extra_ignored_dirs: Iterable[str] | None = None
+) -> Iterator[Path]:
+    """Yield every file under ``project_root`` outside the ignored directories.
+
+    Ignored directories are pruned before they are listed, so the cost scales
+    with the project's own files rather than with ``node_modules``, ``.git``
+    or a virtualenv. ``project_root`` itself is never checked, so analysing a
+    directory that is named ``tests`` still works. Symlinked directories are
+    not followed, as with ``Path.rglob``.
+    """
+    ignored = _ignored_dir_names(extra_ignored_dirs)
+    for dirpath, dirnames, filenames in os.walk(project_root):
+        dirnames[:] = [d for d in dirnames if d.casefold() not in ignored]
+        base = Path(dirpath)
+        for name in filenames:
+            yield base / name
 
 
 def to_file_id(project_root: Path, file_path: Path) -> str:

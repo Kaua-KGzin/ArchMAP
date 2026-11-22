@@ -89,6 +89,83 @@ def test_discover_source_files_size_limit(tmp_path):
     assert set(discovered_all) == {small, large}
 
 
+def _record_scandir(monkeypatch):
+    """Record every directory the walker lists, whatever walker it uses."""
+    import os
+
+    visited: list[str] = []
+    real_scandir = os.scandir
+
+    def spy(path="."):
+        visited.append(os.fspath(path).replace("\\", "/"))
+        return real_scandir(path)
+
+    monkeypatch.setattr(os, "scandir", spy)
+    return visited
+
+
+def test_discover_source_files_never_descends_into_ignored_dirs(tmp_path, monkeypatch):
+    # A dependency tree is pruned, not walked and filtered afterwards: on a
+    # JS project node_modules holds tens of thousands of files.
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.ts").write_text("export {}")
+    deep = tmp_path / "node_modules" / "pkg" / "lib"
+    deep.mkdir(parents=True)
+    (deep / "index.js").write_text("module.exports = {}")
+    (tmp_path / "custom_out" / "nested").mkdir(parents=True)
+
+    visited = _record_scandir(monkeypatch)
+    found = discover_source_files(tmp_path, extra_ignored_dirs={"custom_out"})
+
+    assert found == [tmp_path / "src" / "main.ts"]
+    assert any(v.endswith("/src") for v in visited)
+    assert not any("node_modules" in v for v in visited)
+    assert not any("custom_out" in v for v in visited)
+
+
+def test_discover_source_files_extra_ignored_dir_given_as_path(tmp_path):
+    # `.archmap.toml` users write ignore_dirs as paths; the last segment is
+    # what matches, as it already does for should_ignore_parts.
+    (tmp_path / "gen").mkdir()
+    (tmp_path / "gen" / "out.py").write_text("x = 1")
+    kept = tmp_path / "app.py"
+    kept.write_text("x = 2")
+
+    assert discover_source_files(tmp_path, extra_ignored_dirs={"src/gen"}) == [kept]
+
+
+def test_endpoint_scanner_never_descends_into_ignored_dirs(tmp_path, monkeypatch):
+    from archmap.core.exposure.endpoint_scanner import scan_endpoint_references
+
+    (tmp_path / ".env").write_text("REDIS_URL=redis://cache:6379\n")
+    deep = tmp_path / "node_modules" / "pkg"
+    deep.mkdir(parents=True)
+    (deep / ".env").write_text("REDIS_URL=redis://other:6379\n")
+
+    visited = _record_scandir(monkeypatch)
+    refs = scan_endpoint_references(tmp_path)
+
+    assert {r["file"] for r in refs} == {".env"}
+    assert not any("node_modules" in v for v in visited)
+
+
+def test_fingerprint_ignores_changes_in_config_ignored_dirs(tmp_path):
+    from archmap.cache import compute_fingerprint
+
+    (tmp_path / "app.py").write_text("x = 1")
+    (tmp_path / "generated").mkdir()
+    noise = tmp_path / "generated" / "stub.py"
+    noise.write_text("y = 1")
+    config = {"analysis": {"ignore_dirs": ["generated"]}}
+
+    before = compute_fingerprint(tmp_path, config)
+    noise.write_text("y = 2 # regenerated, larger")
+    assert compute_fingerprint(tmp_path, config) == before
+
+    (tmp_path / "app.py").write_text("x = 1 # edited, larger")
+    assert compute_fingerprint(tmp_path, config) != before
+
+
 def test_to_file_id(tmp_path):
     # If the root is a file and equals the file_path
     single_file = tmp_path / "test.py"

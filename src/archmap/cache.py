@@ -29,7 +29,11 @@ def compute_fingerprint(project_root: Path, config: Any) -> str:
         config, sort_keys=True, default=str
     )
 
-    source_files = sorted(discover_source_files(project_root))
+    # Same ignore set the parser uses: a regenerated file in an ignored
+    # directory is not an input to the report and must not force a re-run.
+    analysis = config.get("analysis") if isinstance(config, dict) else None
+    ignore_dirs = analysis.get("ignore_dirs") if isinstance(analysis, dict) else None
+    source_files = sorted(discover_source_files(project_root, ignore_dirs or None))
     file_meta_parts: list[str] = []
     for f in source_files:
         try:
