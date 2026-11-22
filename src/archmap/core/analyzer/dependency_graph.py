@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 from archmap.core.analyzer.architecture_analyzer import analyze_architecture
+from archmap.core.analyzer.centrality import (
+    betweenness_centrality,
+    build_centrality_findings,
+    summarize_centrality,
+)
 from archmap.core.analyzer.complexity_analyzer import (
     annotate_nodes_with_complexity,
     summarize_complexity,
@@ -93,9 +98,21 @@ def analyze_graph(
             node["testedBy"] = test_mapping[node["id"]]
     metrics["testMapping"] = summarize_test_mapping(test_mapping, test_file_count)
 
+    betweenness, centrality_meta = betweenness_centrality(
+        file_node_ids,
+        ((e["source"], e["target"]) for e in edges if e.get("target") in file_node_set),
+    )
+    for node in nodes:
+        if node["id"] in betweenness:
+            node["betweenness"] = round(betweenness[node["id"]], 6)
+    metrics["centrality"] = summarize_centrality(betweenness, centrality_meta)
+
     findings = build_code_findings(enriched, risks, architecture)
     findings.extend(build_quality_findings(quality))
     findings.extend(build_test_findings(test_mapping, risks, test_file_count))
+    findings.extend(
+        build_centrality_findings(betweenness, centrality_meta)
+    )
 
     return {
         "projectRoot": graph["projectRoot"],

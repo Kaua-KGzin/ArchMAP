@@ -159,6 +159,7 @@ message, and `evidence`. The ID prefix tells you where it came from:
 | `ARCH-*` | code | `analyze` | circular dependency, god module, layer/rule violation |
 | `QUAL-*` | quality | `analyze` | parse failure, undecodable file, low import resolution |
 | `TEST-*` | testing | `analyze` | high-risk file that no test imports or is named after |
+| `GRAPH-*` | code | `analyze` | structural bottleneck: a file on a large share of the import chains |
 | `NET-*` | network | `expose` | open port mapped to a library the code imports, rule drift |
 | `BIN-*` | binary | `inspect` | executable stack, no PIE/ASLR/DEP, packed, zip-slip archive |
 | `SEC-*` | security | `audit` | committed AWS/GitHub/private key (redacted) |

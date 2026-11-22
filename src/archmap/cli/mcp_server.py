@@ -607,8 +607,9 @@ _TOOLS = [
         "name": "list_findings",
         "description": (
             "All unified findings with stable IDs: ARCH-* (cycles, god modules, layer "
-            "and rule violations), QUAL-* (parse failures, low resolution) and TEST-* "
-            "(high-risk files no test refers to). Filter by domain ('code', 'quality' "
+            "and rule violations), GRAPH-* (structural bottlenecks), QUAL-* (parse "
+            "failures, low resolution) and TEST-* (high-risk files no test refers "
+            "to). Filter by domain ('code', 'quality' "
             "or 'testing') and minimum severity."
         ),
         "inputSchema": {

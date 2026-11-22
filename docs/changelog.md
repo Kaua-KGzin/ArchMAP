@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Structural bottlenecks: betweenness centrality on the file graph.** Fan-in
+  and fan-out (and therefore `riskScore`) count who touches a file, not how
+  many dependency chains pass *through* it. Every file node now carries
+  `betweenness`, the share of connected import chains whose shortest route
+  crosses it; `metrics.centrality` gives the method, `connectedPairs` and the
+  top 10; and files on at least 10% of the chains become `GRAPH-*` findings
+  (`structural_bottleneck`, at most 5, test files excluded). It is pure Python
+  (Brandes), exact up to 1000 files and deterministically sampled above that:
+  1-24 ms on 59-239 file projects and 347 ms on a 4411-file C/C++ tree. Risk
+  scores and health are unchanged. Real hits include a .NET API class on
+  32.5% of the chains, a React `Layout` on 30.1% and a NestJS `app.module.ts`
+  on 21.4%. .NET test projects (`*.Tests`, `*.UnitTests`,
+  `*.IntegrationTests`) now count as test directories for test mapping.
 - **Test mapping: which files have a test, and which important ones do not.**
   `tests/` used to be skipped entirely, so ArchMAP could rank a file as the
   riskiest in the project without knowing that no test touched it. Test files
