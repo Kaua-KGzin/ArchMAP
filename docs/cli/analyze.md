@@ -181,6 +181,38 @@ Gaps also become `QUAL-*` entries in the unified `findings` list
 resolved), and `archmap memory` adds the confidence line and warnings to the
 agent digest so an agent knows when "no dependents" is a lower bound.
 
+### Test mapping (`metrics.testMapping`)
+
+ArchMAP records which project files have a test referring to them. A test
+counts for a file when it imports the file, or when it is named after it by
+the language convention: `test_foo.py` / `foo_test.py`, `foo_test.go`,
+`foo.spec.ts` / `foo.test.tsx`, `FooTest.java` / `FooTests.cs`. The naming
+rule covers Go and Java tests, which share the package under test and often
+import nothing from it.
+
+A file is treated as a test when it sits under a `tests/`, `test/`,
+`__tests__/`, `spec/` or `specs/` directory, or matches one of those names.
+`tests/` stays out of the graph: its files are read only for this mapping,
+and they never become nodes or change any risk score. Imports inside them
+resolve against the project's top-level Python packages, so a `src/` layout
+works from `tests/` without an `__init__.py`.
+
+| Field | Meaning |
+|---|---|
+| `testFiles` | Test files found (in the graph or in test directories) |
+| `sourceFiles` / `testedFiles` / `untestedFiles` | Non-test files, and how many have at least one test |
+| `testedRatio` | `testedFiles / sourceFiles` |
+
+Each file node also carries `testedBy`, the list of test files that refer to
+it. The highest-risk files with an empty `testedBy` become `TEST-*` findings
+(`untested_critical_file`, severity `medium`, at most 10). Their confidence is
+`0.7` because the mapping is static and cannot see a file tested only
+indirectly, through another module. A project with no test files gets no
+`TEST-*` findings.
+
+This is a structural signal, not line coverage: use it to spot important
+code that no test even names, and a coverage tool for how much of it runs.
+
 ### Table format (`--summary-format table`)
 
 ```text

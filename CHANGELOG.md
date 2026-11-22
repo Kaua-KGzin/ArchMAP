@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Test mapping: which files have a test, and which important ones do not.**
+  `tests/` used to be skipped entirely, so ArchMAP could rank a file as the
+  riskiest in the project without knowing that no test touched it. Test files
+  are now read, but not graphed, and mapped to the files they import or are
+  named after (`test_foo.py`, `foo_test.go`, `foo.spec.ts`, `FooTest.java`, ...).
+  New outputs: `testedBy` on each file node, `metrics.testMapping`
+  (`testFiles`, `testedFiles`, `untestedFiles`, `testedRatio`), and `TEST-*`
+  findings (`untested_critical_file`, confidence 0.7) for up to 10 top-risk
+  files with no test. MCP `list_findings` accepts `domain: "testing"`. Risk
+  scores and architecture health are unchanged, as reports on six real repos
+  confirm. Python tests resolve against the project's top-level package
+  roots, so `from pkg.x import y` in `tests/` finds `src/pkg/x.py`: on ArchMAP
+  itself 97 of 101 test files resolve, and 84 of 117 source files are mapped.
+  Test files are part of the report-cache fingerprint.
 - **`analyze` honours `.gitignore`** (`[analysis] respect_gitignore`, on by
   default). Only a fixed list of directories and `ignore_dirs` used to be
   skipped, so framework build output, fetched vendored trees and tool

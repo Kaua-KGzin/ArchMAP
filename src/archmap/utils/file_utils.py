@@ -127,6 +127,7 @@ def walk_project_files(
     extra_ignored_dirs: Iterable[str] | None = None,
     *,
     respect_gitignore: bool = False,
+    unignore: Iterable[str] = (),
 ) -> Iterator[Path]:
     """Yield every file under ``project_root`` outside the ignored directories.
 
@@ -138,9 +139,10 @@ def walk_project_files(
 
     With ``respect_gitignore`` the files and directories git reports as
     ignored are skipped too (see :func:`git_ignored_paths`); outside a git
-    work tree, or without git, nothing extra is skipped.
+    work tree, or without git, nothing extra is skipped. ``unignore`` lifts
+    names from the built-in set (test discovery walks ``tests/``).
     """
-    ignored = _ignored_dir_names(extra_ignored_dirs)
+    ignored = _ignored_dir_names(extra_ignored_dirs) - {d.casefold() for d in unignore}
     git_dirs: set[str] = set()
     git_files: set[str] = set()
     if respect_gitignore:

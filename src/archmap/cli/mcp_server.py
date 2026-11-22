@@ -607,13 +607,14 @@ _TOOLS = [
         "name": "list_findings",
         "description": (
             "All unified findings with stable IDs: ARCH-* (cycles, god modules, layer "
-            "and rule violations) and QUAL-* (parse failures, low resolution). Filter "
-            "by domain ('code' or 'quality') and minimum severity."
+            "and rule violations), QUAL-* (parse failures, low resolution) and TEST-* "
+            "(high-risk files no test refers to). Filter by domain ('code', 'quality' "
+            "or 'testing') and minimum severity."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "domain": {"type": "string", "enum": ["code", "quality"]},
+                "domain": {"type": "string", "enum": ["code", "quality", "testing"]},
                 "min_severity": {
                     "type": "string",
                     "enum": ["info", "low", "medium", "high", "critical"],

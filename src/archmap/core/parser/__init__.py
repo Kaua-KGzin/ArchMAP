@@ -55,10 +55,18 @@ class ParsedFile(TypedDict):
     unresolvedImports: NotRequired[list[str]]
 
 
+class TestFile(TypedDict):
+    """A test file kept out of the graph, with the project files it imports."""
+
+    id: str
+    dependencies: list[str]
+
+
 class ParsedProject(TypedDict):
     projectRoot: str
     parsedFiles: list[ParsedFile]
     diagnostics: NotRequired[ParseDiagnostics]
+    testFiles: NotRequired[list[TestFile]]
 
 
 def parse_project(
@@ -165,11 +173,83 @@ def parse_project(
         "parse": round((finished - discovered_at) * 1000, 1),
     }
 
-    return {
+    project: ParsedProject = {
         "projectRoot": str(project_root),
         "parsedFiles": parsed_files,
         "diagnostics": diagnostics,
     }
+    if virtual_files is None and project_root.is_dir():
+        project["testFiles"] = _parse_test_files(project_root, file_ids, config, get_file_content)
+    return project
+
+
+def _parse_test_files(
+    project_root: Path,
+    file_ids: set[str],
+    config: Any,
+    get_file_content: Callable[[str], str | None],
+) -> list[TestFile]:
+    """Test files outside the graph (``tests/`` is ignored), with their imports.
+
+    They are resolved like any project file, so ``from pkg.core import x``
+    in ``tests/`` finds ``src/pkg/core.py``, but they never become nodes: a
+    test file is evidence about the code, not part of its architecture.
+    Failures are skipped quietly; test files do not count toward
+    ``analysisQuality``.
+    """
+    from archmap.config import DEFAULT_MAX_FILE_SIZE_BYTES
+    from archmap.core.analyzer.test_mapping import discover_test_files
+
+    analysis = (config or {}).get("analysis", {})
+    max_size = int(analysis.get("max_file_size_bytes", DEFAULT_MAX_FILE_SIZE_BYTES))
+    contents: dict[str, str] = {}
+    for file_id, path in discover_test_files(project_root, analysis, exclude=file_ids).items():
+        if not registry.get_language_by_ext(path.suffix.lower()):
+            continue
+        try:
+            if max_size > 0 and path.stat().st_size > max_size:
+                continue
+            contents[file_id] = path.read_text(encoding="utf-8-sig")
+        except (UnicodeDecodeError, OSError):
+            continue
+
+    known_ids = file_ids | set(contents)
+    python_roots = _python_project_roots(file_ids)
+    tests: list[TestFile] = []
+    for test_id in sorted(contents):
+        language = registry.get_language_by_ext(Path(test_id).suffix.lower())
+        parser = registry.get_parser(language) if language else None
+        if parser is None:
+            continue
+        try:
+            deps = parser.resolve(
+                parser.parse(contents[test_id]), test_id, known_ids,
+                get_file_content=get_file_content,
+                python_search_roots=python_roots,
+            )
+        except Exception:  # noqa: BLE001 - a broken test file must not stop analysis
+            continue
+        file_deps = sorted(
+            {d["id"] for d in deps if d.get("type") == "file" and d["id"] in file_ids}
+        )
+        tests.append({"id": test_id, "dependencies": file_deps})
+    return tests
+
+
+def _python_project_roots(file_ids: set[str]) -> list[str]:
+    """Directories holding the project's top-level Python packages (``src``).
+
+    A source file finds its own package root by walking up ``__init__.py``
+    files; a test in ``tests/`` has none, so it is given these instead.
+    """
+    from archmap.core.parser.resolvers import _infer_python_package_root
+
+    roots = {
+        _infer_python_package_root(fid, file_ids)
+        for fid in file_ids
+        if fid.endswith("/__init__.py")
+    }
+    return sorted(r for r in roots if r not in {"", "."})
 
 
 def _load_source_map(
