@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from archmap.config import DEFAULT_MAX_FILE_SIZE_BYTES, ProjectConfig
-from archmap.utils.file_utils import should_ignore_parts, to_file_id
+from archmap.utils.file_utils import to_file_id, walk_project_files
 
 # Extensions/filenames worth scanning for connection endpoints. Deliberately
 # broader than the code-parsing file set (archmap.utils.file_utils.
@@ -90,13 +90,8 @@ def scan_endpoint_references(
     )
 
     references: list[EndpointReference] = []
-    for file_path in sorted(root.rglob("*")):
-        if not file_path.is_file():
-            continue
+    for file_path in sorted(walk_project_files(root, ignore_dirs)):
         if not _is_scannable(file_path):
-            continue
-        parts = file_path.relative_to(root).parts
-        if should_ignore_parts(parts, ignore_dirs):
             continue
         if max_file_size_bytes > 0:
             try:

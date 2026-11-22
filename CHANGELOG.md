@@ -56,6 +56,19 @@ All notable changes to this project are documented in this file.
   into all 6 UI languages.
 
 ### Fixed
+- **File discovery walked every ignored directory before discarding it.**
+  `analyze`, the report cache and `expose`'s endpoint scanner listed the whole
+  tree with `rglob("*")` (plus one `is_file()` call per entry) and only then
+  dropped `node_modules`, `.git`, `.venv` and the configured `ignore_dirs`. On
+  a NestJS project with 97 source files and ~29k files in `node_modules`, 86%
+  of an 11.5 s `analyze` was spent there, and a cache hit still cost 5-10 s
+  because the fingerprint repeated the walk. Ignored directories are now
+  pruned before they are listed (`walk_project_files`): the same project
+  analyses in 0.76 s and a cache hit takes 0.37 s, with byte-identical
+  reports. The cache fingerprint also honours `analysis.ignore_dirs`, so a
+  regenerated file in an ignored directory no longer forces a re-analysis, and
+  an `ignore_dirs` entry written as a path (`src/gen`) now matches its last
+  segment in `analyze` as it already did in `expose`.
 - **`archmap audit` scanned untracked framework build output.** Only a fixed
   list of build dirs (`dist`, `build`, `target`, ...) was skipped when git did
   not track them, so `.next/`, `.nuxt/`, `.svelte-kit/`, `.vercel/`, `.turbo/`,
