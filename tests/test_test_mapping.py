@@ -24,6 +24,10 @@ from archmap.core.analyzer.test_mapping import (
         "Acme.Tests/UserServiceTests.cs",
         "spec/models/user_spec.rb.py",
         "tests/conftest.py",
+        # .NET keeps tests in their own project, named after the one tested.
+        "Archlab.Backend.Tests/Integration/ApiFactory.cs",
+        "src/Acme.UnitTests/Helpers.cs",
+        "Acme.IntegrationTests/Fixture.cs",
     ],
 )
 def test_recognises_test_files(file_id):
@@ -39,6 +43,8 @@ def test_recognises_test_files(file_id):
         "src/contest/entry.go",
         "src/main/java/com/acme/UserService.java",
         "src/attestation.cs",
+        "Acme.Contests/Entry.cs",
+        "Acme.Testing.Abstractions/Clock.cs",
     ],
 )
 def test_does_not_flag_source_files(file_id):

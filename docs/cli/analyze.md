@@ -213,6 +213,34 @@ indirectly, through another module. A project with no test files gets no
 This is a structural signal, not line coverage: use it to spot important
 code that no test even names, and a coverage tool for how much of it runs.
 
+.NET test projects (`Acme.Api.Tests/`, `Acme.UnitTests/`,
+`Acme.IntegrationTests/`) count as test directories too.
+
+### Structural bottlenecks (`metrics.centrality`)
+
+Fan-in and fan-out say how many files touch a file. They do not say how many
+dependency chains pass *through* it. ArchMAP computes betweenness centrality
+on the file graph and stores it as `betweenness` on every file node. The
+value is the share of connected import chains (ordered file pairs joined by
+a chain of imports) whose shortest route goes through the file, so `0.3`
+means "on 30% of the chains".
+
+The value is normalised by connected pairs rather than by every pair of files:
+dependency graphs are sparse, and the textbook normalisation would make every
+score look negligible.
+
+| Field | Meaning |
+|---|---|
+| `method` | `exact`, or `sampled` above 1000 files (256 source files, fixed seed, so reruns agree) |
+| `nodes` / `connectedPairs` | Files in the graph, and import chains between them (estimated when sampled) |
+| `top` | Up to 10 files with the highest `betweenness` |
+
+Files on at least 10% of the chains become `GRAPH-*` findings
+(`structural_bottleneck`, domain `code`, at most 5). Severity is `medium` from
+25% and `low` below. Confidence is `0.9`, or `0.8` when sampled. They require
+a graph with at least 50 chains, and test files are never reported.
+Betweenness does not change `riskScore` or the health score.
+
 ### Table format (`--summary-format table`)
 
 ```text

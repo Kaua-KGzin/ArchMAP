@@ -27,6 +27,8 @@ from archmap.utils.file_utils import (
 )
 
 TEST_DIR_NAMES = frozenset({"tests", "test", "__tests__", "spec", "specs"})
+# .NET puts tests in a project of their own: `Acme.Api.Tests`, `Acme.UnitTests`.
+_TEST_PROJECT_SUFFIXES = (".tests", ".test", ".unittests", ".integrationtests", ".specs")
 
 # Stem extractors, tried in order; each returns the name of the file under test.
 _STEM_PATTERNS = (
@@ -43,10 +45,15 @@ MAX_TEST_FINDINGS = 10
 _UNTESTED_CONFIDENCE = 0.7
 
 
+def _is_test_dir(name: str) -> bool:
+    folded = name.casefold()
+    return folded in TEST_DIR_NAMES or folded.endswith(_TEST_PROJECT_SUFFIXES)
+
+
 def is_test_file(file_id: str) -> bool:
     normalized = normalize_file_id(file_id)
     parts = normalized.split("/")
-    if any(part.casefold() in TEST_DIR_NAMES for part in parts[:-1]):
+    if any(_is_test_dir(part) for part in parts[:-1]):
         return True
     return _test_stem(parts[-1]) is not None
 
@@ -95,7 +102,7 @@ def _source_stem(file_id: str) -> str:
 
 def _dir_parts_without_test_dirs(file_id: str) -> tuple[str, ...]:
     parts = normalize_file_id(file_id).split("/")[:-1]
-    return tuple(p for p in parts if p.casefold() not in TEST_DIR_NAMES)
+    return tuple(p for p in parts if not _is_test_dir(p))
 
 
 def _mirror_score(test_id: str, source_id: str) -> int:
