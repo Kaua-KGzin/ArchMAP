@@ -189,7 +189,9 @@ runs:
         PR_NUMBER: ${{ github.event.pull_request.number }}
         REPO: ${{ github.repository }}
       run: |
-        set -uo pipefail
+        # GitHub runs `shell: bash` as `bash -e`: turn it off. This step handles
+        # every failure itself and must still reach the summary and the comment.
+        set +e -u -o pipefail
         echo "pr-report-path=" >> "$GITHUB_OUTPUT"
         if [ "$EVENT_NAME" != "pull_request" ] || [ -z "$PR_NUMBER" ]; then
           echo "::notice::ArchMAP PR report runs on pull_request events only; skipped."
@@ -213,7 +215,10 @@ runs:
 
         # Base: same ArchMAP version, base commit checked out next to the workspace.
         BASE_OK=false
-        if git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 \
+        # Fetch the base only if it is missing: a depth-1 fetch on a full clone
+        # would make the user's checkout shallow for every later step.
+        if { git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null \
+             || git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1; } \
           && git worktree add --detach "$BASE_DIR" "$BASE_SHA" >/dev/null 2>&1 \
           && [ -d "$BASE_DIR/$IN_PATH" ] \
           && python -m archmap.cli.main analyze "$BASE_DIR/$IN_PATH" --format json --out "$BASE_JSON" --quiet; then
@@ -240,7 +245,10 @@ runs:
         ME="$(gh api user -q .login 2>/dev/null || true)"
         [ -n "$ME" ] || ME="github-actions[bot]"
         ID="$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate \
-          -q ".[] | select(.user.login == \"$ME\" and (.body | startswith(\"$MARKER\"))) | .id" 2>/dev/null | tail -n 1)"
+          -q ".[] | select(.user.login == \"$ME\" and (.body | startswith(\"$MARKER\"))) | .id" 2>"$WORK/gh-list.err" | tail -n 1)"
+        if [ -s "$WORK/gh-list.err" ]; then
+          echo "::warning::ArchMAP PR report could not list PR comments: $(head -c 300 "$WORK/gh-list.err")"
+        fi
         if [ -n "$ID" ]; then
           gh api -X PATCH "repos/$REPO/issues/comments/$ID" -F body=@"$REPORT" >/dev/null 2>"$WORK/gh.err" \
             && echo "Updated PR comment $ID" \
