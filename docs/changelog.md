@@ -19,6 +19,11 @@ All notable changes to this project are documented in this file.
   before a release tag instead of during one.
 - Personal Claude Code files (`.claude/settings.local.json`, `.claude/projects/`)
   are no longer tracked; they held local permissions and absolute paths.
+- **The ArchMAP GitHub Action (`action.yml`) pins its own dependencies by
+  commit SHA** (`actions/setup-python` v7.1.0, `github/codeql-action/upload-sarif`
+  v4.39.4). It runs inside other people's workflows, so a moved upstream tag
+  could otherwise change what runs there. Same versions as before; Dependabot
+  keeps them current.
 
 ### Added
 - **Structural bottlenecks: betweenness centrality on the file graph.** Fan-in
