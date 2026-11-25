@@ -26,3 +26,25 @@ def test_diff_circular_dependency(tmp_git_repo):
     # Check that edges were added
     # Edge b -> a was added in v2
     assert any(e[0] == "b.py" and e[1] == "a.py" for e in diff["edges"]["added"])
+
+
+def test_snapshot_round_trip_on_sample_project(tmp_path, capsys):
+    """`analyze --format both` output must be accepted by `diff --snapshot-a/-b`."""
+    import json
+    from pathlib import Path
+
+    from archmap.cli.main import main
+
+    sample = Path(__file__).resolve().parents[1] / "examples" / "sample-project"
+    snap_a = tmp_path / "a.json"
+    snap_b = tmp_path / "b.json"
+    for snap in (snap_a, snap_b):
+        code = main(["analyze", str(sample), "--format", "both", "--out", str(snap),
+                     "--out-mermaid", str(tmp_path / "g.mmd"), "--quiet"])
+        assert code == 0
+    capsys.readouterr()
+
+    code = main(["diff", "--snapshot-a", str(snap_a), "--snapshot-b", str(snap_b), "--json"])
+    assert code == 0
+    diff = json.loads(capsys.readouterr().out)
+    assert diff["architecture"]["healthDelta"] == 0

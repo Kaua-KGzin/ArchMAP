@@ -52,6 +52,7 @@ from archmap.core.analyzer import (
     suggest_architecture,
     trace_reachability,
 )
+from archmap.core.analyzer.diff_analyzer import load_snapshot
 from archmap.core.exposure import correlate_exposure
 from archmap.core.exposure.endpoint_scanner import scan_endpoint_references
 from archmap.core.exposure.network_diff import diff_network_snapshots
@@ -355,9 +356,8 @@ def run_diff(args: argparse.Namespace) -> int:
         if not path_b.is_file():
             print(f"[error] Snapshot not found: {path_b}", file=sys.stderr)
             return 1
-        import json as _json
-        base_report = _json.loads(path_a.read_text(encoding="utf-8"))
-        head_report = _json.loads(path_b.read_text(encoding="utf-8"))
+        base_report = load_snapshot(path_a)
+        head_report = load_snapshot(path_b)
         base_label = path_a.name
         head_label = path_b.name
         base_report.setdefault("ref", base_label)

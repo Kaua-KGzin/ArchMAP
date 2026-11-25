@@ -4,7 +4,7 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-from archmap.core.analyzer.diff_analyzer import analyze_git_ref, diff_reports
+from archmap.core.analyzer.diff_analyzer import analyze_git_ref, diff_reports, normalize_report
 
 NodeFactory = Callable[..., dict]
 EdgeFactory = Callable[..., dict]
@@ -173,3 +173,24 @@ def _git(repo: Path, *args: str) -> None:
     if process.returncode != 0:
         message = process.stderr.strip() or process.stdout.strip() or "git command failed"
         raise RuntimeError(message)
+
+
+def test_normalize_report_uses_detailed_nodes() -> None:
+    exported = {
+        "nodes": ["a.py"],
+        "edges": [["a.py", "b.py"]],
+        "detailed": {
+            "nodes": [{"id": "a.py", "type": "file"}],
+            "edges": [{"source": "a.py", "target": "b.py"}],
+        },
+        "metrics": {},
+    }
+    report = normalize_report(exported)
+    assert report["nodes"] == [{"id": "a.py", "type": "file"}]
+    assert report["edges"] == [{"source": "a.py", "target": "b.py"}]
+    assert report["simple"] == {"nodes": ["a.py"], "edges": [["a.py", "b.py"]]}
+
+
+def test_normalize_report_keeps_in_memory_shape() -> None:
+    in_memory = {"nodes": [{"id": "a.py", "type": "file"}], "edges": [], "metrics": {}}
+    assert normalize_report(in_memory)["nodes"] == in_memory["nodes"]

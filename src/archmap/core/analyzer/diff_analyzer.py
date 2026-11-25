@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -8,6 +9,32 @@ from archmap.core.analyzer.dependency_graph import analyze_graph
 from archmap.core.graph.graph_builder import build_graph
 from archmap.core.parser import parse_project
 from archmap.utils.file_utils import file_language_from_id, normalize_file_id
+
+
+def normalize_report(report: dict) -> dict:
+    """Bring a report to the in-memory shape ``diff_reports`` expects.
+
+    ``archmap analyze --out`` writes ``nodes``/``edges`` as plain id lists and
+    puts the full node and edge objects under ``detailed``. Reports already in
+    the in-memory shape (full objects at the top level) are returned as is.
+    """
+    detailed = report.get("detailed")
+    if not isinstance(detailed, dict):
+        return report
+    normalized = {key: value for key, value in report.items() if key != "detailed"}
+    normalized["simple"] = {
+        "nodes": list(report.get("nodes", [])),
+        "edges": [list(edge) for edge in report.get("edges", [])],
+    }
+    normalized["nodes"] = list(detailed.get("nodes", []))
+    normalized["edges"] = list(detailed.get("edges", []))
+    return normalized
+
+
+def load_snapshot(path: str | Path) -> dict:
+    """Read a JSON report written by ``archmap analyze --out`` for ``diff``."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    return normalize_report(data)
 
 
 def analyze_git_ref(project_root: str | Path, ref: str) -> dict:
