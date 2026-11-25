@@ -26,6 +26,27 @@ All notable changes to this project are documented in this file.
   keeps them current.
 
 ### Added
+- **PR report: the architecture delta as one pull-request comment.** The
+  GitHub Action's new `comment: "true"` input analyzes the PR's base commit
+  (via `git worktree`, same ArchMAP version) and posts, then keeps editing, one
+  comment with health and grade base → head, tested-file ratio, new and
+  resolved findings, new structural bottlenecks and files that lost their
+  tests. It also lands in the job summary. It runs when a quality gate failed
+  the analysis, and never fails the job itself: fork and Dependabot PRs
+  (read-only token) get the summary and a warning. Needs
+  `pull-requests: write`; see `docs/github-action.md`.
+- **`archmap diff --format {text,json,markdown}` and `--out`.** `markdown` is
+  the PR comment, so the same report works outside GitHub. `--json` stays as an
+  alias of `--format json`.
+- **Findings in the JSON report, with a stable `key`.** `archmap analyze --out`
+  now writes `findings`. Each has a `key` (category plus file, source/target
+  edge, or sorted cycle members) that matches the same finding across runs,
+  unlike the positional `ARCH-001` IDs. Comparing two snapshots lists new and
+  resolved findings, the tested-file ratio and lost test coverage
+  (`findingsComparable`, `findings`, `bottlenecks`, `tests`, `grades`); a
+  snapshot from 1.5.0 or older still compares, with `findingsComparable: false`.
+- **`archmap-version: source`** in the GitHub Action installs the ArchMAP that
+  ships with the action instead of the PyPI release.
 - **Structural bottlenecks: betweenness centrality on the file graph.** Fan-in
   and fan-out (and therefore `riskScore`) count who touches a file, not how
   many dependency chains pass *through* it. Every file node now carries
@@ -67,6 +88,15 @@ All notable changes to this project are documented in this file.
   a git work tree this does nothing; the call costs about 30-50 ms. `expose`
   is unaffected, because its endpoint scan reads git-ignored `.env` files on
   purpose.
+
+### Fixed
+- **`archmap diff --snapshot-a/--snapshot-b` crashed on reports written by
+  `archmap analyze --out`** (`AttributeError: 'str' object has no attribute
+  'get'`): the export stores full nodes under `detailed`. Snapshots are now
+  normalized on load. The documented snapshot mode had no test; a round trip
+  analyze → diff now covers it.
+- The analysis cache schema is bumped, so reports cached by the same version
+  are recomputed with the new finding `key`.
 
 ## [1.5.0] - 2026-11-21
 
