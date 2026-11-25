@@ -86,6 +86,7 @@ nav:
       - Quick Start: getting-started/quickstart.md
       - Live Demo: getting-started/demo.md
       - AI Agent Plugin: agents.md
+      - GitHub Action: github-action.md
   - CLI Reference:
       - analyze: cli/analyze.md
       - explain: cli/explain.md
