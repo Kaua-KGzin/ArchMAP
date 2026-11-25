@@ -28,3 +28,7 @@ logs/runtime/*
 !logs/runtime/.gitkeep
 server_log.txt
 test_out.txt
+
+# Claude Code: configuração e memória pessoais (não versionar)
+.claude/settings.local.json
+.claude/projects/
