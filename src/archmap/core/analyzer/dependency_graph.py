@@ -13,7 +13,7 @@ from archmap.core.analyzer.complexity_analyzer import (
     summarize_critical_files,
 )
 from archmap.core.analyzer.cycle_detector import enrich_cycles, find_circular_dependencies
-from archmap.core.analyzer.findings import build_code_findings
+from archmap.core.analyzer.findings import build_code_findings, finding_key
 from archmap.core.analyzer.human_analyzer import analyze_human
 from archmap.core.analyzer.impact_analyzer import build_dependents_map, calculate_impact
 from archmap.core.analyzer.project_explainer import explain_project
@@ -113,6 +113,8 @@ def analyze_graph(
     findings.extend(
         build_centrality_findings(betweenness, centrality_meta)
     )
+    for finding in findings:
+        finding["key"] = finding_key(finding)
 
     return {
         "projectRoot": graph["projectRoot"],

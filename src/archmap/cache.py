@@ -10,7 +10,7 @@ _CACHE_FILE = "cache.json"
 # Hard cap: refuse to write cache files larger than 50 MB to prevent disk exhaustion.
 _MAX_CACHE_BYTES = 50 * 1024 * 1024
 # Bump when an analysis change must invalidate reports cached by the same version.
-_REPORT_SCHEMA = 2
+_REPORT_SCHEMA = 3
 
 
 def compute_fingerprint(project_root: Path, config: Any) -> str:
