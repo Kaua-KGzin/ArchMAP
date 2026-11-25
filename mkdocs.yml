@@ -5,6 +5,10 @@ repo_url: https://github.com/Kaua-KGzin/ArchMAP
 repo_name: Kaua-KGzin/ArchMAP
 edit_uri: edit/main/docs/
 
+# Internal design specs and plans: versioned in the repo, not published.
+exclude_docs: |
+  superpowers/
+
 theme:
   name: material
   logo: assets/logo-nav.png
