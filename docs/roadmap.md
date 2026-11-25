@@ -3,29 +3,24 @@
 > This file (`docs/roadmap.md`) is the single source. The root `ROADMAP.md`
 > only points here.
 
-## Next — v1.6.0 (in progress)
+## Next — v1.7.0
 
-Already on `main` (see `[Unreleased]` in the changelog):
+Carried over from the v1.6.0 plan (not shipped in 1.6.0):
 
-- **Test mapping** — `testedBy` per file, `metrics.testMapping`, and `TEST-*`
-  findings for high-risk files that no test reaches.
-- **Structural bottlenecks** — betweenness centrality on the file graph,
-  `metrics.centrality`, and `GRAPH-*` findings for files on ≥ 10% of import chains.
-- **`.gitignore`-aware discovery** — the analysis asks git what is ignored
-  (`respect_gitignore = false` to opt out).
-- **Security hardening** — non-root Docker image, read-only CI tokens, and
-  every third-party action (including the composite `action.yml`) pinned by SHA.
-
-Planned for this release:
-
-- **CI/CD PR bot** — `archmap pr-report` plus an opt-in `comment` input on the
-  GitHub Action: one sticky PR comment with the health delta, new and resolved
-  findings, and the files that became bottlenecks or lost test coverage.
 - **Property-based parser tests (Hypothesis)** — every language parser must
   survive arbitrary unicode input without raising.
 - **GraphML and Graphviz DOT export** — for yEd, Gephi and `dot`.
+- **PR report follow-ups** — base-analysis failures reported as warnings,
+  `git worktree prune` before reuse, job name in the comment marker so matrix
+  jobs don't share one comment.
 
 ## Released
+
+### v1.6.0 (2026-11-25) — tests, bottlenecks and the PR report
+- **PR report**: the GitHub Action's `comment: "true"` posts, and keeps editing, one pull-request comment with the architecture delta against the base commit: health and grade, tested-file ratio, new and resolved findings, new structural bottlenecks, lost test coverage. Threshold shifts in untouched files are listed apart. Also as `archmap diff --format markdown`.
+- **Test mapping** (`testedBy`, `metrics.testMapping`, `TEST-*`) and **structural bottlenecks** (betweenness centrality, `metrics.centrality`, `GRAPH-*`).
+- **`.gitignore`-aware discovery**; **findings in the JSON report** with a stable `key`.
+- **Fixes and hardening**: `diff --snapshot-a/-b` on exported reports, non-root Docker image, read-only CI tokens, third-party actions pinned by SHA.
 
 ### v1.5.0 (2026-11-21) — network history and the Network exposure view
 - **Network snapshots**: `netscan`/`expose --snapshot` store each scan under `.archmap/network/`; `archmap network diff|list` compares them (ports opened/closed, service/risk changes, hosts, `[network.rules]` drift), with `--fail-on-new-ports` as a CI gate.

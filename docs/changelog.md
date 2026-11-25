@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-25
+
 ### Security
 - **The Docker image no longer runs as root.** It now runs as an unprivileged
   `archmap` user (UID 1000). Cache writes into the mounted project were already

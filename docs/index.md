@@ -266,6 +266,14 @@ change state only answer loopback requests that send JSON. See
 
 ## What's new
 
+- **1.6.0**: the PR report — with `comment: "true"`, the
+  [GitHub Action](github-action.md) posts and keeps updating one pull-request
+  comment with the architecture delta (health, tested files, new and resolved
+  findings, new bottlenecks, lost test coverage); **test mapping**
+  (`testedBy`, `TEST-*`), **structural bottlenecks** (betweenness centrality,
+  `GRAPH-*`), `.gitignore`-aware discovery, findings in the JSON report,
+  `diff --format markdown`, a fixed `diff --snapshot-a/-b`, and a non-root
+  Docker image.
 - **1.5.0**: network history — `--snapshot` on `netscan`/`expose`,
   `archmap network diff|list` (with a `--fail-on-new-ports` CI gate), a
   network section in `archmap memory`, and a read-only **Network exposure**
