@@ -383,8 +383,8 @@ def run_diff(args: argparse.Namespace) -> int:
     output_format = getattr(args, "format", None) or ("json" if args.json else "text")
     out_path = getattr(args, "out", None)
 
-    if output_format == "text" and not out_path:
-        print_diff_output(base_label, head_label, diff_result, as_json=False)
+    if output_format in ("text", "json") and not out_path:
+        print_diff_output(base_label, head_label, diff_result, as_json=output_format == "json")
         return 0
     if output_format == "markdown":
         rendered = render_pr_report(diff_result, base_label=base_label, head_label=head_label)
