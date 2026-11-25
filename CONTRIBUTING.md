@@ -80,7 +80,7 @@ python -m archmap.cli.main analyze . --fail-on-risks
 ```
 
 4. Update `CHANGELOG.md` (under `[Unreleased]`, mirrored in `docs/changelog.md`),
-   `README.md`, or `ROADMAP.md` if behavior changes.
+   `README.md`, or `docs/roadmap.md` if behavior changes.
 5. Open a PR using the repository template.
 
 ## Coding guidelines

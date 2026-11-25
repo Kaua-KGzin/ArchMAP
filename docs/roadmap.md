@@ -1,5 +1,30 @@
 # ArchMAP Roadmap
 
+> This file (`docs/roadmap.md`) is the single source. The root `ROADMAP.md`
+> only points here.
+
+## Next — v1.6.0 (in progress)
+
+Already on `main` (see `[Unreleased]` in the changelog):
+
+- **Test mapping** — `testedBy` per file, `metrics.testMapping`, and `TEST-*`
+  findings for high-risk files that no test reaches.
+- **Structural bottlenecks** — betweenness centrality on the file graph,
+  `metrics.centrality`, and `GRAPH-*` findings for files on ≥ 10% of import chains.
+- **`.gitignore`-aware discovery** — the analysis asks git what is ignored
+  (`respect_gitignore = false` to opt out).
+- **Security hardening** — non-root Docker image, read-only CI tokens, and
+  every third-party action (including the composite `action.yml`) pinned by SHA.
+
+Planned for this release:
+
+- **CI/CD PR bot** — `archmap pr-report` plus an opt-in `comment` input on the
+  GitHub Action: one sticky PR comment with the health delta, new and resolved
+  findings, and the files that became bottlenecks or lost test coverage.
+- **Property-based parser tests (Hypothesis)** — every language parser must
+  survive arbitrary unicode input without raising.
+- **GraphML and Graphviz DOT export** — for yEd, Gephi and `dot`.
+
 ## Released
 
 ### v1.5.0 (2026-11-21) — network history and the Network exposure view
@@ -272,9 +297,6 @@ items below close the distribution and ergonomics gap.
   boundary violation, network drift) into a concrete, ordered remediation
   plan (`archmap refactor-plan <finding-id>`), building on the unified
   findings model above.
-- **CI/CD PR bot** — post a structured summary (health delta, new/resolved
-  findings, network drift) as a PR comment, using the existing GitHub Action
-  (`action.yml`) and SARIF export as the delivery mechanism.
 - **Infrastructure criticality scoring** — combine a network node's
   dependency count, centrality, and change frequency (once network
   snapshots exist) into a single criticality score, the network-side
@@ -282,8 +304,6 @@ items below close the distribution and ergonomics gap.
 - Plugin SDK for custom parsers and analyzers via entry points.
 - Multi-repo topology support.
 - WebSocket-based live UI refresh.
-- GraphML and Graphviz DOT export formats.
-- **Property-based testing (Hypothesis)** — Add `hypothesis` to dev deps and use it on all language parsers. The parser must never crash on any valid unicode input.
 - **Mutation testing (mutmut)** — Apply mutation testing to core analysis modules (`cycle_detector.py`, `risk_analyzer.py`, `complexity_analyzer.py`).
 - **Homebrew formula** — Distribute as a Homebrew tap for macOS users (`brew install kaua-kgzin/tap/archmap`).
 - **Web UI accessibility (a11y)** — Audit and fix WCAG 2.1 AA compliance: color contrast, keyboard navigation, focus management, ARIA labels for the Cytoscape.js graph.
@@ -295,8 +315,8 @@ items below close the distribution and ergonomics gap.
 
 These are ongoing commitments rather than versioned deliverables. They run in parallel with every release cycle.
 
-- **Supply chain audit** — `pip-audit` runs in CI on every push (implemented in v0.8.x). Dependabot watches Python deps, npm deps, and GitHub Actions pins on a weekly schedule. No manual audit cadence required.
-- **Architectural self-check (dogfooding)** — CI runs `archmap analyze src/archmap/ --fail-on-cycles` on every push. ArchMAP must pass its own analysis. The health score threshold (`--min-health`) is raised incrementally as the codebase improves, making the gate self-tightening.
-- **mypy coverage expansion** — Type annotations are added incrementally to every new or modified file. The mypy CI step starts non-blocking (infrastructure, v0.8.x) and transitions to a hard gate (v0.9.x) once baseline coverage is established. No new untyped functions merged after v0.9.0.
+- **Supply chain audit** — `pip-audit` runs in CI on every push (implemented in v0.8.x). Dependabot watches Python deps, npm deps, GitHub Actions pins (SHA-pinned, including `action.yml`) and the Docker base image on a weekly schedule. No manual audit cadence required.
+- **Architectural self-check (dogfooding)** — CI runs `archmap analyze src/archmap/ --fail-on-cycles` on every push. ArchMAP must pass its own analysis. A `--min-health` threshold is not enforced in CI yet; adding one, and raising it as the codebase improves, is the next step for this gate.
+- **mypy coverage expansion** — mypy is a blocking CI step (`check_untyped_defs`, `warn_unused_ignores`). Type annotations are added to every new or modified file; `--strict` on the full `src/archmap/` tree remains the goal.
 - **Documentation freshness** — Every CLI flag, JSON output field, and `.archmap.toml` key introduced in a PR must be documented in the same PR. The MkDocs build runs with `--strict` in CI; broken references fail the docs workflow.
 - **Parser parity** — As new language features are introduced (e.g., Python 3.12+ type parameter syntax, TypeScript 5.x satisfies operator), parser regression tests are added before the parser update is merged. No silent parser regressions.

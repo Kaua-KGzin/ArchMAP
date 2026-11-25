@@ -49,7 +49,6 @@ jobs:
       - name: Copy root docs into docs/ for MkDocs
         run: |
           cp CHANGELOG.md docs/changelog.md
-          cp ROADMAP.md docs/roadmap.md
           cp CONTRIBUTING.md docs/contributing.md
           cp CODE_OF_CONDUCT.md docs/code-of-conduct.md
 
