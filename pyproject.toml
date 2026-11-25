@@ -39,7 +39,7 @@ Changelog = "https://github.com/Kaua-KGzin/ArchMAP/blob/main/CHANGELOG.md"
 "Bug Tracker" = "https://github.com/Kaua-KGzin/ArchMAP/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=9.0.0", "pytest-cov>=7.0.0", "ruff>=0.17.0", "mypy>=2.0.0", "pip-audit>=2.10.0"]
+dev = ["pytest>=9.2.0", "pytest-cov>=7.1.0", "ruff>=0.17.6", "mypy>=2.4.1", "pip-audit>=2.10.0"]
 docs = ["mkdocs-material>=9.8"]
 completion = ["argcomplete>=3.0"]
 tree-sitter = [
