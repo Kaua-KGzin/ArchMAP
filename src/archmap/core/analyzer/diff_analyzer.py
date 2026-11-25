@@ -6,6 +6,7 @@ from pathlib import Path
 
 from archmap.config import CONFIG_FILENAMES, load_project_config
 from archmap.core.analyzer.dependency_graph import analyze_graph
+from archmap.core.analyzer.findings import finding_key
 from archmap.core.graph.graph_builder import build_graph
 from archmap.core.parser import parse_project
 from archmap.utils.file_utils import file_language_from_id, normalize_file_id
@@ -124,6 +125,71 @@ def diff_reports(base_report: dict, head_report: dict) -> dict:
             "ruleViolationsDelta": len(head_architecture.get("ruleViolations", []))
             - len(base_architecture.get("ruleViolations", [])),
         },
+        "grades": {
+            "base": base_architecture.get("health", {}).get("grade"),
+            "head": head_architecture.get("health", {}).get("grade"),
+        },
+        **_diff_findings(base_report, head_report),
+        "tests": _diff_tests(base_report, head_report),
+    }
+
+
+_SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+
+
+def _sorted_findings(findings: list[dict]) -> list[dict]:
+    return sorted(
+        findings,
+        key=lambda f: (_SEVERITY_RANK.get(str(f.get("severity")), 5), finding_key(f)),
+    )
+
+
+def _diff_findings(base_report: dict, head_report: dict) -> dict:
+    """New/resolved findings matched by key; only when both reports carry findings."""
+    base_findings = base_report.get("findings")
+    head_findings = head_report.get("findings")
+    if not isinstance(base_findings, list) or not isinstance(head_findings, list):
+        return {"findingsComparable": False}
+
+    base_by_key = {finding_key(f): f for f in base_findings}
+    head_by_key = {finding_key(f): f for f in head_findings}
+    new = _sorted_findings([f for k, f in head_by_key.items() if k not in base_by_key])
+    resolved = _sorted_findings([f for k, f in base_by_key.items() if k not in head_by_key])
+    return {
+        "findingsComparable": True,
+        "findings": {
+            "new": new,
+            "resolved": resolved,
+            "unchanged": len(base_by_key.keys() & head_by_key.keys()),
+        },
+        "bottlenecks": {
+            "new": [f for f in new if f.get("category") == "structural_bottleneck"],
+        },
+    }
+
+
+def _tested_ratio(report: dict) -> float | None:
+    mapping = report.get("metrics", {}).get("testMapping")
+    if not isinstance(mapping, dict):
+        return None
+    ratio = mapping.get("testedRatio")
+    return float(ratio) if isinstance(ratio, (int, float)) else None
+
+
+def _diff_tests(base_report: dict, head_report: dict) -> dict:
+    """Tested-file ratio on each side and files whose tests disappeared."""
+    base_files = _file_node_map(base_report)
+    head_files = _file_node_map(head_report)
+    lost = []
+    for file_id in sorted(base_files.keys() & head_files.keys()):
+        before = base_files[file_id].get("testedBy") or []
+        after = head_files[file_id].get("testedBy") or []
+        if before and not after:
+            lost.append({"file": file_id, "testedBy": list(before)})
+    return {
+        "baseTestedRatio": _tested_ratio(base_report),
+        "headTestedRatio": _tested_ratio(head_report),
+        "lostCoverage": lost,
     }
 
 

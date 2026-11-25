@@ -194,3 +194,77 @@ def test_normalize_report_uses_detailed_nodes() -> None:
 def test_normalize_report_keeps_in_memory_shape() -> None:
     in_memory = {"nodes": [{"id": "a.py", "type": "file"}], "edges": [], "metrics": {}}
     assert normalize_report(in_memory)["nodes"] == in_memory["nodes"]
+
+
+def _report(findings=None, nodes=None, tested_ratio=None, grade="B", score=80) -> dict:
+    report: dict = {
+        "nodes": nodes or [],
+        "edges": [],
+        "simple": {"nodes": [n["id"] for n in (nodes or [])], "edges": []},
+        "metrics": {"circularDependencyCount": 0},
+        "architecture": {"health": {"score": score, "grade": grade}},
+    }
+    if tested_ratio is not None:
+        report["metrics"]["testMapping"] = {"testedRatio": tested_ratio}
+    if findings is not None:
+        report["findings"] = findings
+    return report
+
+
+def _finding(category: str, key: str, severity: str = "medium", **extra) -> dict:
+    return {"id": "X-001", "category": category, "severity": severity, "message": category,
+            "evidence": [], "key": key, **extra}
+
+
+def test_diff_new_and_resolved_findings() -> None:
+    shared = _finding("layer_violation", "layer_violation|x|y", source="x", target="y")
+    base = _report(findings=[_finding("god_module", "god_module|a.py", file="a.py"), shared])
+    head = _report(findings=[
+        shared,
+        _finding("structural_bottleneck", "structural_bottleneck|b.py", "high", file="b.py"),
+    ])
+    diff = diff_reports(base, head)
+    assert diff["findingsComparable"] is True
+    assert [f["key"] for f in diff["findings"]["new"]] == ["structural_bottleneck|b.py"]
+    assert [f["key"] for f in diff["findings"]["resolved"]] == ["god_module|a.py"]
+    assert diff["findings"]["unchanged"] == 1
+    assert [f["key"] for f in diff["bottlenecks"]["new"]] == ["structural_bottleneck|b.py"]
+
+
+def test_diff_orders_new_findings_by_severity() -> None:
+    head = _report(findings=[
+        _finding("god_module", "god_module|z.py", "low", file="z.py"),
+        _finding("god_module", "god_module|a.py", "critical", file="a.py"),
+        _finding("god_module", "god_module|m.py", "high", file="m.py"),
+    ])
+    diff = diff_reports(_report(findings=[]), head)
+    assert [f["severity"] for f in diff["findings"]["new"]] == ["critical", "high", "low"]
+
+
+def test_diff_lost_coverage() -> None:
+    base = _report(findings=[], tested_ratio=0.5, nodes=[
+        {"id": "a.py", "type": "file", "testedBy": ["tests/test_a.py"]},
+        {"id": "b.py", "type": "file", "testedBy": []},
+    ])
+    head = _report(findings=[], tested_ratio=0.0, nodes=[
+        {"id": "a.py", "type": "file", "testedBy": []},
+        {"id": "b.py", "type": "file", "testedBy": []},
+    ])
+    diff = diff_reports(base, head)
+    assert diff["tests"]["lostCoverage"] == [{"file": "a.py", "testedBy": ["tests/test_a.py"]}]
+    assert diff["tests"]["baseTestedRatio"] == 0.5
+    assert diff["tests"]["headTestedRatio"] == 0.0
+
+
+def test_diff_without_findings_is_not_comparable() -> None:
+    base = _report()  # a report written before findings were exported
+    head = _report(findings=[_finding("god_module", "god_module|a.py", file="a.py")])
+    diff = diff_reports(base, head)
+    assert diff["findingsComparable"] is False
+    assert "findings" not in diff
+    assert diff["tests"]["baseTestedRatio"] is None
+
+
+def test_diff_exposes_grades() -> None:
+    diff = diff_reports(_report(grade="B", score=80), _report(grade="C", score=64))
+    assert diff["grades"] == {"base": "B", "head": "C"}
