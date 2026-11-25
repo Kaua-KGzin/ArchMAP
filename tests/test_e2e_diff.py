@@ -48,3 +48,58 @@ def test_snapshot_round_trip_on_sample_project(tmp_path, capsys):
     assert code == 0
     diff = json.loads(capsys.readouterr().out)
     assert diff["architecture"]["healthDelta"] == 0
+
+
+def _two_snapshots(tmp_path):
+    from pathlib import Path
+
+    from archmap.cli.main import main
+
+    sample = Path(__file__).resolve().parents[1] / "examples" / "sample-project"
+    paths = []
+    for name in ("base.json", "head.json"):
+        out = tmp_path / name
+        assert main(["analyze", str(sample), "--format", "json", "--out", str(out),
+                     "--quiet"]) == 0
+        paths.append(str(out))
+    return paths
+
+
+def test_cli_diff_markdown_to_file(tmp_path, capsys):
+    from archmap.cli.main import main
+    from archmap.exporters.pr_report import PR_REPORT_MARKER
+
+    base, head = _two_snapshots(tmp_path)
+    capsys.readouterr()
+    report = tmp_path / "report.md"
+    code = main(["diff", "--snapshot-a", base, "--snapshot-b", head,
+                 "--format", "markdown", "--out", str(report)])
+    assert code == 0
+    text = report.read_text(encoding="utf-8")
+    assert text.startswith(PR_REPORT_MARKER)
+    assert "`base.json`" in text and "`head.json`" in text
+    assert "No architecture changes detected." in text
+    assert "Report written to" in capsys.readouterr().out
+
+
+def test_cli_diff_json_flag_still_works(tmp_path, capsys):
+    import json
+
+    from archmap.cli.main import main
+
+    base, head = _two_snapshots(tmp_path)
+    capsys.readouterr()
+    assert main(["diff", "--snapshot-a", base, "--snapshot-b", head, "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["findingsComparable"] is True
+
+
+def test_cli_diff_format_json_to_file(tmp_path, capsys):
+    import json
+
+    from archmap.cli.main import main
+
+    base, head = _two_snapshots(tmp_path)
+    out = tmp_path / "d.json"
+    assert main(["diff", "--snapshot-a", base, "--snapshot-b", head,
+                 "--format", "json", "--out", str(out)]) == 0
+    assert json.loads(out.read_text(encoding="utf-8"))["findings"]["unchanged"] >= 0

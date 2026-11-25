@@ -328,6 +328,19 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="PATH",
         help="compare two JSON snapshot files instead of git refs",
     )
+    diff_parser.add_argument(
+        "--format",
+        choices=["text", "json", "markdown"],
+        default=None,
+        help="output format (default: text; --json is the same as --format json); "
+        "markdown renders the pull-request comment",
+    )
+    diff_parser.add_argument(
+        "--out",
+        metavar="PATH",
+        default=None,
+        help="write the json or markdown output to PATH instead of stdout",
+    )
 
     history_parser = subparsers.add_parser(
         "history",

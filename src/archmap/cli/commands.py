@@ -17,6 +17,7 @@ from archmap.cli.defaults import DEFAULT_SARIF_OUTPUT_PATH, DEFAULT_TOP_ITEMS
 from archmap.cli.reporting import (
     evaluate_quality_gates,
     export_outputs,
+    format_diff_output,
     print_advise_report,
     print_diff_output,
     print_export_summary,
@@ -70,6 +71,7 @@ from archmap.core.memory import (
     generate_memory_digest,
 )
 from archmap.core.netscan import run_netscan as _scan_network
+from archmap.exporters.pr_report import render_pr_report
 from archmap.utils.file_utils import normalize_file_id
 
 
@@ -378,7 +380,26 @@ def run_diff(args: argparse.Namespace) -> int:
         head_label = args.head_ref
 
     diff_result = diff_reports(base_report, head_report)
-    print_diff_output(base_label, head_label, diff_result, as_json=args.json)
+    output_format = getattr(args, "format", None) or ("json" if args.json else "text")
+    out_path = getattr(args, "out", None)
+
+    if output_format == "text" and not out_path:
+        print_diff_output(base_label, head_label, diff_result, as_json=False)
+        return 0
+    if output_format == "markdown":
+        rendered = render_pr_report(diff_result, base_label=base_label, head_label=head_label)
+    elif output_format == "json":
+        rendered = json.dumps(diff_result, indent=2) + "\n"
+    else:
+        rendered = format_diff_output(base_label, head_label, diff_result) + "\n"
+
+    if out_path:
+        target = Path(out_path).resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(rendered, encoding="utf-8")
+        print(f"[info] Report written to {target}")
+    else:
+        sys.stdout.write(rendered)
     return 0
 
 
