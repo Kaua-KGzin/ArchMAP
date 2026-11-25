@@ -242,10 +242,14 @@ runs:
           echo "::warning::ArchMAP PR report: 'gh' is not installed; report is in the job summary only."
           exit 0
         fi
+        # GITHUB_TOKEN cannot read /user; accept only a well-formed login, else
+        # fall back to the bot account that GITHUB_TOKEN comments as.
         ME="$(gh api user -q .login 2>/dev/null || true)"
-        [ -n "$ME" ] || ME="github-actions[bot]"
-        ID="$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate \
-          -q ".[] | select(.user.login == \"$ME\" and (.body | startswith(\"$MARKER\"))) | .id" 2>"$WORK/gh-list.err" | tail -n 1)"
+        [[ "$ME" =~ ^[A-Za-z0-9-]+(\[bot\])?$ ]] || ME="github-actions[bot]"
+        # Values reach jq through the environment, never spliced into the filter.
+        ID="$(ARCHMAP_ME="$ME" ARCHMAP_MARKER="$MARKER" gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate \
+          -q '.[] | select(.user.login == env.ARCHMAP_ME and (.body | startswith(env.ARCHMAP_MARKER))) | .id' \
+          2>"$WORK/gh-list.err" | tail -n 1)"
         if [ -s "$WORK/gh-list.err" ]; then
           echo "::warning::ArchMAP PR report could not list PR comments: $(head -c 300 "$WORK/gh-list.err")"
         fi
