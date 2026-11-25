@@ -181,6 +181,7 @@ class Finding(TypedDict):
     line: NotRequired[int]
     cwe: NotRequired[str]
     remediation: NotRequired[str]
+    key: NotRequired[str]
 
 
 # ---------------------------------------------------------------------------

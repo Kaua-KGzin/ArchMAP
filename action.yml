@@ -18,7 +18,7 @@ inputs:
     default: "3.13"
 
   archmap-version:
-    description: "KG-ARCHMAP version to install from PyPI (e.g. '1.4.1'). Defaults to latest."
+    description: "KG-ARCHMAP version to install from PyPI (e.g. '1.4.1'). Defaults to latest. 'source' installs the ArchMAP source that ships with this action, so code and action always match."
     required: false
     default: ""
 
@@ -72,6 +72,16 @@ inputs:
     required: false
     default: "false"
 
+  comment:
+    description: "On pull_request events, post (and keep updating) one PR comment with the architecture delta against the base branch. Needs 'pull-requests: write'. Fork and Dependabot PRs get the report in the job summary only."
+    required: false
+    default: "false"
+
+  github-token:
+    description: "Token used to post the PR comment."
+    required: false
+    default: ${{ github.token }}
+
 outputs:
   json-path:
     description: "Absolute path to the generated JSON report."
@@ -84,6 +94,10 @@ outputs:
   health-score:
     description: "Architecture health score (0–100); empty if the report could not be read."
     value: ${{ steps.analyze.outputs.health-score }}
+
+  pr-report-path:
+    description: "Absolute path to the rendered PR report (Markdown); empty unless 'comment' ran."
+    value: ${{ steps.pr-report.outputs.pr-report-path }}
 
 runs:
   using: "composite"
@@ -99,7 +113,9 @@ runs:
         ARCHMAP_VERSION: ${{ inputs.archmap-version }}
       run: |
         # The PyPI distribution is KG-ARCHMAP; "archmap" on PyPI is an unrelated project.
-        if [ -n "$ARCHMAP_VERSION" ]; then
+        if [ "$ARCHMAP_VERSION" = "source" ]; then
+          python -m pip install "$GITHUB_ACTION_PATH" --quiet
+        elif [ -n "$ARCHMAP_VERSION" ]; then
           python -m pip install "KG-ARCHMAP==${ARCHMAP_VERSION}" --quiet
         else
           python -m pip install KG-ARCHMAP --quiet
@@ -154,6 +170,98 @@ runs:
         echo "health-score=${HEALTH}" >> "$GITHUB_OUTPUT"
 
         exit "$STATUS"
+
+    - name: PR report
+      id: pr-report
+      # Runs even when a quality gate failed the analysis step: that is when the
+      # delta matters most. It never fails the job (posting can be forbidden).
+      if: ${{ !cancelled() && inputs.comment == 'true' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        IN_PATH: ${{ inputs.path }}
+        IN_OUT: ${{ inputs.out }}
+        IN_FORMAT: ${{ inputs.format }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      run: |
+        # GitHub runs `shell: bash` as `bash -e`: turn it off. This step handles
+        # every failure itself and must still reach the summary and the comment.
+        set +e -u -o pipefail
+        echo "pr-report-path=" >> "$GITHUB_OUTPUT"
+        if [ "$EVENT_NAME" != "pull_request" ] || [ -z "$PR_NUMBER" ]; then
+          echo "::notice::ArchMAP PR report runs on pull_request events only; skipped."
+          exit 0
+        fi
+
+        MARKER='<!-- archmap:pr-report -->'
+        WORK="$RUNNER_TEMP/archmap-pr"
+        BASE_DIR="$WORK/base-tree"
+        rm -rf "$WORK" && mkdir -p "$WORK"
+        BASE_JSON="$WORK/${BASE_SHA:0:7}.json"
+        HEAD_JSON="$WORK/${HEAD_SHA:0:7}.json"
+        REPORT="$WORK/pr-report.md"
+
+        # Head: reuse the analysis step's JSON when it wrote one.
+        if [ "$IN_FORMAT" != "mermaid" ] && [ -f "$IN_OUT" ]; then
+          cp "$IN_OUT" "$HEAD_JSON"
+        else
+          python -m archmap.cli.main analyze "$IN_PATH" --format json --out "$HEAD_JSON" --quiet || true
+        fi
+
+        # Base: same ArchMAP version, base commit checked out next to the workspace.
+        BASE_OK=false
+        # Fetch the base only if it is missing: a depth-1 fetch on a full clone
+        # would make the user's checkout shallow for every later step.
+        if { git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null \
+             || git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1; } \
+          && git worktree add --detach "$BASE_DIR" "$BASE_SHA" >/dev/null 2>&1 \
+          && [ -d "$BASE_DIR/$IN_PATH" ] \
+          && python -m archmap.cli.main analyze "$BASE_DIR/$IN_PATH" --format json --out "$BASE_JSON" --quiet; then
+          BASE_OK=true
+        fi
+        git worktree remove --force "$BASE_DIR" >/dev/null 2>&1 || true
+
+        if [ "$BASE_OK" = true ] && [ -f "$HEAD_JSON" ] \
+          && python -m archmap.cli.main diff --snapshot-a "$BASE_JSON" --snapshot-b "$HEAD_JSON" --format markdown --out "$REPORT"; then
+          :
+        else
+          printf '%s\n### ArchMAP · architecture delta\n\nThe base commit (`%s`) could not be analyzed, so no delta is available for this run.\n' \
+            "$MARKER" "${BASE_SHA:0:7}" > "$REPORT"
+        fi
+
+        echo "pr-report-path=$REPORT" >> "$GITHUB_OUTPUT"
+        cat "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+
+        # Upsert one comment: edit the newest one this token's user wrote with the marker.
+        if ! command -v gh >/dev/null 2>&1; then
+          echo "::warning::ArchMAP PR report: 'gh' is not installed; report is in the job summary only."
+          exit 0
+        fi
+        # GITHUB_TOKEN cannot read /user; accept only a well-formed login, else
+        # fall back to the bot account that GITHUB_TOKEN comments as.
+        ME="$(gh api user -q .login 2>/dev/null || true)"
+        [[ "$ME" =~ ^[A-Za-z0-9-]+(\[bot\])?$ ]] || ME="github-actions[bot]"
+        # Values reach jq through the environment, never spliced into the filter.
+        ID="$(ARCHMAP_ME="$ME" ARCHMAP_MARKER="$MARKER" gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate \
+          -q '.[] | select(.user.login == env.ARCHMAP_ME and (.body | startswith(env.ARCHMAP_MARKER))) | .id' \
+          2>"$WORK/gh-list.err" | tail -n 1)"
+        if [ -s "$WORK/gh-list.err" ]; then
+          echo "::warning::ArchMAP PR report could not list PR comments: $(head -c 300 "$WORK/gh-list.err")"
+        fi
+        if [ -n "$ID" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$ID" -F body=@"$REPORT" >/dev/null 2>"$WORK/gh.err" \
+            && echo "Updated PR comment $ID" \
+            || echo "::warning::ArchMAP PR report could not update the comment: $(head -c 300 "$WORK/gh.err")"
+        else
+          gh api "repos/$REPO/issues/$PR_NUMBER/comments" -F body=@"$REPORT" >/dev/null 2>"$WORK/gh.err" \
+            && echo "Posted PR comment" \
+            || echo "::warning::ArchMAP PR report could not be posted (fork or Dependabot PRs have a read-only token): $(head -c 300 "$WORK/gh.err")"
+        fi
 
     - name: Upload SARIF to GitHub Code Scanning
       # Upload even when a quality gate failed, so findings still reach Code Scanning.

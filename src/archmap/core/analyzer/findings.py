@@ -2,11 +2,33 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from archmap.types import Finding
 
 SEVERITY_LEVELS = ("info", "low", "medium", "high", "critical")
+
+
+def finding_key(finding: Mapping[str, Any]) -> str:
+    """Stable fingerprint that matches the same finding across two analyses.
+
+    IDs (``ARCH-001``...) are positional and change between runs, and messages
+    carry numbers that drift, so neither can be compared. The key is built from
+    what identifies the problem: an explicit ``key`` if the builder set one,
+    else the file, else the source/target edge, else the category alone.
+    """
+    explicit = finding.get("key")
+    if isinstance(explicit, str) and explicit:
+        return explicit
+    category = str(finding.get("category", ""))
+    file_id = finding.get("file")
+    if file_id:
+        return f"{category}|{file_id}"
+    source, target = finding.get("source"), finding.get("target")
+    if source and target:
+        return f"{category}|{source}|{target}"
+    return category
 
 
 def max_severity(a: str, b: str) -> str:
@@ -62,6 +84,7 @@ def build_code_findings(
                 confidence=1.0,
                 message=message,
                 evidence=evidence,
+                key="circular_dependency|" + ",".join(sorted(members)),
             )
         )
         finding_id += 1

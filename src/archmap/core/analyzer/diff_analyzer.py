@@ -1,13 +1,41 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
 from archmap.config import CONFIG_FILENAMES, load_project_config
 from archmap.core.analyzer.dependency_graph import analyze_graph
+from archmap.core.analyzer.findings import finding_key
 from archmap.core.graph.graph_builder import build_graph
 from archmap.core.parser import parse_project
 from archmap.utils.file_utils import file_language_from_id, normalize_file_id
+
+
+def normalize_report(report: dict) -> dict:
+    """Bring a report to the in-memory shape ``diff_reports`` expects.
+
+    ``archmap analyze --out`` writes ``nodes``/``edges`` as plain id lists and
+    puts the full node and edge objects under ``detailed``. Reports already in
+    the in-memory shape (full objects at the top level) are returned as is.
+    """
+    detailed = report.get("detailed")
+    if not isinstance(detailed, dict):
+        return report
+    normalized = {key: value for key, value in report.items() if key != "detailed"}
+    normalized["simple"] = {
+        "nodes": list(report.get("nodes", [])),
+        "edges": [list(edge) for edge in report.get("edges", [])],
+    }
+    normalized["nodes"] = list(detailed.get("nodes", []))
+    normalized["edges"] = list(detailed.get("edges", []))
+    return normalized
+
+
+def load_snapshot(path: str | Path) -> dict:
+    """Read a JSON report written by ``archmap analyze --out`` for ``diff``."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    return normalize_report(data)
 
 
 def analyze_git_ref(project_root: str | Path, ref: str) -> dict:
@@ -97,6 +125,116 @@ def diff_reports(base_report: dict, head_report: dict) -> dict:
             "ruleViolationsDelta": len(head_architecture.get("ruleViolations", []))
             - len(base_architecture.get("ruleViolations", [])),
         },
+        "grades": {
+            "base": base_architecture.get("health", {}).get("grade"),
+            "head": head_architecture.get("health", {}).get("grade"),
+        },
+        **_diff_findings(base_report, head_report),
+        "tests": _diff_tests(base_report, head_report),
+    }
+
+
+_SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+
+
+def _sorted_findings(findings: list[dict]) -> list[dict]:
+    return sorted(
+        findings,
+        key=lambda f: (_SEVERITY_RANK.get(str(f.get("severity")), 5), finding_key(f)),
+    )
+
+
+def _diff_findings(base_report: dict, head_report: dict) -> dict:
+    """New/resolved findings matched by key; only when both reports carry findings."""
+    base_findings = base_report.get("findings")
+    head_findings = head_report.get("findings")
+    if not isinstance(base_findings, list) or not isinstance(head_findings, list):
+        return {"findingsComparable": False}
+
+    base_by_key = {finding_key(f): f for f in base_findings}
+    head_by_key = {finding_key(f): f for f in head_findings}
+    base_files = _file_node_map(base_report)
+    head_files = _file_node_map(head_report)
+
+    new: list[dict] = []
+    resolved: list[dict] = []
+    shifted: list[dict] = []
+    for key, finding in head_by_key.items():
+        if key in base_by_key:
+            continue
+        if _is_threshold_shift(finding, base_files, head_files):
+            shifted.append({**finding, "direction": "new"})
+        else:
+            new.append(finding)
+    for key, finding in base_by_key.items():
+        if key in head_by_key:
+            continue
+        if _is_threshold_shift(finding, base_files, head_files):
+            shifted.append({**finding, "direction": "resolved"})
+        else:
+            resolved.append(finding)
+
+    new = _sorted_findings(new)
+    return {
+        "findingsComparable": True,
+        "findings": {
+            "new": new,
+            "resolved": _sorted_findings(resolved),
+            "unchanged": len(base_by_key.keys() & head_by_key.keys()),
+            "thresholdShift": _sorted_findings(shifted),
+        },
+        "bottlenecks": {
+            "new": [f for f in new if f.get("category") == "structural_bottleneck"],
+        },
+    }
+
+
+# Findings whose thresholds are relative to the whole project (risk_analyzer),
+# with the per-file counts each one is computed from.
+_RELATIVE_THRESHOLD_COUNTS: dict[str, tuple[str, ...]] = {
+    "god_module": ("outgoing",),
+    "dependency_explosion": ("outgoing", "incoming"),
+}
+
+
+def _is_threshold_shift(finding: dict, base_files: dict, head_files: dict) -> bool:
+    """True when a finding appeared/disappeared only because the threshold moved.
+
+    God-module and dependency-explosion thresholds are relative to the project,
+    so a PR that adds files elsewhere can flag (or clear) a file it never
+    touched. If that file exists on both sides with the same counts, the file
+    itself did not change: the finding is a threshold shift, not a new problem.
+    """
+    counts = _RELATIVE_THRESHOLD_COUNTS.get(str(finding.get("category")))
+    file_id = finding.get("file")
+    if not counts or not file_id or file_id not in base_files or file_id not in head_files:
+        return False
+    before, after = base_files[file_id], head_files[file_id]
+    return all(int(before.get(c, 0)) == int(after.get(c, 0)) for c in counts)
+
+
+def _tested_ratio(report: dict) -> float | None:
+    mapping = report.get("metrics", {}).get("testMapping")
+    if not isinstance(mapping, dict):
+        return None
+    ratio = mapping.get("testedRatio")
+    return float(ratio) if isinstance(ratio, (int, float)) else None
+
+
+def _diff_tests(base_report: dict, head_report: dict) -> dict:
+    """Tested-file ratio on each side and files whose tests disappeared."""
+    base_files = _file_node_map(base_report)
+    head_files = _file_node_map(head_report)
+    lost = []
+    for file_id in sorted(base_files.keys() & head_files.keys()):
+        before = base_files[file_id].get("testedBy") or []
+        after = head_files[file_id].get("testedBy") or []
+        if before and not after:
+            lost.append({"file": file_id, "testedBy": list(before)})
+    return {
+        "baseTestedRatio": _tested_ratio(base_report),
+        "headTestedRatio": _tested_ratio(head_report),
+        "lostCoverage": lost,
     }
 
 

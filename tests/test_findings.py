@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from archmap.core.analyzer.findings import build_code_findings, max_severity
+from archmap.core.analyzer.findings import build_code_findings, finding_key, max_severity
 
 
 def test_max_severity() -> None:
@@ -225,3 +225,37 @@ def test_build_code_findings_does_not_mutate_inputs() -> None:
     assert original_cycle == cycle_copy
     assert original_risks == risks_copy
     assert original_architecture == arch_copy
+
+
+def test_finding_key_by_file() -> None:
+    assert finding_key({"category": "god_module", "file": "a.py"}) == "god_module|a.py"
+
+
+def test_finding_key_by_edge() -> None:
+    finding = {"category": "layer_violation", "source": "a", "target": "b"}
+    assert finding_key(finding) == "layer_violation|a|b"
+
+
+def test_finding_key_category_only() -> None:
+    assert finding_key({"category": "low_resolution_rate"}) == "low_resolution_rate"
+
+
+def test_finding_key_prefers_explicit_key() -> None:
+    assert finding_key({"category": "god_module", "file": "a.py", "key": "custom"}) == "custom"
+
+
+def test_cycle_key_ignores_member_order() -> None:
+    first = build_code_findings([{"members": ["b", "a"], "path": ["b", "a", "b"]}], {}, {})
+    second = build_code_findings([{"members": ["a", "b"], "path": ["a", "b", "a"]}], {}, {})
+    assert first[0]["key"] == second[0]["key"] == "circular_dependency|a,b"
+
+
+def test_every_analyzed_finding_has_key() -> None:
+    from pathlib import Path
+
+    from archmap.core import analyze_project
+
+    sample = Path(__file__).resolve().parents[1] / "examples" / "sample-project"
+    report = analyze_project(str(sample))
+    assert report["findings"], "sample project should produce findings"
+    assert all(finding.get("key") for finding in report["findings"])
