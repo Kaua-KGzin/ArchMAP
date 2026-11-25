@@ -178,8 +178,11 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+      # Full history on purpose: the action must not make the checkout shallow.
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       # Gate forced to fail: the report must still be produced and posted.
       - name: Action with a failing quality gate
@@ -196,8 +199,22 @@ jobs:
         env:
           GATED_OUTCOME: ${{ steps.gated.outcome }}
         run: |
-          grep -q 'archmap:pr-report' "$RUNNER_TEMP/archmap-pr/pr-report.md"
+          R="$RUNNER_TEMP/archmap-pr/pr-report.md"
+          grep -q 'archmap:pr-report' "$R"
+          ! grep -q 'could not be analyzed' "$R"   # a real delta, not the fallback
+          grep -q 'Health \*\*' "$R"
           test "$GATED_OUTCOME" = "failure"
+          test "$(git rev-parse --is-shallow-repository)" = "false"
+
+      - name: Exactly one report comment was posted
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          COUNT="$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate             -q '.[] | select(.body | startswith("<!-- archmap:pr-report -->")) | .id' | wc -l)"
+          echo "report comments: $COUNT"
+          test "$COUNT" -eq 1
 
       # No JSON from the analysis step: the report step analyzes the head itself.
       - name: Action with mermaid-only output
@@ -209,7 +226,14 @@ jobs:
           format: mermaid
           out: .codeatlas/selftest.mmd
 
-      - name: Report exists without a head JSON
+      - name: Report exists without a head JSON, and the comment was edited in place
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          grep -q 'archmap:pr-report' "$RUNNER_TEMP/archmap-pr/pr-report.md"
-          grep -q 'architecture delta' "$RUNNER_TEMP/archmap-pr/pr-report.md"
+          R="$RUNNER_TEMP/archmap-pr/pr-report.md"
+          grep -q 'archmap:pr-report' "$R"
+          ! grep -q 'could not be analyzed' "$R"
+          COUNT="$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate             -q '.[] | select(.body | startswith("<!-- archmap:pr-report -->")) | .id' | wc -l)"
+          test "$COUNT" -eq 1
