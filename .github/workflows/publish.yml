@@ -4,6 +4,10 @@ on:
   push:
     tags: ["v*"]
 
+# Padrão só leitura; o job de publicação pede apenas id-token (Trusted Publishing).
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build distribution

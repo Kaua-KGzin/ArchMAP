@@ -16,10 +16,16 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY src/ ./src/
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . \
+    && useradd --uid 1000 --create-home --shell /usr/sbin/nologin archmap
 
 # Project code is mounted here at runtime
 WORKDIR /project
+
+# Run without root. UID 1000 matches the default user on most Linux hosts, so a
+# bind-mounted project stays readable; pass `--user "$(id -u):$(id -g)"` if yours differs.
+# Cache writes into the mounted project are best-effort (OSError is ignored).
+USER archmap
 
 EXPOSE 3000
 

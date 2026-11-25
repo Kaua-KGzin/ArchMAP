@@ -75,6 +75,14 @@ mobile browser as on desktop — see [Serve](../cli/serve.md).
 docker run -p 3000:3000 -v "$(pwd):/project" ghcr.io/kaua-kgzin/archmap
 ```
 
+The container runs as an unprivileged user (UID 1000), not as root. If your
+user on the host has a different UID and ArchMAP can't read the project (or you
+want the analysis cache written back), run it as yourself:
+
+```bash
+docker run -p 3000:3000 --user "$(id -u):$(id -g)" -v "$(pwd):/project" ghcr.io/kaua-kgzin/archmap
+```
+
 ## Install for development
 
 ```bash

@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Security
+- **The Docker image no longer runs as root.** It now runs as an unprivileged
+  `archmap` user (UID 1000). Cache writes into the mounted project were already
+  best-effort, so a read-only or foreign-owned mount still analyzes; pass
+  `--user "$(id -u):$(id -g)"` to run as yourself (see Installation).
+- **CI tokens are read-only by default.** `ci.yml` and `publish.yml` now declare
+  `permissions: contents: read`; the PyPI job keeps only `id-token: write`.
+- **Docker release actions pinned by commit SHA** (`login`, `metadata`,
+  `setup-buildx`, `build-push`), like the PyPI and GitHub Release actions
+  already were. Dependabot keeps them current.
+- **New `docker-smoke` CI job** builds the image on every PR, checks it is not
+  root, and analyzes a read-only mounted project, so a broken Dockerfile shows up
+  before a release tag instead of during one.
+- Personal Claude Code files (`.claude/settings.local.json`, `.claude/projects/`)
+  are no longer tracked; they held local permissions and absolute paths.
+
 ### Added
 - **Structural bottlenecks: betweenness centrality on the file graph.** Fan-in
   and fan-out (and therefore `riskScore`) count who touches a file, not how
