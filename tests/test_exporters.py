@@ -125,3 +125,44 @@ def test_mermaid_exporter_no_subgraphs(tmp_path):
 
     assert "subgraph" not in content
     assert "file_src_cli_main_py" in content
+
+
+def test_json_export_includes_findings(tmp_path):
+    finding = {
+        "id": "ARCH-001",
+        "domain": "code",
+        "category": "god_module",
+        "severity": "medium",
+        "confidence": 1.0,
+        "message": "God module: a.py",
+        "evidence": [],
+        "file": "a.py",
+        "key": "god_module|a.py",
+    }
+    report = {
+        "projectRoot": str(tmp_path),
+        "simple": {"nodes": ["a.py"], "edges": []},
+        "nodes": [{"id": "a.py", "type": "file"}],
+        "edges": [],
+        "metrics": {},
+        "cycles": [],
+        "findings": [finding],
+    }
+    data = json.loads(export_graph_as_json(report, tmp_path / "g.json").read_text(encoding="utf-8"))
+    assert data["findings"][0]["key"] == "god_module|a.py"
+    for key in ("tool", "projectRoot", "nodes", "edges", "metrics", "cycles", "risks",
+                "architecture", "detailed"):
+        assert key in data
+
+
+def test_json_export_findings_default_to_empty_list(tmp_path):
+    report = {
+        "projectRoot": str(tmp_path),
+        "simple": {"nodes": [], "edges": []},
+        "nodes": [],
+        "edges": [],
+        "metrics": {},
+        "cycles": [],
+    }
+    data = json.loads(export_graph_as_json(report, tmp_path / "g.json").read_text(encoding="utf-8"))
+    assert data["findings"] == []
