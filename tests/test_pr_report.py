@@ -95,3 +95,14 @@ def test_render_escapes_pipes() -> None:
 def test_render_footer_has_labels() -> None:
     out = _render(_diff())
     assert "`abc1234`" in out and "`def5678`" in out
+
+
+def test_render_threshold_shift_is_collapsed_and_not_counted() -> None:
+    diff = _diff(new=[_finding("layer_violation|x|y", "cli → core", source="x", target="y")])
+    diff["findings"]["thresholdShift"] = [
+        {**_finding("god_module|a.py", "God module: a.py", file="a.py"), "direction": "new"},
+    ]
+    out = _render(diff)
+    assert "<details>" in out
+    assert "project-relative thresholds moved" in out
+    assert "Findings +1 / −0" in out

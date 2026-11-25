@@ -268,3 +268,52 @@ def test_diff_without_findings_is_not_comparable() -> None:
 def test_diff_exposes_grades() -> None:
     diff = diff_reports(_report(grade="B", score=80), _report(grade="C", score=64))
     assert diff["grades"] == {"base": "B", "head": "C"}
+
+
+def _node(file_id: str, outgoing: int, incoming: int = 0) -> dict:
+    return {"id": file_id, "type": "file", "outgoing": outgoing, "incoming": incoming}
+
+
+def test_diff_moves_threshold_shift_findings_out_of_new() -> None:
+    # Same file, same outgoing count: flagged only because the project-relative
+    # threshold moved (e.g. the PR added leaf files elsewhere).
+    base = _report(findings=[], nodes=[_node("a.py", 9)])
+    head = _report(
+        findings=[_finding("god_module", "god_module|a.py", file="a.py")],
+        nodes=[_node("a.py", 9), _node("new_leaf.py", 0)],
+    )
+    diff = diff_reports(base, head)
+    assert diff["findings"]["new"] == []
+    shifted = diff["findings"]["thresholdShift"]
+    assert [(f["key"], f["direction"]) for f in shifted] == [("god_module|a.py", "new")]
+
+
+def test_diff_keeps_real_new_god_module() -> None:
+    base = _report(findings=[], nodes=[_node("a.py", 3)])
+    head = _report(
+        findings=[_finding("god_module", "god_module|a.py", file="a.py")],
+        nodes=[_node("a.py", 12)],
+    )
+    diff = diff_reports(base, head)
+    assert [f["key"] for f in diff["findings"]["new"]] == ["god_module|a.py"]
+    assert diff["findings"]["thresholdShift"] == []
+
+
+def test_diff_moves_threshold_shift_out_of_resolved() -> None:
+    base = _report(
+        findings=[_finding("dependency_explosion", "dependency_explosion|c.py", file="c.py")],
+        nodes=[_node("c.py", 7, 7)],
+    )
+    head = _report(findings=[], nodes=[_node("c.py", 7, 7)])
+    diff = diff_reports(base, head)
+    assert diff["findings"]["resolved"] == []
+    assert [f["direction"] for f in diff["findings"]["thresholdShift"]] == ["resolved"]
+
+
+def test_diff_new_file_god_module_is_real() -> None:
+    base = _report(findings=[], nodes=[])
+    head = _report(
+        findings=[_finding("god_module", "god_module|n.py", file="n.py")],
+        nodes=[_node("n.py", 20)],
+    )
+    assert [f["key"] for f in diff_reports(base, head)["findings"]["new"]] == ["god_module|n.py"]

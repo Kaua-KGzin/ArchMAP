@@ -94,6 +94,29 @@ def _lost_coverage(entries: Iterable[dict[str, Any]]) -> list[str]:
     return lines
 
 
+def _threshold_shift(findings: list[dict[str, Any]]) -> list[str]:
+    if not findings:
+        return []
+    lines = [
+        "<details>",
+        f"<summary>{len(findings)} finding(s) in files this PR did not change</summary>",
+        "",
+        "Flagged or cleared only because project-relative thresholds moved "
+        "(the file's own dependency counts are the same on both sides).",
+        "",
+        "| Change | Finding | Where |",
+        "|---|---|---|",
+    ]
+    for finding in findings[:MAX_ROWS]:
+        lines.append(
+            f"| {_cell(finding.get('direction', ''))} | {_cell(finding.get('message', ''))} "
+            f"| {_where(finding)} |"
+        )
+    lines.extend(_more(len(findings)))
+    lines.extend(["", "</details>", ""])
+    return lines
+
+
 def _has_changes(diff: dict[str, Any]) -> bool:
     findings = diff.get("findings") or {}
     return bool(
@@ -125,6 +148,7 @@ def render_pr_report(diff: dict[str, Any], *, base_label: str, head_label: str) 
     lines.extend(_finding_table("Resolved", findings.get("resolved", [])))
     lines.extend(_finding_table("New structural bottlenecks", bottlenecks))
     lines.extend(_lost_coverage(diff.get("tests", {}).get("lostCoverage", [])))
+    lines.extend(_threshold_shift(findings.get("thresholdShift", [])))
 
     footer = f"<sub>ArchMAP {__version__} · base `{base_label}` → head `{head_label}`</sub>"
     body = "\n".join(lines)

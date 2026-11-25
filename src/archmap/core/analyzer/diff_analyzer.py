@@ -153,19 +153,64 @@ def _diff_findings(base_report: dict, head_report: dict) -> dict:
 
     base_by_key = {finding_key(f): f for f in base_findings}
     head_by_key = {finding_key(f): f for f in head_findings}
-    new = _sorted_findings([f for k, f in head_by_key.items() if k not in base_by_key])
-    resolved = _sorted_findings([f for k, f in base_by_key.items() if k not in head_by_key])
+    base_files = _file_node_map(base_report)
+    head_files = _file_node_map(head_report)
+
+    new: list[dict] = []
+    resolved: list[dict] = []
+    shifted: list[dict] = []
+    for key, finding in head_by_key.items():
+        if key in base_by_key:
+            continue
+        if _is_threshold_shift(finding, base_files, head_files):
+            shifted.append({**finding, "direction": "new"})
+        else:
+            new.append(finding)
+    for key, finding in base_by_key.items():
+        if key in head_by_key:
+            continue
+        if _is_threshold_shift(finding, base_files, head_files):
+            shifted.append({**finding, "direction": "resolved"})
+        else:
+            resolved.append(finding)
+
+    new = _sorted_findings(new)
     return {
         "findingsComparable": True,
         "findings": {
             "new": new,
-            "resolved": resolved,
+            "resolved": _sorted_findings(resolved),
             "unchanged": len(base_by_key.keys() & head_by_key.keys()),
+            "thresholdShift": _sorted_findings(shifted),
         },
         "bottlenecks": {
             "new": [f for f in new if f.get("category") == "structural_bottleneck"],
         },
     }
+
+
+# Findings whose thresholds are relative to the whole project (risk_analyzer),
+# with the per-file counts each one is computed from.
+_RELATIVE_THRESHOLD_COUNTS: dict[str, tuple[str, ...]] = {
+    "god_module": ("outgoing",),
+    "dependency_explosion": ("outgoing", "incoming"),
+}
+
+
+def _is_threshold_shift(finding: dict, base_files: dict, head_files: dict) -> bool:
+    """True when a finding appeared/disappeared only because the threshold moved.
+
+    God-module and dependency-explosion thresholds are relative to the project,
+    so a PR that adds files elsewhere can flag (or clear) a file it never
+    touched. If that file exists on both sides with the same counts, the file
+    itself did not change: the finding is a threshold shift, not a new problem.
+    """
+    counts = _RELATIVE_THRESHOLD_COUNTS.get(str(finding.get("category")))
+    file_id = finding.get("file")
+    if not counts or not file_id or file_id not in base_files or file_id not in head_files:
+        return False
+    before, after = base_files[file_id], head_files[file_id]
+    return all(int(before.get(c, 0)) == int(after.get(c, 0)) for c in counts)
 
 
 def _tested_ratio(report: dict) -> float | None:
