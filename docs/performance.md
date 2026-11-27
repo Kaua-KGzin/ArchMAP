@@ -57,13 +57,14 @@ archmap analyze . --estimate
 
 Nothing is analyzed. ArchMAP counts the source files, runs a ~100-file
 calibration (at most 0.5 s) to learn how fast this machine is, and prints an
-expected time with a range, an expected peak memory, and any reductions a
+expected time with a range, an expected peak Python heap (a `tracemalloc`
+peak, not the process RSS), and any reductions a
 `--time-budget` would force:
 
 ```text
 [estimate] 125 source files (python 118 · javascript 7), 1.4 MB
 [estimate] expected time: <1 s (range <1 s – <1 s) on this machine
-[estimate] expected peak memory: ~1 MB
+[estimate] expected peak Python heap (tracemalloc): ~1 MB
 [estimate] no analysis was run. Remove --estimate to analyze.
 ```
 
@@ -82,7 +83,15 @@ progress line on **stderr** with an ETA:
 
 ```text
 [archmap] parse 4,210/12,345 · ~25 s left
+[archmap] centrality · ~6 s left
 ```
+
+The ETA covers the whole run, not just parsing: while parsing it is the parse
+time left (from the measured rate) plus the estimate for the stages after it;
+each later stage (`cycles`, `impact`, `risk`, `testMapping`, `centrality`,
+`findings`) then shows its name and what the estimate gives it and the stages
+after it, so the ETA keeps going down. A closed or broken stderr only silences
+the line; it never stops the analysis.
 
 It appears only when stderr is a TTY, only when the estimate is over 5 s, and
 never with `--quiet`. Pipes, CI logs and the MCP server never get it, so
@@ -105,9 +114,13 @@ comes from, in order of precedence:
 
 | Surface | Order |
 |---|---|
-| CLI (`analyze`) | `--time-budget` > `[analysis.limits]` in `.archmap.toml` > no limit |
+| CLI (`analyze`, `diff`) | `--time-budget` > `[analysis.limits]` in `.archmap.toml` > no limit |
 | Other commands (`check`, `watch`, `serve`, ...) | `[analysis.limits]` in `.archmap.toml` > no limit |
 | MCP server | tool argument `time_budget` > `[analysis.limits]` > **120 s default** |
+| Python API (`archmap.analyze_project`) | `time_budget=` > `[analysis.limits]` > no limit |
+
+`archmap diff` and the MCP `diff_architecture` tool analyze two git refs; each
+ref gets half of the budget.
 
 The budget is **soft**: parsing is never cut short, and some other stages
 never check it, so a run can overshoot. What it does is reduce the optional
@@ -122,14 +135,20 @@ Nothing is reduced silently:
 
 - Every reduction becomes a `QUAL-*` finding (category `budget_reduction`)
   that names the stage and how to lift the limit.
-- `archmap analyze` also prints a `[budget] ...` line on stderr (not with
-  `--quiet`). Other commands that pick up a `.archmap.toml` budget announce it
-  only through the `QUAL-*` finding.
+- Every CLI command that runs an analysis (`analyze`, `diff`, `explain`,
+  `risk`, `trace`, `advise`, `watch`, `serve`, `memory`, `expose`, ...) prints
+  a `[budget] ...` line on stderr per reduction, never on stdout and never with
+  `--quiet`. `diff` prefixes each line with the git ref.
 - The MCP response carries a `notice` field saying what was reduced and how to
-  get a full run.
+  get a full run. While the 120 s MCP default is the active budget, the
+  `notice` is there even when nothing was reduced, so the caller knows a limit
+  applies and how to change it.
 - `metrics.analysisQuality.budget` and `.reductions` record it in the report.
 - A reduced run is never written to the cache, so the next run without the
-  budget starts from a full analysis.
+  budget starts from a full analysis. Because only full reports are cached, the
+  cache key does not include the budget: the CLI (no budget) and the MCP server
+  (120 s) share one cache entry, and a cache hit is re-stamped with the budget
+  of the current call.
 
 ### MCP: 120 s by default
 

@@ -68,8 +68,9 @@ cut short, and a run can overshoot. When time runs out, impacted-file lists are
 dropped (`impactCount` and `risk` stay exact, nodes are marked
 `impactedFilesTruncated`) and centrality is sampled to 64 files or skipped. Each
 reduction is a `QUAL-*` finding (category `budget_reduction`) and, for
-`archmap analyze`, a `[budget] ...` line on stderr. Reduced runs are never
-cached. Stored impact lists are always capped at 200 files; `--impact PATH`
+`archmap analyze` and every other command that runs an analysis, a
+`[budget] ...` line on stderr (never with `--quiet`). Reduced runs are never
+cached, so the cache is shared by every budget, the MCP server's included. Stored impact lists are always capped at 200 files; `--impact PATH`
 prints the full list. Details, numbers and the MCP default in
 [Performance](../performance.md).
 

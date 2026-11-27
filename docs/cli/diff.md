@@ -29,6 +29,7 @@ archmap diff --snapshot-a <file> --snapshot-b <file> [options]
 | `--json` | off | Output full diff as JSON instead of a summary (same as `--format json`) |
 | `--format` | `text` | `text`, `json`, or `markdown` (the pull-request comment, see [GitHub Action](../github-action.md)) |
 | `--out` | stdout | Write the `json`/`markdown` output to this file |
+| `--time-budget` | none | Soft time budget in seconds for both git-ref analyses together; each ref gets half. Falls back to `[analysis.limits] time_budget_seconds`; `0` = no limit. Each reduction is printed as `[budget] <ref>: ...` on stderr. See [Performance](../performance.md) |
 
 ## Examples
 
