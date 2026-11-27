@@ -15,7 +15,7 @@ from archmap.core.analyzer.complexity_analyzer import (
 from archmap.core.analyzer.cycle_detector import enrich_cycles, find_circular_dependencies
 from archmap.core.analyzer.findings import build_code_findings, finding_key
 from archmap.core.analyzer.human_analyzer import analyze_human
-from archmap.core.analyzer.impact_analyzer import build_dependents_map, calculate_impact
+from archmap.core.analyzer.impact_analyzer import calculate_all_impacts
 from archmap.core.analyzer.project_explainer import explain_project
 from archmap.core.analyzer.quality import build_analysis_quality, build_quality_findings
 from archmap.core.analyzer.risk_analyzer import detect_architectural_risks
@@ -52,9 +52,9 @@ def analyze_graph(
     edges = _annotate_edges(graph["edges"], cycle_membership)
 
     with timer.stage("impact"):
-        dependents_map = build_dependents_map(edges)
+        impacts = calculate_all_impacts([node["id"] for node in nodes], edges)
         for node in nodes:
-            node["impact"] = calculate_impact(node["id"], edges, dependents_map)
+            node["impact"] = impacts[node["id"]]
 
     incoming_counts = {node["id"]: int(node.get("incoming", 0)) for node in nodes}
     enriched = enrich_cycles(cycles, adjacency, incoming_counts)
