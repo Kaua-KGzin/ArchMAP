@@ -125,3 +125,84 @@ def test_estimate_json_stdout_is_json_only(
     monkeypatch.setattr("sys.stderr.isatty", lambda: True, raising=False)
     assert main(["analyze", str(root), "--estimate", "--format", "json"]) == 0
     json.loads(capsys.readouterr().out)
+
+
+# --- ETA covers the stages after parsing ------------------------------------
+
+
+def _last_line(out: io.StringIO) -> str:
+    return out.getvalue().split("\r")[-1].strip()
+
+
+def _seconds_left(line: str) -> int:
+    import re
+
+    match = re.search(r"~(\d+) s left", line)
+    assert match, line
+    return int(match.group(1))
+
+
+def test_parse_eta_includes_the_later_stages() -> None:
+    from archmap.core.perf.estimate import STAGE_SHARES
+    from archmap.core.perf.progress import LATER_STAGES
+
+    out = io.StringIO()
+    now = [0.0]
+    progress = Progress(out, estimate_seconds=100.0, clock=lambda: now[0])
+    progress.stage("parse")
+    now[0] += 10.0
+    progress.advance(50, 100)  # 10 s for half: ~10 s of parsing left
+    later = 100.0 * sum(STAGE_SHARES[s] for s in LATER_STAGES)
+    assert _seconds_left(_last_line(out)) == round(10.0 + later)
+
+
+def test_eta_keeps_decreasing_through_the_later_stages() -> None:
+    from archmap.core.perf.progress import LATER_STAGES
+
+    out = io.StringIO()
+    now = [0.0]
+    progress = Progress(out, estimate_seconds=150.0, clock=lambda: now[0])
+    progress.stage("parse")
+    now[0] += 1.0
+    progress.advance(100, 100)
+    etas = [_seconds_left(_last_line(out))]
+    progress.stage("analyze")
+    etas.append(_seconds_left(_last_line(out)))
+    for name in LATER_STAGES:
+        now[0] += 1.0
+        progress.stage(name)
+        line = _last_line(out)
+        assert line.startswith(f"[archmap] {name} · ")
+        etas.append(_seconds_left(line))
+    assert etas == sorted(etas, reverse=True)
+    assert etas[0] > etas[-1]
+
+
+def test_analyze_project_shows_each_later_stage(tmp_path: Path) -> None:
+    from archmap.core.perf.progress import LATER_STAGES
+
+    root = _project(tmp_path)
+    out = io.StringIO()
+    analyze_project(root, use_cache=False, progress=Progress(out, 50.0))
+    text = out.getvalue()
+    for name in LATER_STAGES:
+        assert f"{name} · ~" in text
+
+
+def test_closed_stream_never_aborts_analysis(tmp_path: Path) -> None:
+    class Closed(io.StringIO):
+        def write(self, _s: str) -> int:
+            raise OSError("stderr is gone")
+
+    root = _project(tmp_path)
+    progress = Progress(Closed(), 50.0)
+    report = analyze_project(root, use_cache=False, progress=progress)
+    progress.close()
+    assert report["nodes"]
+
+    really_closed = io.StringIO()
+    really_closed.close()
+    late = Progress(really_closed, 50.0)
+    late.stage("parse")
+    late.advance(1, 2)
+    late.close()
