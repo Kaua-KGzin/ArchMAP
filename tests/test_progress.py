@@ -68,17 +68,22 @@ def test_cli_non_tty_prints_no_progress(tmp_path: Path, capsys: pytest.CaptureFi
     assert "[archmap]" not in capsys.readouterr().err
 
 
-def test_cli_json_stdout_is_valid_json_even_on_tty(
+def test_cli_json_format_progress_on_stderr_only_and_report_is_valid_json(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root = _project(tmp_path)
     out_file = tmp_path / "r.json"
+    # Force progress on: faked TTY and an estimate above the 5 s threshold.
     monkeypatch.setattr("sys.stderr.isatty", lambda: True, raising=False)
-    monkeypatch.setattr("archmap.core.perf.progress.MIN_EXPECTED_SECONDS", -1.0)
-    assert main(["analyze", str(root), "--no-cache", "--quiet", "--format", "json",
+    monkeypatch.setattr("archmap.core.perf.estimate.estimate_project",
+                        lambda *a, **k: {"seconds": {"expected": 30.0}})
+    assert main(["analyze", str(root), "--no-cache", "--format", "json",
                  "--out", str(out_file)]) == 0
+    captured = capsys.readouterr()
+    assert "[archmap]" in captured.err  # progress was really active
+    assert "[archmap]" not in captured.out  # and never leaked onto stdout
+    assert "\r" not in captured.out
     json.loads(out_file.read_text(encoding="utf-8"))
-    assert "[archmap]" not in capsys.readouterr().out
 
 
 def test_cli_progress_goes_to_stderr_when_tty(
