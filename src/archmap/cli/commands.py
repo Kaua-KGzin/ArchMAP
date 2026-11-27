@@ -734,12 +734,22 @@ def _build_file_risk_payload(
         for item in report.get("risks", {}).get("top_risk_files", [])
     }
     risk_item = risk_index.get(normalized_target, {})
+    impact = node.get("impact", {})
+    if impact.get("impactedFilesTruncated"):
+        # `archmap risk --json` prints the payload verbatim: keep the full list.
+        from archmap.core.analyzer.impact_analyzer import full_impacted_files
+
+        impact = {
+            **impact,
+            "impactedFiles": full_impacted_files(report, normalized_target),
+        }
+        impact.pop("impactedFilesTruncated", None)
     return {
         "file": normalized_target,
         "incoming": int(node.get("incoming", 0)),
         "outgoing": int(node.get("outgoing", 0)),
         "isCircular": bool(node.get("isCircular", False)),
-        "impact": node.get("impact", {}),
+        "impact": impact,
         "riskScore": int(risk_item.get("riskScore", 0)),
         "signals": list(risk_item.get("signals", [])),
     }

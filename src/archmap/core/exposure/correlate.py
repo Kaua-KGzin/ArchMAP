@@ -4,6 +4,7 @@ from typing import Any
 
 from archmap.config import NetworkRulesConfig
 from archmap.core.analyzer.findings import max_severity
+from archmap.core.analyzer.impact_analyzer import full_impacted_files
 from archmap.core.analyzer.rule_engine import detect_rule_violations, rule_tokens
 from archmap.core.exposure.endpoint_scanner import EndpointReference
 from archmap.core.exposure.service_packages import package_hints_for_service
@@ -30,7 +31,9 @@ _CODE_IMPACT_RISK_TO_SEVERITY = {
 }
 
 
-def _match_packages(service: str, nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _match_packages(
+    service: str, nodes: list[dict[str, Any]], report: dict[str, Any]
+) -> list[dict[str, Any]]:
     hint_names = set(package_hints_for_service(service))
     if not hint_names:
         return []
@@ -45,7 +48,7 @@ def _match_packages(service: str, nodes: list[dict[str, Any]]) -> list[dict[str,
                 "package": node.get("label"),
                 "nodeId": node.get("id"),
                 "impactCount": impact.get("impactCount", 0),
-                "impactedFiles": impact.get("impactedFiles", []),
+                "impactedFiles": full_impacted_files(report, str(node.get("id"))),
                 "risk": impact.get("risk", "low"),
             }
         )
@@ -146,7 +149,7 @@ def correlate_exposure(
             service = port_info.get("service", "unknown")
             network_risk = port_info.get("risk")
             port = port_info.get("port")
-            matched_packages = _match_packages(service, nodes)
+            matched_packages = _match_packages(service, nodes, analysis_report)
             endpoint_match = _match_endpoint(
                 host.get("ip"), host.get("hostname"), port, endpoint_refs
             )

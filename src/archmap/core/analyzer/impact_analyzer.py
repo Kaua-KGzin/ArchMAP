@@ -63,6 +63,20 @@ def calculate_impact(
     }
 
 
+def full_impacted_files(report: dict, node_id: str) -> list[str]:
+    """Complete, sorted ``impactedFiles`` for ``node_id`` of an analysis report.
+
+    The stored list is capped at :data:`IMPACT_LIST_CAP`; when the node's
+    impact is flagged ``impactedFilesTruncated`` the full list is recomputed
+    with a single BFS over ``report["edges"]``.
+    """
+    node = next((n for n in report.get("nodes", []) if n.get("id") == node_id), None)
+    impact = (node or {}).get("impact") or {}
+    if not impact.get("impactedFilesTruncated"):
+        return list(impact.get("impactedFiles", []))
+    return list(calculate_impact(node_id, report.get("edges", []))["impactedFiles"])
+
+
 def _risk_for(count: int) -> str:
     if count > 10:
         return "critical"

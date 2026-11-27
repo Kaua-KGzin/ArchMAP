@@ -128,9 +128,11 @@ def _tool_impact_analysis(project_path: str, file: str) -> dict:
     # field from analyze_graph(); no need to recompute it here.
     impact = node.get("impact") or {"impactedFiles": [], "impactCount": 0, "risk": "low"}
 
+    from archmap.core.analyzer.impact_analyzer import full_impacted_files
+
     return {
         "file": node["id"],
-        "impactedFiles": impact["impactedFiles"],
+        "impactedFiles": full_impacted_files(result, node["id"]),
         "impactCount": impact["impactCount"],
         "risk": impact["risk"],
         "description": (
