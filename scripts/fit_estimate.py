@@ -35,7 +35,7 @@ CALIBRATION_REPEATS = 7
 
 
 def collect() -> dict[str, Any]:
-    from benchmark import run_size  # type: ignore[import-not-found]
+    from benchmark import run_size
 
     rows: list[dict[str, Any]] = []
     for language in LANGUAGES:
