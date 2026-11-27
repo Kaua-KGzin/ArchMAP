@@ -25,6 +25,7 @@ from archmap.core.analyzer.test_mapping import (
     is_test_file,
     summarize_test_mapping,
 )
+from archmap.core.perf.timing import StageTimer
 from archmap.utils.file_utils import is_vendored_path
 
 
@@ -33,7 +34,9 @@ def analyze_graph(
     layer_order: dict[str, int] | None = None,
     forbidden_rules: list[str] | None = None,
     allowed_rules: list[str] | None = None,
+    timer: StageTimer | None = None,
 ) -> dict:
+    timer = timer if timer is not None else StageTimer()
     file_nodes = [node for node in graph["nodes"] if node.get("type") == "file"]
     for node in file_nodes:
         if is_vendored_path(node["id"]):
@@ -42,14 +45,16 @@ def analyze_graph(
     file_node_set = set(file_node_ids)
     adjacency = _build_file_adjacency(file_node_ids, graph["edges"], file_node_set)
 
-    cycles = find_circular_dependencies(file_node_ids, adjacency)
+    with timer.stage("cycles"):
+        cycles = find_circular_dependencies(file_node_ids, adjacency)
     cycle_membership = _build_cycle_membership(cycles)
     nodes = annotate_nodes_with_complexity(graph["nodes"], cycle_membership)
     edges = _annotate_edges(graph["edges"], cycle_membership)
 
-    dependents_map = build_dependents_map(edges)
-    for node in nodes:
-        node["impact"] = calculate_impact(node["id"], edges, dependents_map)
+    with timer.stage("impact"):
+        dependents_map = build_dependents_map(edges)
+        for node in nodes:
+            node["impact"] = calculate_impact(node["id"], edges, dependents_map)
 
     incoming_counts = {node["id"]: int(node.get("incoming", 0)) for node in nodes}
     enriched = enrich_cycles(cycles, adjacency, incoming_counts)
@@ -76,45 +81,50 @@ def analyze_graph(
         "criticalFiles": summarize_critical_files(nodes),
     }
 
-    risks = detect_architectural_risks(nodes, edges, cycles, layer_order=layer_order)
-    architecture = analyze_architecture(
-        nodes,
-        edges,
-        cycles,
-        risks,
-        layer_order=layer_order,
-        forbidden_rules=forbidden_rules,
-        allowed_rules=allowed_rules,
-    )
+    with timer.stage("risk"):
+        risks = detect_architectural_risks(nodes, edges, cycles, layer_order=layer_order)
+        architecture = analyze_architecture(
+            nodes,
+            edges,
+            cycles,
+            risks,
+            layer_order=layer_order,
+            forbidden_rules=forbidden_rules,
+            allowed_rules=allowed_rules,
+        )
     metrics["architectureHealthScore"] = architecture["health"]["score"]
     metrics["architectureStyle"] = architecture["detectedStyle"]["name"]
     metrics["architectureRuleViolations"] = len(architecture["ruleViolations"])
     quality = build_analysis_quality(graph.get("diagnostics"), graph.get("parsedFiles", []))
     metrics["analysisQuality"] = quality
 
-    test_mapping, test_file_count = _map_tests(graph, file_node_ids, edges)
-    for node in nodes:
-        if node["id"] in test_mapping:
-            node["testedBy"] = test_mapping[node["id"]]
-    metrics["testMapping"] = summarize_test_mapping(test_mapping, test_file_count)
+    with timer.stage("testMapping"):
+        test_mapping, test_file_count = _map_tests(graph, file_node_ids, edges)
+        for node in nodes:
+            if node["id"] in test_mapping:
+                node["testedBy"] = test_mapping[node["id"]]
+        metrics["testMapping"] = summarize_test_mapping(test_mapping, test_file_count)
 
-    betweenness, centrality_meta = betweenness_centrality(
-        file_node_ids,
-        ((e["source"], e["target"]) for e in edges if e.get("target") in file_node_set),
-    )
-    for node in nodes:
-        if node["id"] in betweenness:
-            node["betweenness"] = round(betweenness[node["id"]], 6)
-    metrics["centrality"] = summarize_centrality(betweenness, centrality_meta)
+    with timer.stage("centrality"):
+        betweenness, centrality_meta = betweenness_centrality(
+            file_node_ids,
+            ((e["source"], e["target"]) for e in edges if e.get("target") in file_node_set),
+        )
+        for node in nodes:
+            if node["id"] in betweenness:
+                node["betweenness"] = round(betweenness[node["id"]], 6)
+        metrics["centrality"] = summarize_centrality(betweenness, centrality_meta)
 
-    findings = build_code_findings(enriched, risks, architecture)
-    findings.extend(build_quality_findings(quality))
-    findings.extend(build_test_findings(test_mapping, risks, test_file_count))
-    findings.extend(
-        build_centrality_findings(betweenness, centrality_meta)
-    )
-    for finding in findings:
-        finding["key"] = finding_key(finding)
+    with timer.stage("findings"):
+        findings = build_code_findings(enriched, risks, architecture)
+        findings.extend(build_quality_findings(quality))
+        findings.extend(build_test_findings(test_mapping, risks, test_file_count))
+        findings.extend(build_centrality_findings(betweenness, centrality_meta))
+        for finding in findings:
+            finding["key"] = finding_key(finding)
+
+    # Stage timings join the parse-phase ones already in the quality block.
+    quality["timingsMs"] = {**quality.get("timingsMs", {}), **timer.as_dict()}
 
     return {
         "projectRoot": graph["projectRoot"],

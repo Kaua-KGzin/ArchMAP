@@ -1,18 +1,26 @@
 """
-ArchMAP benchmark — measures analysis time for projects of different sizes.
+ArchMAP benchmark — measures analysis time, peak memory and per-stage timings
+on deterministic synthetic projects.
 
 Usage:
     python scripts/benchmark.py
+    python scripts/benchmark.py --sizes 1000,5000 --language typescript --shape hub
+    python scripts/benchmark.py --json out.json --repeat 3
 
-Generates synthetic Python projects (100 / 500 / 1000 / 5000 files),
-runs archmap.core.analyze_project on each, and prints a timing table.
+Always runs ``analyze_project(..., use_cache=False)``.
 """
 from __future__ import annotations
 
+import argparse
+import json
+import os
+import platform
 import sys
 import tempfile
 import time
+import tracemalloc
 from pathlib import Path
+from typing import Any
 
 # Allow running from repo root without installing
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -20,61 +28,75 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.setrecursionlimit(10000)
 
 from archmap.core import analyze_project  # noqa: E402
+from archmap.core.perf.synthetic import generate_project  # noqa: E402
 
-SIZES = [100, 500, 1_000, 5_000]
-IMPORTS_PER_FILE = 5  # each file imports from 5 others (approximate)
-
-
-def _generate_project(root: Path, n_files: int) -> None:
-    """Create n_files Python files with cross-imports inside root."""
-    root.mkdir(parents=True, exist_ok=True)
-
-    filenames = [f"module_{i:04d}.py" for i in range(n_files)]
-
-    for idx, name in enumerate(filenames):
-        imports: list[str] = []
-        for j in range(1, IMPORTS_PER_FILE + 1):
-            target_idx = (idx + j) % n_files
-            target = Path(filenames[target_idx]).stem
-            imports.append(f"import {target}")
-
-        content = "\n".join(imports) + f"\n\ndef func_{idx}(): pass\n"
-        (root / name).write_text(content, encoding="utf-8")
+DEFAULT_SIZES = "100,500,1000,5000"
 
 
-def _run_once(project_root: Path) -> tuple[float, dict]:
+def _measure(root: Path) -> tuple[float, float, dict[str, Any]]:
+    tracemalloc.start()
     start = time.perf_counter()
-    report = analyze_project(project_root)
+    report = analyze_project(root, use_cache=False)
     elapsed = time.perf_counter() - start
-    return elapsed, report
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return elapsed, peak / (1024 * 1024), report
+
+
+def run_size(size: int, language: str, shape: str, repeat: int) -> dict[str, Any]:
+    best: tuple[float, float, dict[str, Any]] | None = None
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        generate_project(root, size, language=language, shape=shape)  # type: ignore[arg-type]
+        for _ in range(max(1, repeat)):
+            run = _measure(root)
+            if best is None or run[0] < best[0]:
+                best = run
+    assert best is not None
+    elapsed, peak_mb, report = best
+    quality = report.get("metrics", {}).get("analysisQuality", {})
+    return {
+        "files": size,
+        "language": language,
+        "shape": shape,
+        "seconds": round(elapsed, 3),
+        "peakMb": round(peak_mb, 1),
+        "edges": report.get("metrics", {}).get("totalDependencies", 0),
+        "stagesMs": quality.get("timingsMs", {}),
+    }
 
 
 def main() -> None:
-    print(f"{'Files':>6}  {'Time (s)':>9}  {'Deps':>6}  {'Cycles':>6}  {'Files/s':>8}")
-    print("-" * 45)
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    parser.add_argument("--sizes", default=DEFAULT_SIZES, help="comma-separated file counts")
+    parser.add_argument("--language", choices=["python", "typescript"], default="python")
+    parser.add_argument("--shape", choices=["layered", "hub", "cycle"], default="cycle")
+    parser.add_argument("--json", dest="json_out", help="write rows to this JSON file")
+    parser.add_argument("--repeat", type=int, default=1, help="runs per size (best is kept)")
+    args = parser.parse_args()
 
-    for size in SIZES:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            _generate_project(root, size)
+    sizes = [int(s) for s in args.sizes.split(",") if s.strip()]
+    rows = [run_size(n, args.language, args.shape, args.repeat) for n in sizes]
 
-            # warm-up run (discard result)
-            _run_once(root)
+    print(f"{'Files':>6}  {'Time (s)':>9}  {'Peak MB':>8}  {'Edges':>7}  Stages (ms)")
+    print("-" * 78)
+    for row in rows:
+        stages = " ".join(f"{k}={v}" for k, v in row["stagesMs"].items())
+        print(
+            f"{row['files']:>6}  {row['seconds']:>9.3f}  {row['peakMb']:>8.1f}  "
+            f"{row['edges']:>7}  {stages}"
+        )
 
-            # timed run
-            elapsed, report = _run_once(root)
-
-        metrics = report.get("metrics", {})
-        deps = metrics.get("totalDependencies", "?")
-        cycles = metrics.get("circularDependencyCount", "?")
-        rate = int(size / elapsed) if elapsed > 0 else "∞"
-
-        print(f"{size:>6}  {elapsed:>9.3f}  {deps:>6}  {cycles:>6}  {rate:>8}")
-
-    print()
-    print("* Each file imports from 5 neighbour modules (wrapping).")
-    print("* Times include filesystem I/O for reading generated files.")
-    print("* Warm-up run discarded; result is single timed run.")
+    if args.json_out:
+        payload = {
+            "rows": rows,
+            "machine": {
+                "python": platform.python_version(),
+                "platform": platform.platform(),
+                "cpuCount": os.cpu_count(),
+            },
+        }
+        Path(args.json_out).write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":
