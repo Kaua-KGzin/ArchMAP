@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [1.7.0] - 2026-11-27
 
 ### Added
 - **`archmap analyze --estimate`** predicts time (with a range), the peak
