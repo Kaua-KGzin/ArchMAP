@@ -10,22 +10,29 @@ _CACHE_FILE = "cache.json"
 # Hard cap: refuse to write cache files larger than 50 MB to prevent disk exhaustion.
 _MAX_CACHE_BYTES = 50 * 1024 * 1024
 # Bump when an analysis change must invalidate reports cached by the same version.
-_REPORT_SCHEMA = 3
+# 4: capped impactedFiles (impactedFilesTruncated) and the soft time budget.
+_REPORT_SCHEMA = 4
 
 
-def compute_fingerprint(project_root: Path, config: Any) -> str:
+def compute_fingerprint(
+    project_root: Path, config: Any, time_budget: float | None = None
+) -> str:
     """Compute a stable fingerprint for cache invalidation.
 
-    The fingerprint encodes the project config and the mtime+size of every
-    source file so that any change — including config edits or file additions
-    and deletions — causes a cache miss.
+    The fingerprint encodes the project config, the effective time budget
+    (``None`` = no limit) and the mtime+size of every source file so that any
+    change — including config edits or file additions and deletions — causes
+    a cache miss.
     """
     from archmap import __version__
     from archmap.utils.file_utils import discover_source_files
 
     # The analyzer itself is part of the input: a report produced by an older
     # ArchMAP must not be served after an upgrade that changes the analysis.
-    config_blob = f"archmap {__version__} schema {_REPORT_SCHEMA}\n" + json.dumps(
+    # So is the budget: a report made under one budget is never served to another.
+    budget = float(time_budget) if time_budget else None
+    header = f"archmap {__version__} schema {_REPORT_SCHEMA} budget {budget!r}\n"
+    config_blob = header + json.dumps(
         config, sort_keys=True, default=str
     )
 

@@ -195,3 +195,29 @@ allow = ["controller -> service"]
         "src/controller/users.py should only depend on service "
         "but currently depends on src/repository/users.py"
     )
+
+
+def test_time_budget_seconds_defaults_to_none(tmp_path) -> None:
+    assert load_project_config(tmp_path)["analysis"]["limits"]["time_budget_seconds"] is None
+
+
+def test_time_budget_seconds_reads_value_and_zero_means_none(tmp_path) -> None:
+    config_file = tmp_path / ".archmap.toml"
+    config_file.write_text("[analysis.limits]\ntime_budget_seconds = 30\n")
+    assert load_project_config(tmp_path)["analysis"]["limits"]["time_budget_seconds"] == 30.0
+    config_file.write_text("[analysis.limits]\ntime_budget_seconds = 0\n")
+    assert load_project_config(tmp_path)["analysis"]["limits"]["time_budget_seconds"] is None
+
+
+def test_negative_time_budget_seconds_raises_config_error(tmp_path) -> None:
+    import pytest
+
+    from archmap.config import ConfigError
+
+    config_file = tmp_path / ".archmap.toml"
+    config_file.write_text("[analysis.limits]\ntime_budget_seconds = -1\n")
+    with pytest.raises(ConfigError, match=r"^analysis\.limits\.time_budget_seconds must be >= 0$"):
+        load_project_config(tmp_path)
+    config_file.write_text('[analysis.limits]\ntime_budget_seconds = "fast"\n')
+    with pytest.raises(ConfigError, match="time_budget_seconds"):
+        load_project_config(tmp_path)

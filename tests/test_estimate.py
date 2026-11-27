@@ -103,14 +103,30 @@ def test_stage_seconds_sum_to_expected(tmp_path: Path) -> None:
 
 
 def test_time_budget_lists_reductions(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    generate_project(tmp_path, 50)
+    generate_project(tmp_path, 100)
     unlimited = estimate_project(tmp_path, _config(), speed_factor=1.0)
     assert unlimited["reductionsUnderBudget"] == []
     tight = estimate_project(tmp_path, _config(), speed_factor=1.0, time_budget=1e-9)
-    assert tight["reductionsUnderBudget"] == ["centrality would run sampled"]
+    assert tight["reductionsUnderBudget"] == [
+        "impact would leave out impacted-file lists once the budget runs out "
+        "(impactCount and risk stay exact)",
+        "centrality would be skipped (the budget is used up before it starts)",
+    ]
+    stages = stage_seconds(unlimited)
+    before_centrality = sum(
+        seconds for stage, seconds in stages.items() if stage not in ("centrality", "findings")
+    )
+    # Enough budget to reach centrality, not enough to run it in full: sampled.
+    squeezed = estimate_project(
+        tmp_path,
+        _config(),
+        speed_factor=1.0,
+        time_budget=before_centrality + stages["centrality"] / 2,
+    )
+    assert squeezed["reductionsUnderBudget"] == ["centrality would run on a 64-file sample"]
 
     assert main(["analyze", str(tmp_path), "--estimate", "--time-budget", "0.000001"]) == 0
-    assert "with --time-budget 1e-06: centrality would run sampled" in capsys.readouterr().out
+    assert "with --time-budget 1e-06: centrality would be skipped" in capsys.readouterr().out
     assert main(["analyze", str(tmp_path), "--estimate", "--time-budget", "0"]) == 0
     assert "--time-budget" not in capsys.readouterr().out.replace("Remove --estimate", "")
 

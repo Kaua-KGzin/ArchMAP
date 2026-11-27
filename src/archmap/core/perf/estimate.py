@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Mapping
 from importlib import resources
 from pathlib import Path
 from typing import Any, TypedDict
+
+from archmap.core.perf.budget import CENTRALITY_REDUCED_SAMPLES
 
 CALIBRATION_FILES = 100
 # Shared by ``calibrate()`` and ``scripts/fit_estimate.py`` (which stored the reference).
@@ -25,8 +28,6 @@ STAGE_SHARES: dict[str, float] = {
     "centrality": 0.313,
     "findings": 0.002,
 }
-# Stages the soft time budget (Task 7) can degrade, with how each one is reduced.
-REDUCIBLE_STAGES: dict[str, str] = {"centrality": "run sampled"}
 
 
 class EstimateSeconds(TypedDict):
@@ -149,20 +150,57 @@ def estimate_project(
     return estimate
 
 
-def stage_seconds(estimate: Estimate) -> dict[str, float]:
-    """Predicted expected seconds per analysis stage."""
-    total = estimate["seconds"]["expected"]
+def _split_total(total: float) -> dict[str, float]:
     return {stage: total * share for stage, share in STAGE_SHARES.items()}
 
 
+def stage_seconds(estimate: Estimate) -> dict[str, float]:
+    """Predicted expected seconds per analysis stage."""
+    return _split_total(estimate["seconds"]["expected"])
+
+
+def projected_stage_seconds(measured_ms: Mapping[str, float]) -> dict[str, float]:
+    """Expected seconds per stage, extrapolated from the stages this run already timed.
+
+    The run's own timings replace the file-listing estimate (no calibration, no
+    second discovery): the timed stages' share of ``STAGE_SHARES`` scales them
+    up to a whole-run total, which is then split like ``stage_seconds``.
+    """
+    timed = [stage for stage in STAGE_SHARES if stage in measured_ms]
+    share = sum(STAGE_SHARES[stage] for stage in timed)
+    if share <= 0:
+        return _split_total(0.0)
+    total_seconds = sum(float(measured_ms[stage]) for stage in timed) / 1000.0 / share
+    return _split_total(total_seconds)
+
+
 def reductions_under_budget(estimate: Estimate, time_budget: float) -> list[str]:
-    """Stages that would be reduced to fit ``time_budget`` seconds (``0`` means no limit)."""
+    """What the real run would reduce to fit ``time_budget`` seconds (``0`` means no limit).
+
+    Mirrors ``analyze_graph``: stages run in ``STAGE_SHARES`` order; impact drops
+    lists once the budget is used up; centrality is skipped when the budget is gone
+    before it starts, or sampled when its share does not fit what is left.
+    """
     if time_budget <= 0 or estimate["seconds"]["expected"] <= time_budget:
         return []
     stages = stage_seconds(estimate)
-    return [
-        f"{stage} would {how}" for stage, how in REDUCIBLE_STAGES.items() if stages[stage] > 0
-    ]
+    started: dict[str, float] = {}
+    elapsed = 0.0
+    for stage, seconds in stages.items():
+        started[stage] = elapsed
+        elapsed += seconds
+    reductions: list[str] = []
+    if stages["impact"] > 0 and started["impact"] + stages["impact"] > time_budget:
+        reductions.append(
+            "impact would leave out impacted-file lists once the budget runs out "
+            "(impactCount and risk stay exact)"
+        )
+    left = time_budget - started["centrality"]
+    if left <= 0:
+        reductions.append("centrality would be skipped (the budget is used up before it starts)")
+    elif stages["centrality"] > left and estimate["files"] > CENTRALITY_REDUCED_SAMPLES:
+        reductions.append(f"centrality would run on a {CENTRALITY_REDUCED_SAMPLES}-file sample")
+    return reductions
 
 
 def format_duration(seconds: float) -> str:

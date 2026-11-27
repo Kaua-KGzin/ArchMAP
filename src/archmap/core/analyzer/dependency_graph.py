@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+from typing import Any
+
 from archmap.core.analyzer.architecture_analyzer import analyze_architecture
 from archmap.core.analyzer.centrality import (
     betweenness_centrality,
@@ -25,7 +28,10 @@ from archmap.core.analyzer.test_mapping import (
     is_test_file,
     summarize_test_mapping,
 )
+from archmap.core.perf.budget import CENTRALITY_REDUCED_SAMPLES, Budget
+from archmap.core.perf.estimate import projected_stage_seconds
 from archmap.core.perf.timing import StageTimer
+from archmap.types import ImpactResult
 from archmap.utils.file_utils import is_vendored_path
 
 
@@ -35,8 +41,11 @@ def analyze_graph(
     forbidden_rules: list[str] | None = None,
     allowed_rules: list[str] | None = None,
     timer: StageTimer | None = None,
+    budget: Budget | None = None,
 ) -> dict:
     timer = timer if timer is not None else StageTimer()
+    # Only a budget with a limit can reduce anything; ``None``/``0`` runs in full.
+    active = budget if budget is not None and budget.active else None
     file_nodes = [node for node in graph["nodes"] if node.get("type") == "file"]
     for node in file_nodes:
         if is_vendored_path(node["id"]):
@@ -52,9 +61,15 @@ def analyze_graph(
     edges = _annotate_edges(graph["edges"], cycle_membership)
 
     with timer.stage("impact"):
-        impacts = calculate_all_impacts([node["id"] for node in nodes], edges)
+        impacts = calculate_all_impacts(
+            [node["id"] for node in nodes],
+            edges,
+            should_stop=active.exhausted if active is not None else None,
+        )
         for node in nodes:
             node["impact"] = impacts[node["id"]]
+    if active is not None:
+        _record_impact_reduction(active, impacts.values())
 
     incoming_counts = {node["id"]: int(node.get("incoming", 0)) for node in nodes}
     enriched = enrich_cycles(cycles, adjacency, incoming_counts)
@@ -106,14 +121,21 @@ def analyze_graph(
         metrics["testMapping"] = summarize_test_mapping(test_mapping, test_file_count)
 
     with timer.stage("centrality"):
-        betweenness, centrality_meta = betweenness_centrality(
+        measured = {**quality.get("timingsMs", {}), **timer.as_dict()}
+        betweenness, centrality_meta = _run_centrality(
             file_node_ids,
-            ((e["source"], e["target"]) for e in edges if e.get("target") in file_node_set),
+            [(e["source"], e["target"]) for e in edges if e.get("target") in file_node_set],
+            active,
+            measured,
         )
         for node in nodes:
             if node["id"] in betweenness:
                 node["betweenness"] = round(betweenness[node["id"]], 6)
         metrics["centrality"] = summarize_centrality(betweenness, centrality_meta)
+
+    if active is not None:
+        quality["budget"] = active.describe()
+        quality["reductions"] = list(active.reductions)
 
     with timer.stage("findings"):
         findings = build_code_findings(enriched, risks, architecture)
@@ -144,6 +166,62 @@ def analyze_graph(
         }),
         "explanation": explain_project(nodes, edges),
     }
+
+
+def _record_impact_reduction(budget: Budget, impacts: Iterable[ImpactResult]) -> None:
+    dropped = sum(1 for r in impacts if r["impactCount"] and not r["impactedFiles"])
+    if dropped:
+        budget.record(
+            "impact",
+            "exhausted",
+            f"impacted-file lists left out for {dropped} node(s) after the budget ran out "
+            "(impactedFilesTruncated); impactCount and risk stay exact",
+        )
+
+
+def _run_centrality(
+    file_node_ids: list[str],
+    edges: list[tuple[str, str]],
+    budget: Budget | None,
+    measured_ms: dict[str, float],
+) -> tuple[dict[str, float], dict[str, Any]]:
+    """Betweenness, reduced when a time budget says it does not fit."""
+    if budget is None:
+        return betweenness_centrality(file_node_ids, edges)
+    n = len(set(file_node_ids))
+    if budget.exhausted():
+        budget.record(
+            "centrality",
+            "exhausted",
+            "skipped because the budget was used up before it started "
+            "(no betweenness scores or GRAPH-* bottleneck findings)",
+        )
+        return {}, {"method": "skipped", "nodes": n, "connectedPairs": 0}
+
+    expected = projected_stage_seconds(measured_ms)["centrality"]
+    remaining = budget.remaining() or 0.0
+    sampled = n > CENTRALITY_REDUCED_SAMPLES and not budget.allows("centrality", expected)
+    limits = (
+        {"exact_limit": CENTRALITY_REDUCED_SAMPLES, "samples": CENTRALITY_REDUCED_SAMPLES}
+        if sampled
+        else {}
+    )
+    scores, meta = betweenness_centrality(
+        file_node_ids, edges, should_stop=budget.exhausted, **limits
+    )
+    details: list[str] = []
+    if sampled:
+        details.append(
+            f"ran on a {CENTRALITY_REDUCED_SAMPLES}-file sample of {n} files "
+            f"(projected {expected:.2f} s, {remaining:.2f} s left)"
+        )
+    if meta.get("stoppedEarly"):
+        details.append(
+            f"stopped after {meta['sourcesProcessed']} source file(s) when the budget ran out"
+        )
+    if details:
+        budget.record("centrality", "projected" if sampled else "exhausted", "; ".join(details))
+    return scores, meta
 
 
 def _map_tests(

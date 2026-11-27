@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
+from archmap.core.perf.budget import HOW_TO_CHANGE, BudgetInfo, reduction_message
 from archmap.types import Finding
 
 # Per-file failure findings beyond this count collapse into one aggregate finding.
@@ -205,6 +206,16 @@ def build_quality_findings(quality: dict[str, Any]) -> list[Finding]:
                 f"{lang}: only {round(float(entry['resolutionRate']) * 100)}% of imports "
                 "resolved; dependents and blast radius are under-reported",
                 [f"Imports: {entry['imports']}", f"Resolved: {entry['resolved']}"],
+            )
+
+    budget: BudgetInfo | None = quality.get("budget")
+    if budget:
+        for reduction in quality.get("reductions", []):
+            _add(
+                "budget_reduction",
+                "low",
+                reduction_message(reduction, budget),
+                [f"Reason: {reduction['reason']}", HOW_TO_CHANGE],
             )
 
     return findings

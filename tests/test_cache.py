@@ -183,3 +183,13 @@ def test_parse_project_cache_disabled_via_config(tmp_path: Path) -> None:
 
     parse_project(tmp_path, config=cfg)
     assert not (tmp_path / _CACHE_FILENAME).exists()
+
+
+def test_report_fingerprint_includes_time_budget(tmp_path: Path) -> None:
+    from archmap.cache import compute_fingerprint
+
+    (tmp_path / "a.py").write_text("import os\n")
+    unlimited = compute_fingerprint(tmp_path, {})
+    assert compute_fingerprint(tmp_path, {}, None) == unlimited
+    assert compute_fingerprint(tmp_path, {}, 30) != unlimited
+    assert compute_fingerprint(tmp_path, {}, 30) != compute_fingerprint(tmp_path, {}, 60)

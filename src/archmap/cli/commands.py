@@ -136,8 +136,14 @@ def _run_estimate(args: argparse.Namespace) -> int:
     if not root.exists():
         print(f"[error] project path does not exist: {root}", file=sys.stderr)
         return 1
-    budget = float(getattr(args, "time_budget", 0.0) or 0.0)
+    # Same config loading as a real run: a bad .archmap.toml raises ConfigError
+    # (a ValueError), which main() reports as "[error] ..." with exit code 1.
     config = load_project_config(root)
+    explicit = getattr(args, "time_budget", None)
+    budget = float(
+        (explicit if explicit is not None else config["analysis"]["limits"]["time_budget_seconds"])
+        or 0.0
+    )
     estimate = estimate_project(root, dict(config), time_budget=budget)
     if getattr(args, "format_explicit", False) and args.format == "json":
         print(json.dumps(estimate, indent=2))
@@ -154,7 +160,13 @@ def run_analyze(args: argparse.Namespace) -> int:
         args.path,
         parallel=getattr(args, "parallel", None),
         use_cache=not getattr(args, "no_cache", False),
+        time_budget=getattr(args, "time_budget", None),
+        budget_source="cli",
     )
+    if not quiet:
+        for finding in report.get("findings", []):
+            if finding.get("category") == "budget_reduction":
+                print(f"[budget] {finding['message']}", file=sys.stderr)
     if getattr(args, "ignore_external", False):
         report = _filter_external(report)
     export_kwargs = {

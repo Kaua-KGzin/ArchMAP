@@ -159,10 +159,17 @@ def build_parser() -> argparse.ArgumentParser:
     analyze_parser.add_argument(
         "--time-budget",
         type=_time_budget,
-        default=0.0,
+        default=None,
         metavar="SECONDS",
-        help="soft time budget in seconds; 0 means no limit (default). With --estimate, "
-        "lists the reductions that would apply",
+        help=(
+            "soft time budget in seconds for the whole run (default: none, or "
+            "[analysis.limits] time_budget_seconds; 0 means no limit). If the run is "
+            "running out of time, centrality is sampled or skipped and impacted-file "
+            "lists are left out; counts, risk and cycles stay exact. Each reduction is "
+            "printed and reported as a QUAL finding, and a reduced report is never cached. "
+            "Soft: may overshoot by about one stage. With --estimate, lists the "
+            "reductions that would apply"
+        ),
     )
     analyze_parser.add_argument(
         "--min-health",
