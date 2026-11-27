@@ -23,12 +23,14 @@ Then register in ~/.claude/claude_desktop_config.json:
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from archmap import __version__
 from archmap.core.parser.ts_engine import HAS_TREE_SITTER
+from archmap.core.perf.budget import BudgetSource
 
 # ---------------------------------------------------------------------------
 # Result cache — avoids re-analyzing on every tool call
@@ -38,34 +40,94 @@ _cache: dict[str, Any] = {}
 _cache_key: dict[str, str] = {}
 
 
-def _fingerprint(project_path: str) -> str:
+MCP_DEFAULT_TIME_BUDGET = 120.0
+
+
+def _effective_budget(
+    project_path: str, time_budget: float | None
+) -> tuple[float | None, float | None, BudgetSource]:
+    """Resolve the budget for one MCP call.
+
+    Returns ``(effective_seconds, value_to_pass, source)``. Precedence: the tool
+    argument (``0`` = no limit) > ``[analysis.limits] time_budget_seconds`` in
+    ``.archmap.toml`` > ``MCP_DEFAULT_TIME_BUDGET``. ``value_to_pass`` is
+    ``None`` when the config budget applies, so the core names it ``config``.
+    """
+    from archmap.config import load_project_config
+
+    if time_budget is not None:
+        return (time_budget or None), time_budget, "mcp-arg"
+    configured = load_project_config(Path(project_path).resolve())["analysis"]["limits"][
+        "time_budget_seconds"
+    ]
+    if configured is not None:
+        return configured, None, "config"
+    return MCP_DEFAULT_TIME_BUDGET, MCP_DEFAULT_TIME_BUDGET, "mcp-default"
+
+
+def _fingerprint(project_path: str, budget: float | None = None) -> str:
     # Same fingerprint archmap's on-disk cache uses (config + every source
-    # file's mtime/size) — catches source edits, not just .archmap.toml
-    # changes, so a long-lived MCP session doesn't serve stale data after
-    # the AI assistant edits files.
+    # file's mtime/size + effective budget) - catches source edits, not just
+    # .archmap.toml changes, so a long-lived MCP session doesn't serve stale
+    # data after the AI assistant edits files, nor a reduced result to a call
+    # that asked for a different budget.
     from archmap.cache import compute_fingerprint
     from archmap.config import load_project_config
 
     root = Path(project_path).resolve()
     config = load_project_config(root)
-    return compute_fingerprint(root, config)
+    return compute_fingerprint(root, config, budget)
 
 
-def _get_analysis(project_path: str) -> Any:
-    fingerprint = _fingerprint(project_path)
+def _get_analysis(project_path: str, time_budget: float | None = None) -> Any:
+    effective, to_pass, source = _effective_budget(project_path, time_budget)
+    fingerprint = _fingerprint(project_path, effective)
     if project_path not in _cache or _cache_key.get(project_path) != fingerprint:
         from archmap import analyze_project
-        _cache[project_path] = analyze_project(project_path)
+
+        _cache[project_path] = analyze_project(
+            project_path, time_budget=to_pass, budget_source=source
+        )
         _cache_key[project_path] = fingerprint
     return _cache[project_path]
+
+
+def _parse_time_budget(args: dict) -> float | None:
+    """The optional ``time_budget`` tool argument; invalid values raise ``ValueError``."""
+    value = args.get("time_budget")
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("'time_budget' must be a number of seconds (0 = no limit)")
+    if not math.isfinite(value) or value < 0:
+        raise ValueError("'time_budget' must be >= 0 seconds (0 = no limit)")
+    return float(value)
+
+
+def _budget_notice(project_path: str) -> str | None:
+    """Tell the caller when the analysis behind a response was reduced."""
+    result = _cache.get(project_path)
+    if not result:
+        return None
+    quality = result.get("metrics", {}).get("analysisQuality", {})
+    reductions = quality.get("reductions")
+    budget = quality.get("budget")
+    if not reductions or not budget:
+        return None
+    stages = ", ".join(dict.fromkeys(r["stage"] for r in reductions))
+    return (
+        f"Analysis was reduced by the {budget['seconds']:g} s time budget "
+        f"({budget['source']}): {stages}. For a full run pass time_budget=0 or set "
+        "[analysis.limits] time_budget_seconds in .archmap.toml."
+    )
 
 
 # ---------------------------------------------------------------------------
 # Tool implementations
 # ---------------------------------------------------------------------------
 
-def _tool_get_architecture_summary(project_path: str) -> dict:
-    result = _get_analysis(project_path)
+def _tool_get_architecture_summary(project_path: str, time_budget: float | None = None) -> dict:
+    result = _get_analysis(project_path, time_budget)
     metrics = result.get("metrics", {})
     risks = result.get("risks", {})
     return {
@@ -84,8 +146,10 @@ def _tool_get_architecture_summary(project_path: str) -> dict:
     }
 
 
-def _tool_get_file_context(project_path: str, file: str) -> dict:
-    result = _get_analysis(project_path)
+def _tool_get_file_context(
+    project_path: str, file: str, time_budget: float | None = None
+) -> dict:
+    result = _get_analysis(project_path, time_budget)
     nodes: list[dict] = result.get("nodes", [])
     edges: list[dict] = result.get("edges", [])
 
@@ -114,8 +178,10 @@ def _tool_get_file_context(project_path: str, file: str) -> dict:
     }
 
 
-def _tool_impact_analysis(project_path: str, file: str) -> dict:
-    result = _get_analysis(project_path)
+def _tool_impact_analysis(
+    project_path: str, file: str, time_budget: float | None = None
+) -> dict:
+    result = _get_analysis(project_path, time_budget)
     nodes: list[dict] = result.get("nodes", [])
 
     node = next((n for n in nodes if n["id"] == file or n["label"] == file), None)
@@ -142,8 +208,13 @@ def _tool_impact_analysis(project_path: str, file: str) -> dict:
     }
 
 
-def _tool_trace_reachability(project_path: str, entrypoint: str, max_depth: int | None) -> dict:
-    result = _get_analysis(project_path)
+def _tool_trace_reachability(
+    project_path: str,
+    entrypoint: str,
+    max_depth: int | None,
+    time_budget: float | None = None,
+) -> dict:
+    result = _get_analysis(project_path, time_budget)
     from archmap.core.analyzer.reachability_analyzer import trace_reachability
 
     return trace_reachability(result, entrypoint, max_depth=max_depth)
@@ -169,6 +240,7 @@ def _tool_get_network_exposure(
     top_ports: int | None,
     use_nmap: bool | None,
     timeout: float,
+    time_budget: float | None = None,
 ) -> dict:
     from archmap.config import load_project_config
     from archmap.core.exposure import correlate_exposure
@@ -182,7 +254,7 @@ def _tool_get_network_exposure(
         use_nmap=use_nmap,
         timeout=timeout,
     )
-    analysis_result = _get_analysis(project_path)
+    analysis_result = _get_analysis(project_path, time_budget)
     config = load_project_config(project_path)
     endpoint_refs = scan_endpoint_references(project_path, config)
     return correlate_exposure(
@@ -190,10 +262,10 @@ def _tool_get_network_exposure(
     )
 
 
-def _tool_get_project_memory(project_path: str) -> dict:
+def _tool_get_project_memory(project_path: str, time_budget: float | None = None) -> dict:
     from archmap.core.memory import generate_memory_digest
 
-    result = _get_analysis(project_path)
+    result = _get_analysis(project_path, time_budget)
     return {"memory": generate_memory_digest(result)}
 
 
@@ -204,31 +276,39 @@ def _resolve_inside(project_path: str, user_path: str) -> Path:
 
 
 def _tool_get_relevant_context(
-    project_path: str, task: str, budget_tokens: int, max_files: int
+    project_path: str,
+    task: str,
+    budget_tokens: int,
+    max_files: int,
+    time_budget: float | None = None,
 ) -> dict:
     from archmap.core.context.relevance import rank_relevant_files
 
     return rank_relevant_files(
-        _get_analysis(project_path),
+        _get_analysis(project_path, time_budget),
         task,
         budget_tokens=max(500, min(int(budget_tokens), 200_000)),
         max_files=max(1, min(int(max_files), 50)),
     )
 
 
-def _tool_get_analysis_quality(project_path: str) -> dict:
-    result = _get_analysis(project_path)
+def _tool_get_analysis_quality(project_path: str, time_budget: float | None = None) -> dict:
+    result = _get_analysis(project_path, time_budget)
     quality = dict(result.get("metrics", {}).get("analysisQuality", {}))
     quality.pop("timingsMs", None)
     return quality
 
 
 def _tool_list_findings(
-    project_path: str, domain: str | None, min_severity: str | None, limit: int
+    project_path: str,
+    domain: str | None,
+    min_severity: str | None,
+    limit: int,
+    time_budget: float | None = None,
 ) -> dict:
     from archmap.core.analyzer.findings import SEVERITY_LEVELS
 
-    findings = list(_get_analysis(project_path).get("findings", []))
+    findings = list(_get_analysis(project_path, time_budget).get("findings", []))
     if domain:
         findings = [f for f in findings if f.get("domain") == domain]
     if min_severity in SEVERITY_LEVELS:
@@ -290,8 +370,8 @@ def _tool_audit_project(project_path: str) -> dict:
     return audit_project(project_path)
 
 
-def _tool_run_checks(project_path: str) -> dict:
-    result = _get_analysis(project_path)
+def _tool_run_checks(project_path: str, time_budget: float | None = None) -> dict:
+    result = _get_analysis(project_path, time_budget)
     risks = result.get("risks", {})
     metrics = result.get("metrics", {})
 
@@ -709,6 +789,24 @@ _TOOLS = [
 ]
 
 
+# Tools backed by a full analysis run: they accept ``time_budget`` and carry the
+# reduction ``notice``.
+_ANALYSIS_TOOLS = frozenset({
+    "get_project_memory", "get_architecture_summary", "get_file_context",
+    "impact_analysis", "run_checks", "trace_reachability", "get_network_exposure",
+    "get_relevant_context", "get_analysis_quality", "list_findings",
+})
+_TIME_BUDGET_SCHEMA = {
+    "type": "number",
+    "minimum": 0,
+    "description": "Seconds; 0 = no limit. Default 120 (or .archmap.toml).",
+}
+for _tool in _TOOLS:
+    if _tool["name"] in _ANALYSIS_TOOLS:
+        schema = cast(dict[str, Any], _tool["inputSchema"])
+        schema["properties"]["time_budget"] = _TIME_BUDGET_SCHEMA
+
+
 # ---------------------------------------------------------------------------
 # JSON-RPC dispatch
 # ---------------------------------------------------------------------------
@@ -745,28 +843,37 @@ def _dispatch(message: dict, default_path: str) -> dict | None:
         args: dict = params.get("arguments") or {}
         project_path = str(args.get("project_path") or default_path)
 
+        tb: float | None = None
+        if tool_name in _ANALYSIS_TOOLS:
+            try:
+                tb = _parse_time_budget(args)
+            except ValueError as exc:
+                return _err(req_id, -32602, str(exc))
+
         try:
             if tool_name == "get_project_memory":
-                data = _tool_get_project_memory(project_path)
+                data = _tool_get_project_memory(project_path, tb)
             elif tool_name == "get_architecture_summary":
-                data = _tool_get_architecture_summary(project_path)
+                data = _tool_get_architecture_summary(project_path, tb)
             elif tool_name == "get_file_context":
                 file = args.get("file", "")
                 if not file:
                     return _err(req_id, -32602, "'file' argument is required")
-                data = _tool_get_file_context(project_path, file)
+                data = _tool_get_file_context(project_path, file, tb)
             elif tool_name == "impact_analysis":
                 file = args.get("file", "")
                 if not file:
                     return _err(req_id, -32602, "'file' argument is required")
-                data = _tool_impact_analysis(project_path, file)
+                data = _tool_impact_analysis(project_path, file, tb)
             elif tool_name == "run_checks":
-                data = _tool_run_checks(project_path)
+                data = _tool_run_checks(project_path, tb)
             elif tool_name == "trace_reachability":
                 entrypoint = args.get("entrypoint", "")
                 if not entrypoint:
                     return _err(req_id, -32602, "'entrypoint' argument is required")
-                data = _tool_trace_reachability(project_path, entrypoint, args.get("max_depth"))
+                data = _tool_trace_reachability(
+                    project_path, entrypoint, args.get("max_depth"), tb
+                )
             elif tool_name == "diff_architecture":
                 data = _tool_diff_architecture(
                     project_path,
@@ -785,20 +892,25 @@ def _dispatch(message: dict, default_path: str) -> dict | None:
                     args.get("top_ports"),
                     args.get("use_nmap"),
                     args.get("timeout", 1.0),
+                    tb,
                 )
             elif tool_name == "get_relevant_context":
                 task = str(args.get("task", "")).strip()
                 if not task:
                     return _err(req_id, -32602, "'task' argument is required")
                 data = _tool_get_relevant_context(
-                    project_path, task, args.get("budget_tokens", 8000), args.get("max_files", 15)
+                    project_path,
+                    task,
+                    args.get("budget_tokens", 8000),
+                    args.get("max_files", 15),
+                    tb,
                 )
             elif tool_name == "get_analysis_quality":
-                data = _tool_get_analysis_quality(project_path)
+                data = _tool_get_analysis_quality(project_path, tb)
             elif tool_name == "list_findings":
                 data = _tool_list_findings(
                     project_path, args.get("domain"), args.get("min_severity"),
-                    args.get("limit", 100),
+                    args.get("limit", 100), tb,
                 )
             elif tool_name in ("inspect_path", "hexdump", "extract_strings"):
                 path = str(args.get("path", ""))
@@ -823,6 +935,11 @@ def _dispatch(message: dict, default_path: str) -> dict | None:
                 return _err(req_id, -32601, f"Unknown tool: '{tool_name}'")
         except Exception as exc:  # noqa: BLE001
             return _err(req_id, -32603, f"Tool execution failed: {exc}")
+
+        if tool_name in _ANALYSIS_TOOLS and isinstance(data, dict):
+            notice = _budget_notice(project_path)
+            if notice:
+                data = {**data, "notice": notice}
 
         return _ok(req_id, {
             "content": [{"type": "text", "text": json.dumps(data, indent=2)}],

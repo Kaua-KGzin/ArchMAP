@@ -49,7 +49,7 @@ def test_full_impacted_files_returns_stored_when_not_truncated() -> None:
 
 def test_mcp_impact_analysis_returns_full_list(monkeypatch: pytest.MonkeyPatch) -> None:
     report = _report()
-    monkeypatch.setattr("archmap.cli.mcp_server._get_analysis", lambda _p: report)
+    monkeypatch.setattr("archmap.cli.mcp_server._get_analysis", lambda _p, _tb=None: report)
     result = _tool_impact_analysis("/fake", "pkg:redis")
     assert len(result["impactedFiles"]) == DEPENDENTS
     assert result["impactCount"] == DEPENDENTS

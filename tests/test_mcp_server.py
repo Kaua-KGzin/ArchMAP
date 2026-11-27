@@ -93,7 +93,7 @@ _FAKE_RESULT: dict[str, Any] = {
 def mock_analysis(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "archmap.cli.mcp_server._get_analysis",
-        lambda _path: _FAKE_RESULT,
+        lambda _path, _tb=None: _FAKE_RESULT,
     )
 
 
@@ -283,10 +283,10 @@ def test_get_analysis_recomputes_when_fingerprint_changes(
     fingerprints = iter(["fp1", "fp1", "fp2"])
 
     monkeypatch.setattr(
-        "archmap.cli.mcp_server._fingerprint", lambda _path: next(fingerprints)
+        "archmap.cli.mcp_server._fingerprint", lambda _path, _b=None: next(fingerprints)
     )
 
-    def fake_analyze_project(path: str) -> dict:
+    def fake_analyze_project(path: str, **_kwargs: object) -> dict:
         calls.append(path)
         return {"call": len(calls)}
 
