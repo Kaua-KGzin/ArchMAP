@@ -122,6 +122,19 @@ archmap analyze . --summary-format markdown
 archmap analyze . --show-unresolved=20
 ```
 
+Predictable cost on large repositories:
+
+```bash
+# Predict time and peak memory before analysing (nothing is analysed or written)
+archmap analyze . --estimate
+
+# Soft time budget: over it, impact lists are dropped (counts and risk stay exact)
+# and centrality is sampled; every reduction is announced. 0 = no limit
+archmap analyze . --time-budget 60
+```
+
+The same budget can live in `.archmap.toml` as `[analysis.limits] time_budget_seconds`. Long runs show a progress line with an ETA on stderr. See [Performance](docs/performance.md).
+
 ### Serve
 
 ```bash
@@ -265,7 +278,7 @@ Renders the project's health score, top risk files, cycles, and violations into 
 archmap mcp .
 ```
 
-Starts a JSON-RPC 2.0 server over stdio exposing 15 tools — architecture (`get_project_memory`, `get_relevant_context`, `get_architecture_summary`, `get_analysis_quality`, `list_findings`, `get_file_context`, `impact_analysis`, `run_checks`, `trace_reachability`, `diff_architecture`), network (`get_network_exposure`), and reverse engineering/security (`inspect_path`, `hexdump`, `extract_strings`, `audit_project`). File tools are confined to the project root. Register in `~/.claude/claude_desktop_config.json` to let Claude Code, Cursor, or Windsurf query your project before making changes — or install the [plugin](#ai-agent-plugin). See [`archmap mcp`](docs/cli/mcp.md) for the full tool list.
+Starts a JSON-RPC 2.0 server over stdio exposing 15 tools — architecture (`get_project_memory`, `get_relevant_context`, `get_architecture_summary`, `get_analysis_quality`, `list_findings`, `get_file_context`, `impact_analysis`, `run_checks`, `trace_reachability`, `diff_architecture`), network (`get_network_exposure`), and reverse engineering/security (`inspect_path`, `hexdump`, `extract_strings`, `audit_project`). File tools are confined to the project root. Register in `~/.claude/claude_desktop_config.json` to let Claude Code, Cursor, or Windsurf query your project before making changes — or install the [plugin](#ai-agent-plugin). Analyses started through MCP have a 120 s default time budget, so an agent never hangs on a huge repository; the response carries a `notice` saying how to change it (`time_budget` argument, `.archmap.toml`, `0` = no limit). See [`archmap mcp`](docs/cli/mcp.md) for the full tool list.
 
 ### Context (task-scoped files for AI agents)
 

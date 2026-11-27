@@ -211,7 +211,12 @@ Full node and edge objects for the Web UI and Cytoscape integration.
     "outgoing": 12,
     "incoming": 0,
     "isCircular": false,
-    "complexity": 0.87
+    "complexity": 0.87,
+    "impact": {
+      "impactCount": 12,
+      "impactedFiles": ["src/archmap/cli/commands.py", "..."],
+      "risk": "medium"
+    }
   },
   {
     "id": "pkg:requests",
@@ -225,6 +230,20 @@ Full node and edge objects for the Web UI and Cytoscape integration.
   }
 ]
 ```
+
+`impact` is the precomputed blast radius of the node:
+
+| Field | Type | Description |
+|---|---|---|
+| `impactCount` | `int` | Number of files that depend on this node, directly or transitively. Always exact |
+| `impactedFiles` | `string[]` | Those files, sorted, capped at 200 entries |
+| `impactedFilesTruncated` | `bool` | Present and `true` only when the list holds fewer files than `impactCount` (over 200, or dropped by a time budget). The full list is available on demand: MCP `impact_analysis`, `archmap expose`, `archmap risk --json`, `archmap analyze --impact PATH` |
+| `risk` | `string` | Risk level from the impact count. Always exact |
+
+Run timings, the active time budget and its reductions are in
+`metrics.analysisQuality` (`timingsMs`, `budget`, `reductions`); see
+[`archmap analyze`](cli/analyze.md#analysis-quality-metricsanalysisquality) and
+[Performance](performance.md).
 
 ### `detailed.edges`
 
