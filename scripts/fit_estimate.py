@@ -31,7 +31,6 @@ SIZES = (1000, 5000, 20000, 50000)
 LANGUAGES = ("python", "typescript")
 SHAPES = ("layered", "hub", "cycle")
 FITTED_SHAPES = ("layered", "hub")
-CALIBRATION_REPEATS = 7
 
 
 def collect() -> dict[str, Any]:
@@ -77,7 +76,7 @@ def fit(rows: list[dict[str, Any]]) -> dict[str, Any]:
         for r in rows
         if r["shape"] in FITTED_SHAPES and r.get("peakMb") is not None
     ]
-    from archmap.core.perf.estimate import run_calibration_workload
+    from archmap.core.perf.estimate import CALIBRATION_REPEATS, run_calibration_workload
 
     return {
         "schema": 1,

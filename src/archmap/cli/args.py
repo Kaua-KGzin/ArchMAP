@@ -13,6 +13,35 @@ from archmap.cli.defaults import (
 )
 
 
+class _RememberFormat(argparse.Action):
+    """Store ``--format`` and record that it was given explicitly."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        setattr(namespace, self.dest, values)
+        namespace.format_explicit = True
+
+
+def _time_budget(value: str) -> float:
+    """``--time-budget`` seconds: a number of at least 0 (``0`` means no limit)."""
+    try:
+        seconds = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"invalid time budget {value!r}: expected a number of seconds"
+        ) from None
+    if not seconds >= 0 or seconds == float("inf"):
+        raise argparse.ArgumentTypeError(
+            f"invalid time budget {value!r}: must be 0 or more seconds (0 means no limit)"
+        )
+    return seconds
+
+
 def _unresolved_limit(value: str) -> int:
     """``--show-unresolved`` count; ``all`` lifts the limit."""
     if value.strip().lower() == "all":
@@ -117,6 +146,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--fail-on-risks",
         action="store_true",
         help="exit with code 2 when cycles or any risk category is detected",
+    )
+    analyze_parser.add_argument(
+        "--estimate",
+        action="store_true",
+        default=False,
+        help=(
+            "predict analysis time and memory from a file listing and exit; "
+            "nothing is analyzed or cached (with --format json prints JSON only)"
+        ),
+    )
+    analyze_parser.add_argument(
+        "--time-budget",
+        type=_time_budget,
+        default=0.0,
+        metavar="SECONDS",
+        help="soft time budget in seconds; 0 means no limit (default). With --estimate, "
+        "lists the reductions that would apply",
     )
     analyze_parser.add_argument(
         "--min-health",
@@ -744,7 +790,13 @@ def _add_netscan_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_export_arguments(parser: argparse.ArgumentParser, *, default_format: str) -> None:
-    parser.add_argument("--format", choices=["json", "mermaid", "both"], default=default_format)
+    parser.set_defaults(format_explicit=False)
+    parser.add_argument(
+        "--format",
+        choices=["json", "mermaid", "both"],
+        default=default_format,
+        action=_RememberFormat,
+    )
     parser.add_argument("--out", default=DEFAULT_JSON_OUTPUT_PATH)
     parser.add_argument("--out-mermaid", default=DEFAULT_MERMAID_OUTPUT_PATH)
     parser.add_argument("--out-cytoscape", default=DEFAULT_CYTOSCAPE_OUTPUT_PATH)

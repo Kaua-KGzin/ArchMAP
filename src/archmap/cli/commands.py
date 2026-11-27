@@ -128,7 +128,27 @@ def _filter_external(report: dict[str, Any]) -> dict[str, Any]:
     return {**report, "nodes": corrected_nodes, "edges": edges, "metrics": metrics}
 
 
+def _run_estimate(args: argparse.Namespace) -> int:
+    from archmap.config import load_project_config
+    from archmap.core.perf.estimate import estimate_project, format_estimate
+
+    root = Path(args.path).resolve()
+    if not root.exists():
+        print(f"[error] project path does not exist: {root}", file=sys.stderr)
+        return 1
+    budget = float(getattr(args, "time_budget", 0.0) or 0.0)
+    config = load_project_config(root)
+    estimate = estimate_project(root, dict(config), time_budget=budget)
+    if getattr(args, "format_explicit", False) and args.format == "json":
+        print(json.dumps(estimate, indent=2))
+    else:
+        print("\n".join(format_estimate(estimate, budget)))
+    return 0
+
+
 def run_analyze(args: argparse.Namespace) -> int:
+    if getattr(args, "estimate", False):
+        return _run_estimate(args)
     quiet = getattr(args, "quiet", False)
     report = analyze_project(
         args.path,
