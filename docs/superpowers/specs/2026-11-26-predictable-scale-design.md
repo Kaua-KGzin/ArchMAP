@@ -1,6 +1,6 @@
 # Predictable cost at scale: measured, estimated, bounded
 
-- **Status:** draft; approaches and MCP default decided by the supervisor on 2026-11-26, awaiting approval of the full doc
+- **Status:** approved by the supervisor on 2026-11-26 (Termux row deferred to v1.8.0)
 - **Date:** 2026-11-26
 - **Target release:** v1.7.0 (headline item)
 - **Supervisor:** @Kaua-KGzin
@@ -62,6 +62,7 @@ rate is the same on real graphs with large strongly connected components.
 
 ## Non-goals
 
+- Measured Termux numbers (v1.8.0).
 - Incremental analysis (re-analyse only changed files). That is the planned
   v1.8.0 headline and builds on this work.
 - Changing what the analysis *means*: risk scores, findings and health on a
@@ -204,9 +205,9 @@ rate is the same on real graphs with large strongly connected components.
   scenario table (CI on `ubuntu-latest`, MCP / local desktop, Termux) with
   sizes 1k–50k, how to read `--estimate`, how limits degrade, and the
   benchmark command to reproduce. Numbers come from the benchmark JSON, not
-  hand-typed. Termux numbers: measured on a real device if the supervisor can
-  run the benchmark there; otherwise the row says "not measured" rather than
-  guessing.
+  hand-typed. The Termux row is **deferred to v1.8.0** (supervisor,
+  2026-11-26): v1.7.0 documents CI and desktop/MCP only, and the page says
+  Termux numbers come in v1.8.0.
 - CLI docs for `--estimate`, `--time-budget`, `--quiet`; config docs for
   `[analysis.limits]`; CHANGELOG; roadmap.
 
