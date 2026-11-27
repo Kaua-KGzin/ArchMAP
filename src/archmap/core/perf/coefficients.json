@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "reference": {
+    "calibrationSeconds": 0.006969399999888992
+  },
+  "languages": {
+    "python": {
+      "secondsPerFile": 0.0007193937115516063,
+      "secondsPerKb": 0.0
+    },
+    "typescript": {
+      "secondsPerFile": 0.0007504531784005468,
+      "secondsPerKb": 0.0
+    }
+  },
+  "default": {
+    "secondsPerFile": 0.0007193937115516063,
+    "secondsPerKb": 0.0
+  },
+  "memory": {
+    "baseMb": 0.0,
+    "mbPerFile": 0.010228092959671907
+  },
+  "range": {
+    "low": 0.5,
+    "high": 2.0
+  }
+}
