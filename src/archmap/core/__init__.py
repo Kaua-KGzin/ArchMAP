@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +11,7 @@ from archmap.core.analyzer.dependency_graph import analyze_graph
 from archmap.core.graph.graph_builder import build_graph
 from archmap.core.parser import parse_project
 from archmap.core.perf.budget import Budget, BudgetSource
+from archmap.core.perf.progress import Progress
 
 __all__ = ["analyze_project"]
 
@@ -19,6 +22,7 @@ def analyze_project(
     use_cache: bool = True,
     time_budget: float | None = None,
     budget_source: BudgetSource = "cli",
+    progress: Progress | None = None,
 ) -> dict[str, Any]:
     """Analyze ``project_path``.
 
@@ -27,7 +31,8 @@ def analyze_project(
     ``[analysis.limits] time_budget_seconds``. ``budget_source`` names where an
     explicit ``time_budget`` came from (``"cli"``, ``"mcp-default"``, ``"mcp-arg"``);
     a budget taken from the config is always ``"config"``. A run the budget
-    reduced is never written to the cache.
+    reduced is never written to the cache. ``progress`` (default ``None`` = no
+    progress output) only reports; it never changes the report.
     """
     project_root = Path(project_path).resolve()
     if not project_root.exists():
@@ -48,7 +53,35 @@ def analyze_project(
             return cached
 
     use_parallel = parallel if parallel is not None else config["analysis"]["parallel"]
-    parsed_project = parse_project(project_root, config=config, parallel=use_parallel)
+    on_done: Callable[[], None] | None = None
+    on_discovered: Callable[[int], None] | None = None
+    if progress is not None:
+        reporter = progress
+        reporter.stage("discover")
+        counter = {"done": 0, "total": 0}
+        count_lock = threading.Lock()
+
+        def _discovered(total: int) -> None:
+            counter["total"] = total
+            reporter.stage("parse")
+
+        def _done() -> None:
+            with count_lock:
+                counter["done"] += 1
+                done = counter["done"]
+            reporter.advance(done, counter["total"])
+
+        on_done, on_discovered = _done, _discovered
+
+    parsed_project = parse_project(
+        project_root,
+        config=config,
+        parallel=use_parallel,
+        on_file_done=on_done,
+        on_discovered=on_discovered,
+    )
+    if progress is not None:
+        progress.stage("analyze")
     graph = build_graph(parsed_project)
     report = analyze_graph(
         graph,

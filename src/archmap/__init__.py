@@ -18,6 +18,7 @@ from archmap.config import load_project_config
 from archmap.core import analyze_project as _analyze_project_impl
 from archmap.core.parser import ParsedFile, ParsedProject
 from archmap.core.perf.budget import BudgetSource
+from archmap.core.perf.progress import Progress
 from archmap.types import (
     AnalysisResult,
     ComplexityEntry,
@@ -49,6 +50,7 @@ def analyze_project(
     use_cache: bool = True,
     time_budget: float | None = None,
     budget_source: BudgetSource = "cli",
+    progress: Progress | None = None,
 ) -> AnalysisResult:
     """Analyze an ArchMAP project and return a typed result.
 
@@ -60,6 +62,7 @@ def analyze_project(
             limit and ``None`` uses ``[analysis.limits] time_budget_seconds``.
         budget_source: Where an explicit ``time_budget`` came from, reported in
             ``metrics.analysisQuality.budget``.
+        progress: Optional progress reporter (default ``None`` = silent).
 
     Returns:
         :class:`AnalysisResult` with nodes, edges, metrics, cycles, risks,
@@ -73,6 +76,7 @@ def analyze_project(
             use_cache=use_cache,
             time_budget=time_budget,
             budget_source=budget_source,
+            progress=progress,
         ),
     )
 

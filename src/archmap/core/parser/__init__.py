@@ -103,6 +103,8 @@ def parse_project(
     virtual_files: dict[str, str] | None = None,
     config: Any = None,
     parallel: bool = True,
+    on_file_done: Callable[[], None] | None = None,
+    on_discovered: Callable[[int], None] | None = None,
 ) -> ParsedProject:
     import concurrent.futures
     import logging
@@ -121,6 +123,8 @@ def parse_project(
     )
     discovered_at = time.perf_counter()
     file_ids = set(file_content_map.keys())
+    if on_discovered is not None:
+        on_discovered(len(file_ids))
 
     def get_file_content(path: str) -> str | None:
         if virtual_files is not None:
@@ -134,6 +138,13 @@ def parse_project(
         return None
 
     def _parse_one(file_id: str) -> ParsedFile | None:
+        try:
+            return _parse_file(file_id)
+        finally:
+            if on_file_done is not None:
+                on_file_done()
+
+    def _parse_file(file_id: str) -> ParsedFile | None:
         ext = Path(file_id).suffix.lower()
         language = registry.get_language_by_ext(ext)
         if not language:

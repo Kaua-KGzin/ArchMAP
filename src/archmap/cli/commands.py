@@ -71,6 +71,7 @@ from archmap.core.memory import (
     generate_memory_digest,
 )
 from archmap.core.netscan import run_netscan as _scan_network
+from archmap.core.perf.progress import Progress
 from archmap.exporters.pr_report import render_pr_report
 from archmap.utils.file_utils import normalize_file_id
 
@@ -152,17 +153,45 @@ def _run_estimate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _make_progress(args: argparse.Namespace, quiet: bool) -> Progress | None:
+    """A stderr progress line, only for an interactive, non-quiet, slow run."""
+    if quiet or not sys.stderr.isatty():
+        return None
+    from archmap.config import load_project_config
+    from archmap.core.perf.estimate import estimate_project
+    from archmap.core.perf.progress import MIN_EXPECTED_SECONDS, Progress
+
+    root = Path(args.path).resolve()
+    if not root.is_dir():
+        return None
+    try:
+        config = load_project_config(root)
+        estimate = estimate_project(root, dict(config), time_budget=0.0)
+    except Exception:
+        return None
+    expected = float(estimate["seconds"]["expected"])
+    if expected <= MIN_EXPECTED_SECONDS:
+        return None
+    return Progress(sys.stderr, expected)
+
+
 def run_analyze(args: argparse.Namespace) -> int:
     if getattr(args, "estimate", False):
         return _run_estimate(args)
     quiet = getattr(args, "quiet", False)
-    report = analyze_project(
-        args.path,
-        parallel=getattr(args, "parallel", None),
-        use_cache=not getattr(args, "no_cache", False),
-        time_budget=getattr(args, "time_budget", None),
-        budget_source="cli",
-    )
+    progress = _make_progress(args, quiet)
+    try:
+        report = analyze_project(
+            args.path,
+            parallel=getattr(args, "parallel", None),
+            use_cache=not getattr(args, "no_cache", False),
+            time_budget=getattr(args, "time_budget", None),
+            budget_source="cli",
+            progress=progress,
+        )
+    finally:
+        if progress is not None:
+            progress.close()
     if not quiet:
         for finding in report.get("findings", []):
             if finding.get("category") == "budget_reduction":
