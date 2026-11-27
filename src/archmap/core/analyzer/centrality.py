@@ -138,6 +138,10 @@ def build_centrality_findings(
     """
     if int(meta.get("connectedPairs", 0)) < MIN_CONNECTED_PAIRS:
         return []
+    if meta.get("stoppedEarly"):
+        # Scores from a prefix of the sources cut short by the time budget are
+        # biased toward those sources: not a basis for a finding.
+        return []
     sampled = meta.get("method") == "sampled"
     typical = statistics.median(scores.values()) if scores else 0.0
     ranked = sorted(

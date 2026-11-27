@@ -363,9 +363,9 @@ def _load_source_map(
             return None
 
     # Reading is I/O-bound and, on Windows, the first open of a file waits on
-    # the real-time scanner; threads overlap those waits (a cold 2,000-file
-    # read drops from ~9.7 s to ~1.5 s). Bookkeeping stays sequential, in
-    # discovery order, so the result and diagnostics are unchanged.
+    # the real-time scanner; threads overlap those waits, which makes a cold
+    # read several times faster. Bookkeeping stays sequential, in discovery
+    # order, so the result and diagnostics are unchanged.
     if len(paths) >= _THREADED_READ_MIN_FILES:
         import concurrent.futures
 

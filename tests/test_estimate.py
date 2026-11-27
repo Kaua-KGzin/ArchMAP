@@ -80,7 +80,7 @@ def test_text_output_and_no_side_effects(
     out = capsys.readouterr().out.splitlines()
     assert out[0].startswith("[estimate] 30 source files (python 30), ")
     assert out[1].startswith("[estimate] expected time: ")
-    assert out[2].startswith("[estimate] expected peak memory: ~")
+    assert out[2].startswith("[estimate] expected peak Python heap (tracemalloc): ~")
     assert out[-1] == "[estimate] no analysis was run. Remove --estimate to analyze."
     assert sorted(p.name for p in tmp_path.rglob("*")) == before
 

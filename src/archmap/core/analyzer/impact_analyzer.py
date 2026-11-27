@@ -68,13 +68,15 @@ def full_impacted_files(report: dict, node_id: str) -> list[str]:
 
     The stored list is capped at :data:`IMPACT_LIST_CAP`; when the node's
     impact is flagged ``impactedFilesTruncated`` the full list is recomputed
-    with a single BFS over ``report["edges"]``.
+    with a single BFS over ``report["edges"]``. A report without edges (a
+    trimmed snapshot) cannot be recomputed, so the stored list is returned.
     """
     node = next((n for n in report.get("nodes", []) if n.get("id") == node_id), None)
     impact = (node or {}).get("impact") or {}
-    if not impact.get("impactedFilesTruncated"):
+    edges = report.get("edges") or []
+    if not impact.get("impactedFilesTruncated") or not edges:
         return list(impact.get("impactedFiles", []))
-    return list(calculate_impact(node_id, report.get("edges", []))["impactedFiles"])
+    return list(calculate_impact(node_id, edges)["impactedFiles"])
 
 
 def _risk_for(count: int) -> str:

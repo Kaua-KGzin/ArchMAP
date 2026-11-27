@@ -209,6 +209,15 @@ def _run_centrality(
     scores, meta = betweenness_centrality(
         file_node_ids, edges, should_stop=budget.exhausted, **limits
     )
+    if meta.get("stoppedEarly") and not meta.get("sourcesProcessed"):
+        # Nothing was computed: that is a skip, not an early stop.
+        budget.record(
+            "centrality",
+            "exhausted",
+            "skipped because the budget ran out before the first source file "
+            "(no betweenness scores or GRAPH-* bottleneck findings)",
+        )
+        return {}, {"method": "skipped", "nodes": n, "connectedPairs": 0}
     details: list[str] = []
     if sampled:
         details.append(
@@ -217,7 +226,8 @@ def _run_centrality(
         )
     if meta.get("stoppedEarly"):
         details.append(
-            f"stopped after {meta['sourcesProcessed']} source file(s) when the budget ran out"
+            f"stopped after {meta['sourcesProcessed']} source file(s) when the budget ran out "
+            "(partial scores; no GRAPH-* bottleneck findings)"
         )
     if details:
         budget.record("centrality", "projected" if sampled else "exhausted", "; ".join(details))

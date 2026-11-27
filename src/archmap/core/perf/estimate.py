@@ -229,7 +229,7 @@ def format_estimate(estimate: Estimate, time_budget: float = 0.0) -> list[str]:
         f"[estimate] expected time: {format_duration(seconds['expected'])} "
         f"(range {format_duration(seconds['low'])} – {format_duration(seconds['high'])}) "
         "on this machine",
-        f"[estimate] expected peak memory: ~{estimate['peakMb']:.0f} MB",
+        f"[estimate] expected peak Python heap (tracemalloc): ~{estimate['peakMb']:.0f} MB",
     ]
     lines.extend(
         f"[estimate] with --time-budget {time_budget:g}: {reduction}"
