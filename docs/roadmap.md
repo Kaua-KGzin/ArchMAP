@@ -3,9 +3,9 @@
 > This file (`docs/roadmap.md`) is the single source. The root `ROADMAP.md`
 > only points here.
 
-## Next — v1.7.0 — predictable cost at scale
+## v1.7.0 (2026-11-27) — predictable cost at scale
 
-Implemented on the v1.7.0 branch; listed in the changelog under Unreleased:
+Released; see the [changelog](changelog.md#170---2026-11-27):
 
 - **Stage timings**, a fast **SCC-based impact analysis** with a 200-entry list
   cap, and faster discovery and parsing.

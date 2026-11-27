@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: Kaua-KGzin/ArchMAP@v1.6.0
+      - uses: Kaua-KGzin/ArchMAP@v1.7.0
         with:
           comment: "true"
 ```

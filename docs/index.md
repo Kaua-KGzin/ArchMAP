@@ -266,6 +266,12 @@ change state only answer loopback requests that send JSON. See
 
 ## What's new
 
+- **1.7.0**: predictable cost at scale — `analyze --estimate` predicts time,
+  peak heap and budget reductions; a progress line with an ETA; a soft
+  `--time-budget` / `[analysis.limits]` that announces every reduction; a
+  120 s default budget for MCP; per-stage timings; faster discovery and
+  parsing; SCC-based impact analysis with a 200-entry list cap; cache schema 4;
+  a CI perf guard; and a new [Performance](performance.md) page.
 - **1.6.0**: the PR report — with `comment: "true"`, the
   [GitHub Action](github-action.md) posts and keeps updating one pull-request
   comment with the architecture delta (health, tested files, new and resolved
