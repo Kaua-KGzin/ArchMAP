@@ -394,6 +394,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="write the json or markdown output to PATH instead of stdout",
     )
+    diff_parser.add_argument(
+        "--time-budget",
+        type=_time_budget,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "soft time budget in seconds for both git-ref analyses together; each ref "
+            "gets half (default: none, or [analysis.limits] time_budget_seconds; "
+            "0 means no limit). Reductions are printed as [budget] lines on stderr"
+        ),
+    )
 
     history_parser = subparsers.add_parser(
         "history",

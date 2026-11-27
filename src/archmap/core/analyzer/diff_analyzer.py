@@ -9,6 +9,7 @@ from archmap.core.analyzer.dependency_graph import analyze_graph
 from archmap.core.analyzer.findings import finding_key
 from archmap.core.graph.graph_builder import build_graph
 from archmap.core.parser import parse_project
+from archmap.core.perf.budget import Budget, BudgetSource, validate_budget_seconds
 from archmap.utils.file_utils import file_language_from_id, normalize_file_id
 
 
@@ -38,7 +39,22 @@ def load_snapshot(path: str | Path) -> dict:
     return normalize_report(data)
 
 
-def analyze_git_ref(project_root: str | Path, ref: str) -> dict:
+def ref_budget(whole_seconds: float | None, source: BudgetSource) -> Budget:
+    """The budget for one ref of a two-ref diff: half of ``whole_seconds``.
+
+    ``None`` / ``0`` means no limit. Create it right before that ref's run:
+    its clock starts on creation.
+    """
+    whole = validate_budget_seconds(whole_seconds)
+    return Budget(whole / 2 if whole else None, source=source)
+
+
+def analyze_git_ref(project_root: str | Path, ref: str, budget: Budget | None = None) -> dict:
+    """Analyze the files of ``ref`` (from git, not the working tree).
+
+    ``budget`` (default ``None`` = no limit) is the soft time budget for this
+    ref's run; ``diff`` gives each ref half of its budget (:func:`ref_budget`).
+    """
     root = Path(project_root).resolve()
     virtual_files = _load_git_files(root, ref)
     config = load_project_config(root, virtual_files)
@@ -50,6 +66,7 @@ def analyze_git_ref(project_root: str | Path, ref: str) -> dict:
         layer_order=config["risks"]["layer_order"],
         forbidden_rules=config["architecture"]["rules"]["forbid"],
         allowed_rules=config["architecture"]["rules"]["allow"],
+        budget=budget,
     )
     analyzed["simple"] = {
         "nodes": [node["id"] for node in analyzed["nodes"]],

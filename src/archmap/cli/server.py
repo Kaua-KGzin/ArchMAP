@@ -15,6 +15,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 from xml.sax.saxutils import escape as _xml_escape
 
+from archmap.cli.reporting import announce_budget
 from archmap.core import analyze_project
 from archmap.core.advisor import advise_architecture
 from archmap.utils.file_utils import normalize_file_id
@@ -32,10 +33,9 @@ class ReportState:
     @classmethod
     def from_path(cls, path: str | Path, **_kwargs) -> ReportState:
         resolved = Path(path).resolve()
-        return cls(
-            path=resolved,
-            report=analyze_project(resolved),
-        )
+        report = analyze_project(resolved)
+        announce_budget(report)
+        return cls(path=resolved, report=report)
 
     def set_path(self, new_path: Path) -> None:
         self.path = new_path.resolve()
@@ -43,6 +43,7 @@ class ReportState:
 
     def reanalyze(self) -> None:
         self.report = analyze_project(self.path)
+        announce_budget(self.report)
         self.history_cache.clear()
         self.notify_listeners()
 
