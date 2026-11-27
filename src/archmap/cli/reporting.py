@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from typing import Any
 
 from archmap.exporters import (
@@ -10,6 +11,24 @@ from archmap.exporters import (
     export_graph_as_mermaid,
     export_graph_as_sarif,
 )
+
+
+def announce_budget(report: dict[str, Any], quiet: bool = False, label: str | None = None) -> None:
+    """One ``[budget] ...`` line on stderr per time-budget reduction in ``report``.
+
+    Every CLI command that runs an analysis calls this, so no command reduces
+    silently. Never on stdout (JSON output stays clean) and never with --quiet.
+    ``label`` (e.g. a git ref for ``diff``) prefixes each line.
+    """
+    if quiet:
+        return
+    prefix = f"{label}: " if label else ""
+    for finding in report.get("findings", []):
+        if finding.get("category") == "budget_reduction":
+            try:
+                print(f"[budget] {prefix}{finding['message']}", file=sys.stderr)
+            except (OSError, ValueError):
+                return
 
 
 def export_outputs(
@@ -99,6 +118,12 @@ def print_impact_analysis(report: dict[str, Any], target_path: str, max_impacted
 
     impact = target_node.get("impact", {})
     impacted_files = impact.get("impactedFiles", [])
+    if impact.get("impactedFilesTruncated") and max_impacted > len(impacted_files):
+        # The stored list is capped; only fetch the full one when more
+        # entries are requested than it holds.
+        from archmap.core.analyzer.impact_analyzer import full_impacted_files
+
+        impacted_files = full_impacted_files(report, target_id)
     count = int(impact.get("impactCount", 0))
     risk = str(impact.get("risk", "low")).upper()
 

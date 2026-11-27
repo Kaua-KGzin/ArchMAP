@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import tomllib
 from pathlib import Path
 from typing import NotRequired, TypedDict
@@ -11,6 +12,8 @@ __all__ = [
     "ArchitectureConfig",
     "ArchitectureRulesConfig",
     "BudgetsConfig",
+    "ConfigError",
+    "LimitsConfig",
     "NetworkConfig",
     "NetworkRulesConfig",
     "ProjectConfig",
@@ -22,6 +25,15 @@ __all__ = [
 CONFIG_FILENAMES = (".archmap.toml", "archmap.toml")
 
 _ABSOLUTE_MAX_COUPLING = 10_000  # sanity ceiling for budget values
+
+
+class ConfigError(ValueError):
+    """An ``.archmap.toml`` value that cannot be used as given."""
+
+
+class LimitsConfig(TypedDict):
+    # Soft time budget for the whole analysis run; ``None`` means no limit.
+    time_budget_seconds: float | None
 
 
 class BudgetsConfig(TypedDict):
@@ -36,6 +48,7 @@ class AnalysisConfig(TypedDict):
     parallel: bool
     cache: bool
     budgets: BudgetsConfig
+    limits: LimitsConfig
 
 
 class ArchitectureRulesConfig(TypedDict):
@@ -80,6 +93,7 @@ def default_project_config() -> ProjectConfig:
             "parallel": True,
             "cache": True,
             "budgets": {},
+            "limits": {"time_budget_seconds": None},
         },
         "architecture": {"rules": {"forbid": [], "allow": []}},
         "risks": {"layer_order": {}},
@@ -113,6 +127,9 @@ def load_project_config(
     budgets_section = (
         analysis_section.get("budgets", {}) if isinstance(analysis_section, dict) else {}
     )
+    limits_section = (
+        analysis_section.get("limits", {}) if isinstance(analysis_section, dict) else {}
+    )
 
     return {
         "analysis": {
@@ -124,6 +141,7 @@ def load_project_config(
             "parallel": _normalize_parallel(analysis_section),
             "cache": _normalize_bool_field(analysis_section, "cache", default=True),
             "budgets": _normalize_budgets(budgets_section),
+            "limits": _normalize_limits(limits_section),
         },
         "architecture": {
             "rules": {
@@ -266,3 +284,19 @@ def _normalize_budgets(section: object) -> BudgetsConfig:
         "max_outgoing_per_file": _parse_budget_value("max_outgoing_per_file"),
         "max_incoming_per_file": _parse_budget_value("max_incoming_per_file"),
     }
+
+
+def _normalize_limits(section: object) -> LimitsConfig:
+    """``[analysis.limits]``: ``time_budget_seconds`` is a number >= 0; ``0`` means no limit."""
+    if not isinstance(section, dict):
+        return {"time_budget_seconds": None}
+    value = section.get("time_budget_seconds")
+    if value is None:
+        return {"time_budget_seconds": None}
+    if isinstance(value, bool) or not isinstance(value, int | float) or math.isnan(value):
+        raise ConfigError("analysis.limits.time_budget_seconds must be a number of seconds")
+    if value < 0:
+        raise ConfigError("analysis.limits.time_budget_seconds must be >= 0")
+    if math.isinf(value):
+        raise ConfigError("analysis.limits.time_budget_seconds must be finite (0 means no limit)")
+    return {"time_budget_seconds": float(value) or None}

@@ -69,7 +69,7 @@ def test_no_cache_flag_reaches_analysis(monkeypatch, tmp_path: Path) -> None:
 
     seen: dict[str, object] = {}
 
-    def fake_analyze(path, parallel=None, use_cache=True):
+    def fake_analyze(path, parallel=None, use_cache=True, **_kwargs):
         seen["use_cache"] = use_cache
         raise SystemExit(0)
 

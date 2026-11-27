@@ -28,6 +28,13 @@ The plugin provides:
 | `SessionStart` hook | Injects `archmap memory --print` into context at session start. Skips silently if `archmap` isn't installed, and is bounded to 60 s |
 | `archmap` skill | Tells the agent when to call which tool: orient with `get_project_memory` and `get_relevant_context`, check `get_analysis_quality`, run `impact_analysis` before editing, `run_checks` + `diff_architecture` before finishing; plus a reverse-engineering workflow (`inspect_path`, `extract_strings`, `hexdump`) and `audit_project` |
 
+MCP analyses have a 120 s default time budget, so the agent never hangs on a
+huge repository. When it is active, the response carries a `notice` with the
+budget and how to change it (the tool's `time_budget` argument,
+`[analysis.limits] time_budget_seconds` in `.archmap.toml`, or `0` for no
+limit). The `SessionStart` hook and the MCP server share one report cache, so a
+session pays for one analysis. Details in [Performance](performance.md).
+
 To also refresh `.archmap/memory.md` after every edit, add the
 `PostToolUse` hook from [`archmap memory`](cli/memory.md) to your project's
 `.claude/settings.json`. It isn't enabled by default because it writes a

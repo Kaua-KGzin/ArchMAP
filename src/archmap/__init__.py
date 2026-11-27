@@ -17,6 +17,8 @@ from archmap.config import ProjectConfig as ArchMapConfig
 from archmap.config import load_project_config
 from archmap.core import analyze_project as _analyze_project_impl
 from archmap.core.parser import ParsedFile, ParsedProject
+from archmap.core.perf.budget import BudgetSource
+from archmap.core.perf.progress import Progress
 from archmap.types import (
     AnalysisResult,
     ComplexityEntry,
@@ -46,6 +48,9 @@ def analyze_project(
     project_path: str | Path,
     parallel: bool | None = None,
     use_cache: bool = True,
+    time_budget: float | None = None,
+    budget_source: BudgetSource = "api",
+    progress: Progress | None = None,
 ) -> AnalysisResult:
     """Analyze an ArchMAP project and return a typed result.
 
@@ -53,6 +58,12 @@ def analyze_project(
         project_path: Path to the project root directory.
         parallel: Override parallel parsing. ``None`` uses the project config.
         use_cache: Whether to read/write the incremental parse cache.
+        time_budget: Soft limit in seconds for the whole run; ``0`` means no
+            limit and ``None`` uses ``[analysis.limits] time_budget_seconds``.
+        budget_source: Where an explicit ``time_budget`` came from, reported in
+            ``metrics.analysisQuality.budget`` (default ``"api"``; the CLI
+            passes ``"cli"``).
+        progress: Optional progress reporter (default ``None`` = silent).
 
     Returns:
         :class:`AnalysisResult` with nodes, edges, metrics, cycles, risks,
@@ -60,7 +71,14 @@ def analyze_project(
     """
     return cast(
         AnalysisResult,
-        _analyze_project_impl(project_path, parallel=parallel, use_cache=use_cache),
+        _analyze_project_impl(
+            project_path,
+            parallel=parallel,
+            use_cache=use_cache,
+            time_budget=time_budget,
+            budget_source=budget_source,
+            progress=progress,
+        ),
     )
 
 

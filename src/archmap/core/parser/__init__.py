@@ -43,6 +43,35 @@ registry.register(CSharpParser())
 
 JS_TS_RESOLUTION_EXTENSIONS = sorted(JS_TS_EXTENSIONS | {".json"})
 
+# Below this many files, source files are read on the calling thread.
+_THREADED_READ_MIN_FILES = 64
+
+
+def _concat_entries(per_entry: list[list[Dependency]]) -> list[Dependency]:
+    return [dep for deps in per_entry for dep in deps]
+
+
+def _dedupe_entries(per_entry: list[list[Dependency]]) -> list[Dependency]:
+    return _dedupe_dependencies(_concat_entries(per_entry))
+
+
+# How a parser's whole-list ``resolve`` relates to resolving each entry on its
+# own, for the built-in parsers where that was checked: most just concatenate
+# per-entry results; Go also drops repeated ids, keeping the first. Keyed on
+# the exact class, so a plugin subclass that overrides ``resolve`` (and C#,
+# whose result depends on the whole ``using`` list) keeps the whole-list call.
+_ENTRYWISE_MERGE: dict[type, Callable[[list[list[Dependency]]], list[Dependency]]] = {
+    PythonParser: _concat_entries,
+    JSParser: _concat_entries,
+    TSParser: _concat_entries,
+    RustParser: _concat_entries,
+    PHPParser: _concat_entries,
+    JavaParser: _concat_entries,
+    CParser: _concat_entries,
+    CppParser: _concat_entries,
+    GoParser: _dedupe_entries,
+}
+
 
 class ParsedFile(TypedDict):
     id: str
@@ -74,6 +103,8 @@ def parse_project(
     virtual_files: dict[str, str] | None = None,
     config: Any = None,
     parallel: bool = True,
+    on_file_done: Callable[[], None] | None = None,
+    on_discovered: Callable[[int], None] | None = None,
 ) -> ParsedProject:
     import concurrent.futures
     import logging
@@ -92,6 +123,8 @@ def parse_project(
     )
     discovered_at = time.perf_counter()
     file_ids = set(file_content_map.keys())
+    if on_discovered is not None:
+        on_discovered(len(file_ids))
 
     def get_file_content(path: str) -> str | None:
         if virtual_files is not None:
@@ -105,6 +138,13 @@ def parse_project(
         return None
 
     def _parse_one(file_id: str) -> ParsedFile | None:
+        try:
+            return _parse_file(file_id)
+        finally:
+            if on_file_done is not None:
+                on_file_done()
+
+    def _parse_file(file_id: str) -> ParsedFile | None:
         ext = Path(file_id).suffix.lower()
         language = registry.get_language_by_ext(ext)
         if not language:
@@ -113,11 +153,24 @@ def parse_project(
         if not parser:
             return None
         source_code = file_content_map[file_id]
+        merge = _ENTRYWISE_MERGE.get(type(parser))
+        per_entry: list[list[Dependency]] = []
         try:
             import_entries = parser.parse(source_code)
-            dependencies = parser.resolve(
-                import_entries, file_id, file_ids, get_file_content=get_file_content
-            )
+            if merge is not None:
+                # Each entry is resolved once; the per-entry results both
+                # build the dependency list and flag unresolved imports.
+                per_entry = [
+                    parser.resolve(
+                        [entry], file_id, file_ids, get_file_content=get_file_content
+                    )
+                    for entry in import_entries
+                ]
+                dependencies = merge(per_entry)
+            else:
+                dependencies = parser.resolve(
+                    import_entries, file_id, file_ids, get_file_content=get_file_content
+                )
         except Exception as exc:
             logger.error("Failed to parse %s: %s", file_id, exc)
             # list.append is atomic under the GIL, so worker threads can share it.
@@ -126,16 +179,21 @@ def parse_project(
             )
             return None
 
-        # Identify per-entry unresolved imports by resolving each entry individually.
-        # Resolution is pure set-lookup so the overhead is negligible.
+        if merge is None:
+            # Parsers whose whole-list result is not a merge of per-entry
+            # results (C#, plugins) are asked about each entry separately.
+            for entry in import_entries:
+                try:
+                    per_entry.append(
+                        parser.resolve(
+                            [entry], file_id, file_ids, get_file_content=get_file_content
+                        )
+                    )
+                except Exception:
+                    per_entry.append([])
+
         unresolved_imports: list[str] = []
-        for entry in import_entries:
-            try:
-                entry_deps = parser.resolve(
-                    [entry], file_id, file_ids, get_file_content=get_file_content
-                )
-            except Exception:
-                entry_deps = []
+        for entry, entry_deps in zip(import_entries, per_entry, strict=True):
             if not entry_deps and not _import_known(
                 parser, entry, file_id, file_ids, get_file_content
             ):
@@ -289,19 +347,41 @@ def _load_source_map(
     source_map = {}
     # Size filtering happens here rather than in discover_source_files so that
     # skipped files are counted instead of silently vanishing from the graph.
-    for file_path in discover_source_files(
+    paths = discover_source_files(
         project_root,
         extra_ignored_dirs=extra_ignored_dirs,
         respect_gitignore=respect_gitignore,
-    ):
-        file_id = to_file_id(project_root, file_path)
-        diag["discovered"] = diag.get("discovered", 0) + 1
+    )
+
+    def _read(file_path: Path) -> str | bool | None:
+        """File text; ``False`` when oversized; ``None`` when unreadable."""
         try:
             if max_file_size_bytes > 0 and file_path.stat().st_size > max_file_size_bytes:
-                diag["oversized"].append(file_id)
-                continue
-            source_map[file_id] = file_path.read_text(encoding="utf-8-sig")
+                return False
+            return file_path.read_text(encoding="utf-8-sig")
         except (UnicodeDecodeError, OSError):
+            return None
+
+    # Reading is I/O-bound and, on Windows, the first open of a file waits on
+    # the real-time scanner; threads overlap those waits, which makes a cold
+    # read several times faster. Bookkeeping stays sequential, in discovery
+    # order, so the result and diagnostics are unchanged.
+    if len(paths) >= _THREADED_READ_MIN_FILES:
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            texts = list(executor.map(_read, paths))
+    else:
+        texts = [_read(p) for p in paths]
+
+    for file_path, text in zip(paths, texts, strict=True):
+        file_id = to_file_id(project_root, file_path)
+        diag["discovered"] = diag.get("discovered", 0) + 1
+        if isinstance(text, str):
+            source_map[file_id] = text
+        elif text is False:
+            diag["oversized"].append(file_id)
+        else:
             diag["decodeErrors"].append(file_id)
     return source_map
 

@@ -46,6 +46,11 @@ jobs:
 | `comment` | `false` | Post the PR architecture delta (see below) |
 | `github-token` | `${{ github.token }}` | Token used to post the comment |
 
+The action runs with **no time budget** by default, so CI always gets the full
+analysis. A `[analysis.limits] time_budget_seconds` in the project's
+`.archmap.toml` applies here too; each reduction it causes is reported as a
+`QUAL-*` finding (category `budget_reduction`). See [Performance](performance.md).
+
 ## Outputs
 
 | Output | Description |

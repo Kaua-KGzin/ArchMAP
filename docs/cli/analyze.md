@@ -51,6 +51,28 @@ archmap analyze [path] [options]
 |---|---|---|
 | `--parallel` / `--no-parallel` | on | Enable/disable parallel file parsing |
 | `--no-cache` | off | Skip loading and saving cached analysis results |
+| `--estimate` | off | Predict time and memory (and the reductions a budget would force) without analyzing; add `--format json` for JSON on stdout |
+| `--time-budget SECONDS` | none | Soft time budget for the whole run; `0` = no limit. Overrides `[analysis.limits] time_budget_seconds` |
+
+### Time budget and `[analysis.limits]`
+
+```toml
+# .archmap.toml
+[analysis.limits]
+time_budget_seconds = 60   # 0 = no limit; negative values are rejected
+```
+
+This is separate from `[analysis.budgets]`, which sets coupling budgets for the
+`--fail-on-budget-violations` gate. The time budget is **soft**: parsing is never
+cut short, and a run can overshoot. When time runs out, impacted-file lists are
+dropped (`impactCount` and `risk` stay exact, nodes are marked
+`impactedFilesTruncated`) and centrality is sampled to 64 files or skipped. Each
+reduction is a `QUAL-*` finding (category `budget_reduction`) and, for
+`archmap analyze` and every other command that runs an analysis, a
+`[budget] ...` line on stderr (never with `--quiet`). Reduced runs are never
+cached, so the cache is shared by every budget, the MCP server's included. Stored impact lists are always capped at 200 files; `--impact PATH`
+prints the full list. Details, numbers and the MCP default in
+[Performance](../performance.md).
 
 ### Which files are analysed
 
@@ -173,7 +195,8 @@ vanish from the graph silently; they are now counted and reported:
 | `decodeFailures` / `oversizedSkipped` | Files skipped before parsing |
 | `languages` | Per language: files, imports, resolved, failures, resolutionRate |
 | `warnings` | Human-readable summary of every gap |
-| `timingsMs` | Discovery and parse time |
+| `timingsMs` | Time per stage in milliseconds: `discover`, `parse`, `cycles`, `impact`, `risk`, `testMapping`, `centrality`, `findings` |
+| `budget` / `reductions` | Present only when a time budget is active: `{seconds, source}` and what was reduced |
 
 Gaps also become `QUAL-*` entries in the unified `findings` list
 (`parse_failure`, `decode_failure`, `oversized_skipped`, and

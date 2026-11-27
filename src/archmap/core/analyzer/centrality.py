@@ -16,6 +16,10 @@ Above ``exact_limit`` files both sums run over the same deterministic sample
 of source files (Brandes & Pich, 2007), so the ratio needs no rescaling and
 large repositories stay well under a second. The result is reported beside
 the risk score, never folded into it.
+
+With ``should_stop`` (the soft time budget) the source loop polls it every
+``STOP_CHECK_EVERY`` sources and stops with what it has; the scores then come
+from the sources processed so far (``stoppedEarly`` / ``sourcesProcessed``).
 """
 
 from __future__ import annotations
@@ -23,7 +27,7 @@ from __future__ import annotations
 import random
 import statistics
 from collections import deque
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from archmap.core.analyzer.test_mapping import is_test_file
@@ -31,6 +35,7 @@ from archmap.types import Finding
 
 EXACT_LIMIT = 1000
 DEFAULT_SAMPLES = 256
+STOP_CHECK_EVERY = 16
 # A bottleneck lies on at least this share of the connected import chains...
 MIN_BOTTLENECK_SCORE = 0.10
 # ...in a graph with enough chains for a share to mean something.
@@ -45,6 +50,7 @@ def betweenness_centrality(
     *,
     exact_limit: int = EXACT_LIMIT,
     samples: int = DEFAULT_SAMPLES,
+    should_stop: Callable[[], bool] | None = None,
 ) -> tuple[dict[str, float], dict[str, Any]]:
     """Share of connected import chains through each node, plus how it was computed."""
     names = sorted(set(nodes))
@@ -68,11 +74,17 @@ def betweenness_centrality(
 
     raw = [0.0] * n
     connected = 0
+    processed = 0
     for s in sources:
+        if should_stop is not None and processed % STOP_CHECK_EVERY == 0 and should_stop():
+            meta["stoppedEarly"] = True
+            meta["sourcesProcessed"] = processed
+            break
         connected += _accumulate_from(s, adjacency, raw)
+        processed += 1
 
     scale = 1.0 / connected if connected else 0.0
-    sample_factor = n / len(sources) if sources else 0.0
+    sample_factor = n / processed if processed else 0.0
     meta["connectedPairs"] = round(connected * sample_factor)
     return {names[i]: raw[i] * scale for i in range(n)}, meta
 
@@ -125,6 +137,10 @@ def build_centrality_findings(
     but it is not part of the architecture being reviewed.
     """
     if int(meta.get("connectedPairs", 0)) < MIN_CONNECTED_PAIRS:
+        return []
+    if meta.get("stoppedEarly"):
+        # Scores from a prefix of the sources cut short by the time budget are
+        # biased toward those sources: not a basis for a finding.
         return []
     sampled = meta.get("method") == "sampled"
     typical = statistics.median(scores.values()) if scores else 0.0

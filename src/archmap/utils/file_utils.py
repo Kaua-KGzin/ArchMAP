@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import os
 import subprocess
 from collections.abc import Iterable, Iterator
@@ -69,7 +70,14 @@ def is_vendored_path(file_id: str) -> bool:
     return any(p in VENDOR_DIR_NAMES or p in VENDOR_LIBRARY_NAMES for p in parts)
 
 
+@functools.lru_cache(maxsize=65536)
 def normalize_file_id(file_id: str) -> str:
+    """POSIX form of ``file_id`` without a leading ``./``.
+
+    Memoised: resolution normalises the same few thousand ids tens of
+    thousands of times, and building a ``PurePosixPath`` each time was the
+    largest single cost of parsing. The result depends only on the string.
+    """
     normalized = str(PurePosixPath(file_id.replace("\\", "/")))
     if normalized.startswith("./"):
         return normalized[2:]
@@ -200,8 +208,16 @@ def git_ignored_paths(project_root: Path) -> tuple[set[str], set[str]] | None:
 
 
 def to_file_id(project_root: Path, file_path: Path) -> str:
-    if project_root.is_file() and project_root == file_path:
+    # Compare first: ``is_file()`` is a filesystem call, and paying it for
+    # every discovered file was a measurable share of discovery.
+    if project_root == file_path and project_root.is_file():
         return normalize_file_id(file_path.name)
+    # Discovery joins paths onto ``project_root``, so the root is a literal
+    # prefix and slicing the string gives what ``relative_to`` would, without
+    # its per-call parsing; anything else takes the pathlib route.
+    root, path = str(project_root), str(file_path)
+    if path.startswith(root) and path[len(root) : len(root) + 1] in ("/", os.sep):
+        return normalize_file_id(path[len(root) + 1 :].replace(os.sep, "/"))
     return normalize_file_id(file_path.relative_to(project_root).as_posix())
 
 

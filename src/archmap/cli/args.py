@@ -13,6 +13,35 @@ from archmap.cli.defaults import (
 )
 
 
+class _RememberFormat(argparse.Action):
+    """Store ``--format`` and record that it was given explicitly."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        setattr(namespace, self.dest, values)
+        namespace.format_explicit = True
+
+
+def _time_budget(value: str) -> float:
+    """``--time-budget`` seconds: a number of at least 0 (``0`` means no limit)."""
+    try:
+        seconds = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"invalid time budget {value!r}: expected a number of seconds"
+        ) from None
+    if not seconds >= 0 or seconds == float("inf"):
+        raise argparse.ArgumentTypeError(
+            f"invalid time budget {value!r}: must be 0 or more seconds (0 means no limit)"
+        )
+    return seconds
+
+
 def _unresolved_limit(value: str) -> int:
     """``--show-unresolved`` count; ``all`` lifts the limit."""
     if value.strip().lower() == "all":
@@ -117,6 +146,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--fail-on-risks",
         action="store_true",
         help="exit with code 2 when cycles or any risk category is detected",
+    )
+    analyze_parser.add_argument(
+        "--estimate",
+        action="store_true",
+        default=False,
+        help=(
+            "predict analysis time and memory from a file listing and exit; "
+            "nothing is analyzed or cached (with --format json prints JSON only)"
+        ),
+    )
+    analyze_parser.add_argument(
+        "--time-budget",
+        type=_time_budget,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "soft time budget in seconds for the whole run (default: none, or "
+            "[analysis.limits] time_budget_seconds; 0 means no limit). If the run is "
+            "running out of time, centrality is sampled or skipped and impacted-file "
+            "lists are left out; counts, risk and cycles stay exact. Each reduction is "
+            "printed and reported as a QUAL finding, and a reduced report is never cached. "
+            "The budget is soft: parsing is never cut short, so a run can overshoot. "
+            "With --estimate, lists the reductions that would apply"
+        ),
     )
     analyze_parser.add_argument(
         "--min-health",
@@ -340,6 +393,17 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="PATH",
         default=None,
         help="write the json or markdown output to PATH instead of stdout",
+    )
+    diff_parser.add_argument(
+        "--time-budget",
+        type=_time_budget,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "soft time budget in seconds for both git-ref analyses together; each ref "
+            "gets half (default: none, or [analysis.limits] time_budget_seconds; "
+            "0 means no limit). Reductions are printed as [budget] lines on stderr"
+        ),
     )
 
     history_parser = subparsers.add_parser(
@@ -744,7 +808,13 @@ def _add_netscan_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_export_arguments(parser: argparse.ArgumentParser, *, default_format: str) -> None:
-    parser.add_argument("--format", choices=["json", "mermaid", "both"], default=default_format)
+    parser.set_defaults(format_explicit=False)
+    parser.add_argument(
+        "--format",
+        choices=["json", "mermaid", "both"],
+        default=default_format,
+        action=_RememberFormat,
+    )
     parser.add_argument("--out", default=DEFAULT_JSON_OUTPUT_PATH)
     parser.add_argument("--out-mermaid", default=DEFAULT_MERMAID_OUTPUT_PATH)
     parser.add_argument("--out-cytoscape", default=DEFAULT_CYTOSCAPE_OUTPUT_PATH)

@@ -58,6 +58,35 @@ refuse anything outside it, so a prompt-injected model can't use them to
 read `~/.ssh` or other files beyond the project. Start the server in the
 directory you want inspected.
 
+### Time budget and `notice`
+
+Eleven tools run a full analysis (`get_project_memory`, `get_architecture_summary`,
+`get_file_context`, `impact_analysis`, `run_checks`, `trace_reachability`,
+`get_network_exposure`, `get_relevant_context`, `get_analysis_quality`,
+`list_findings`, `diff_architecture`) and accept an optional `time_budget`
+argument in seconds. The budget is, in order: the `time_budget` argument,
+`[analysis.limits] time_budget_seconds` in `.archmap.toml`, then a **120 s
+default**. `0` means no limit; negative values are rejected.
+`diff_architecture` analyzes two refs and gives each half of the budget.
+
+The budget is soft (parsing is never cut short). The response carries a
+`notice` field:
+
+- when the budget forced a reduction (impacted-file lists left out, centrality
+  sampled or skipped): which stages were reduced and how to get a full run
+  (`time_budget=0`);
+- when the 120 s default is the active budget, even if nothing was reduced:
+
+```text
+Analysis ran under the default 120 s MCP time budget (mcp-default); nothing was
+reduced. Change it with the time_budget argument or [analysis.limits]
+time_budget_seconds in .archmap.toml; 0 means no limit.
+```
+
+A budget you set yourself (argument or `.archmap.toml`) adds a `notice` only
+when something was reduced. `impact_analysis` always returns the full impacted
+list for the file you ask about. See [Performance](../performance.md).
+
 ## Registering with Claude Code
 
 Add the server to `~/.claude/claude_desktop_config.json`:
@@ -91,7 +120,10 @@ The server reads JSON-RPC 2.0 requests from stdin and writes responses to stdout
 
 - Analysis results are cached in memory per `project_path`, keyed by the same
   content fingerprint (config + every source file's mtime/size) the on-disk
-  cache uses. A tool call only re-analyzes when a source file actually
+  cache uses. The budget is not part of the key: a full result is reused for
+  any budget, while a reduced one is reused only by a call with the same
+  budget. The on-disk cache is shared with the CLI, so `archmap memory` in a
+  session hook and the MCP server do not invalidate each other. A tool call only re-analyzes when a source file actually
   changed since the last call in this session — edits made by the AI
   assistant mid-conversation are picked up automatically, without a stale
   read and without re-analyzing on every single call.

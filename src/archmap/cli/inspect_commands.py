@@ -299,10 +299,12 @@ def run_audit(args: argparse.Namespace) -> int:
 
 
 def run_context(args: argparse.Namespace) -> int:
+    from archmap.cli.reporting import announce_budget
     from archmap.core import analyze_project
     from archmap.core.context.relevance import rank_relevant_files
 
     report = analyze_project(args.path, parallel=args.parallel)
+    announce_budget(report)
     result = rank_relevant_files(
         report, args.task, budget_tokens=args.budget, max_files=args.max_files
     )

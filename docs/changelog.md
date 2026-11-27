@@ -4,6 +4,57 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **`archmap analyze --estimate`** predicts time (with a range), the peak
+  Python heap (a `tracemalloc` peak, labelled as such) and the reductions a
+  budget would force, without analyzing anything. Text by
+  default; `--estimate --format json` prints JSON only on stdout. The estimate
+  calibrates to the current machine (at most 0.5 s).
+- **Progress line with an ETA** on stderr for runs expected to take more than
+  5 s. The ETA covers the whole run (parsing plus the later stages, each shown
+  by name with a shrinking ETA). Only on a TTY and never with `--quiet`; piped
+  output and the MCP server never get it. A closed stderr never aborts a run.
+- **Soft time budget**: `archmap analyze --time-budget SECONDS` and
+  `[analysis.limits] time_budget_seconds` in `.archmap.toml` (`0` = no limit,
+  negative rejected; the CLI flag wins over the config). Parsing is never cut
+  short, so a run can overshoot. When time runs out, impacted-file lists are
+  dropped (`impactCount` and `risk` stay exact) and centrality is sampled to 64
+  files or skipped. Every reduction is announced: a `QUAL-*` finding (category
+  `budget_reduction`), a `[budget] ...` line on stderr for every CLI command
+  that runs an analysis (`analyze`, `diff`, `explain`, `risk`, `watch`,
+  `serve`, `memory`, ...; never on stdout, never with `--quiet`), and
+  `metrics.analysisQuality.budget` / `reductions`. Reduced runs are never cached.
+- **`archmap diff --time-budget`**, and `diff` honours `[analysis.limits]`: each
+  of the two git refs gets half of the budget.
+- **MCP: 120 s default time budget**, a `time_budget` argument on the eleven
+  analysis tools, `diff_architecture` included (`0` = no limit; argument >
+  `.archmap.toml` > default), and a `notice` in the response whenever something
+  was reduced or the 120 s default is the active budget.
+- **Per-stage timings** in `metrics.analysisQuality.timingsMs` (`discover`,
+  `parse`, `cycles`, `impact`, `risk`, `testMapping`, `centrality`, `findings`).
+- `scripts/benchmark.py --markdown` renders the saved baseline as a table, and
+  `scripts/perf_guard.py` guards against regressions in CI (scaling ratio, plus
+  an absolute check once a same-platform baseline row exists).
+- New [Performance](https://kaua-kgzin.github.io/ArchMAP/performance/) page.
+
+### Changed
+- **Impact analysis is computed on strongly connected components**, so a large
+  cycle no longer costs a BFS per file. Impact stage on 5,000 cyclic files:
+  13,661 ms -> 28.7 ms (1,000 files: 636.7 ms -> 5.2 ms). Results are identical.
+- **`impactedFiles` is capped at 200 entries** (`IMPACT_LIST_CAP`), always.
+  `impactCount` and `risk` stay exact and a capped list is flagged
+  `impactedFilesTruncated`. The full list is returned on demand by the MCP
+  `impact_analysis` tool, `archmap expose`, `archmap risk --json` and
+  `archmap analyze --impact`.
+- **Faster discovery and parsing**: parse -63 % warm; discover -55 % warm and
+  -84 % cold (about 5.1 s -> 0.8 s on 2,000 fresh files, by overlapping file
+  reads). 20,000 layered files: 14.65 s -> 8.28 s.
+- **The analysis cache schema is now 4.** Caches written by older versions are
+  invalidated and rebuilt on the first run; nothing to do on your side.
+  The time budget is not part of the cache key: only full reports are cached,
+  so the CLI and the MCP server share one cache entry instead of overwriting
+  each other (a hit is re-stamped with the current call's budget).
+
 ## [1.6.0] - 2026-11-25
 
 ### Security

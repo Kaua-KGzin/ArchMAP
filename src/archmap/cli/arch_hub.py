@@ -302,11 +302,13 @@ def _write_step_summary(system_id: str, payload: Mapping[str, object], published
 
 def run_hub_report(args: object, post: Poster = _urllib_post) -> int:
     """Analyze a project and publish its architecture score to the Arch Hub."""
+    from archmap.cli.reporting import announce_budget
     from archmap.core import analyze_project
 
     project = Path(getattr(args, "path", ".")).resolve()
     system_id = resolve_system_id(project, getattr(args, "system_id", None))
     report = analyze_project(str(project), parallel=getattr(args, "parallel", True))
+    announce_budget(report)
     payload = build_architecture_payload(
         report,
         commit=getattr(args, "commit", None) or _ci_default("GITHUB_SHA", "CI_COMMIT_SHA"),

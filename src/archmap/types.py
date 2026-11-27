@@ -14,6 +14,8 @@ class ImpactResult(TypedDict):
     impactedFiles: list[str]
     impactCount: int
     risk: str  # "low" | "ok" | "warning" | "critical"
+    # Present (and True) only when impactedFiles was capped below impactCount.
+    impactedFilesTruncated: NotRequired[bool]
 
 
 class NodeResult(TypedDict):

@@ -447,7 +447,7 @@ def test_run_improve_writes_script_and_outputs_json(monkeypatch, tmp_path, capsy
 def test_run_diff_resolves_repo_and_prints_result(monkeypatch, tmp_path) -> None:
     seen: list[tuple[Path, str]] = []
 
-    def fake_analyze_git_ref(repo_root: Path, ref: str) -> dict:
+    def fake_analyze_git_ref(repo_root: Path, ref: str, budget: object = None) -> dict:
         seen.append((repo_root, ref))
         return {"nodes": [], "ref": "placeholder"}
 

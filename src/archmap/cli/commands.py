@@ -15,6 +15,7 @@ from archmap import __version__
 from archmap.cli.arch_hub import start_arch_hub_registration
 from archmap.cli.defaults import DEFAULT_SARIF_OUTPUT_PATH, DEFAULT_TOP_ITEMS
 from archmap.cli.reporting import (
+    announce_budget,
     evaluate_quality_gates,
     export_outputs,
     format_diff_output,
@@ -53,7 +54,7 @@ from archmap.core.analyzer import (
     suggest_architecture,
     trace_reachability,
 )
-from archmap.core.analyzer.diff_analyzer import load_snapshot
+from archmap.core.analyzer.diff_analyzer import load_snapshot, ref_budget
 from archmap.core.exposure import correlate_exposure
 from archmap.core.exposure.endpoint_scanner import scan_endpoint_references
 from archmap.core.exposure.network_diff import diff_network_snapshots
@@ -71,6 +72,8 @@ from archmap.core.memory import (
     generate_memory_digest,
 )
 from archmap.core.netscan import run_netscan as _scan_network
+from archmap.core.perf.budget import BudgetSource
+from archmap.core.perf.progress import Progress
 from archmap.exporters.pr_report import render_pr_report
 from archmap.utils.file_utils import normalize_file_id
 
@@ -128,13 +131,70 @@ def _filter_external(report: dict[str, Any]) -> dict[str, Any]:
     return {**report, "nodes": corrected_nodes, "edges": edges, "metrics": metrics}
 
 
-def run_analyze(args: argparse.Namespace) -> int:
-    quiet = getattr(args, "quiet", False)
-    report = analyze_project(
-        args.path,
-        parallel=getattr(args, "parallel", None),
-        use_cache=not getattr(args, "no_cache", False),
+def _run_estimate(args: argparse.Namespace) -> int:
+    from archmap.config import load_project_config
+    from archmap.core.perf.estimate import estimate_project, format_estimate
+
+    root = Path(args.path).resolve()
+    if not root.exists():
+        print(f"[error] project path does not exist: {root}", file=sys.stderr)
+        return 1
+    # Same config loading as a real run: a bad .archmap.toml raises ConfigError
+    # (a ValueError), which main() reports as "[error] ..." with exit code 1.
+    config = load_project_config(root)
+    explicit = getattr(args, "time_budget", None)
+    budget = float(
+        (explicit if explicit is not None else config["analysis"]["limits"]["time_budget_seconds"])
+        or 0.0
     )
+    estimate = estimate_project(root, dict(config), time_budget=budget)
+    if getattr(args, "format_explicit", False) and args.format == "json":
+        print(json.dumps(estimate, indent=2))
+    else:
+        print("\n".join(format_estimate(estimate, budget)))
+    return 0
+
+
+def _make_progress(args: argparse.Namespace, quiet: bool) -> Progress | None:
+    """A stderr progress line, only for an interactive, non-quiet, slow run."""
+    if quiet or not sys.stderr.isatty():
+        return None
+    from archmap.config import load_project_config
+    from archmap.core.perf.estimate import estimate_project
+    from archmap.core.perf.progress import MIN_EXPECTED_SECONDS, Progress
+
+    root = Path(args.path).resolve()
+    if not root.is_dir():
+        return None
+    try:
+        config = load_project_config(root)
+        estimate = estimate_project(root, dict(config), time_budget=0.0)
+    except Exception:
+        return None
+    expected = float(estimate["seconds"]["expected"])
+    if expected <= MIN_EXPECTED_SECONDS:
+        return None
+    return Progress(sys.stderr, expected)
+
+
+def run_analyze(args: argparse.Namespace) -> int:
+    if getattr(args, "estimate", False):
+        return _run_estimate(args)
+    quiet = getattr(args, "quiet", False)
+    progress = _make_progress(args, quiet)
+    try:
+        report = analyze_project(
+            args.path,
+            parallel=getattr(args, "parallel", None),
+            use_cache=not getattr(args, "no_cache", False),
+            time_budget=getattr(args, "time_budget", None),
+            budget_source="cli",
+            progress=progress,
+        )
+    finally:
+        if progress is not None:
+            progress.close()
+    announce_budget(report, quiet)
     if getattr(args, "ignore_external", False):
         report = _filter_external(report)
     export_kwargs = {
@@ -275,6 +335,7 @@ def run_serve(args: argparse.Namespace) -> int:
 
 def run_explain(args: argparse.Namespace) -> int:
     report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
+    announce_budget(report)
     suggestions = suggest_architecture(report, max_groups=max(2, int(args.max_groups)))
     payload = {
         "projectRoot": report.get("projectRoot"),
@@ -299,6 +360,7 @@ def run_explain(args: argparse.Namespace) -> int:
 
 def run_risk(args: argparse.Namespace) -> int:
     report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
+    announce_budget(report)
     risk_payload = _build_file_risk_payload(report, Path(args.path), args.target)
     if risk_payload is None:
         print(f"[error] File not found in analyzed project: {args.target}", file=sys.stderr)
@@ -314,6 +376,7 @@ def run_risk(args: argparse.Namespace) -> int:
 
 def run_improve(args: argparse.Namespace) -> int:
     report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
+    announce_budget(report)
     suggestions = suggest_architecture(report, max_groups=max(2, int(args.max_groups)))
     payload = {
         "projectRoot": report.get("projectRoot"),
@@ -372,10 +435,24 @@ def run_diff(args: argparse.Namespace) -> int:
             )
             return 1
         repo_root = Path(args.repo).resolve()
-        base_report = analyze_git_ref(repo_root, args.base_ref)
+        explicit = getattr(args, "time_budget", None)
+        source: BudgetSource
+        if explicit is not None:
+            whole, source = explicit, "cli"
+        else:
+            whole = load_project_config(repo_root)["analysis"]["limits"]["time_budget_seconds"]
+            source = "config"
+        # Each ref gets half of the budget; its clock starts when its run does.
+        base_report = analyze_git_ref(
+            repo_root, args.base_ref, budget=ref_budget(whole, source)
+        )
         base_report["ref"] = args.base_ref
-        head_report = analyze_git_ref(repo_root, args.head_ref)
+        announce_budget(base_report, label=args.base_ref)
+        head_report = analyze_git_ref(
+            repo_root, args.head_ref, budget=ref_budget(whole, source)
+        )
         head_report["ref"] = args.head_ref
+        announce_budget(head_report, label=args.head_ref)
         base_label = args.base_ref
         head_label = args.head_ref
 
@@ -457,6 +534,7 @@ def run_init(args: argparse.Namespace) -> int:
     if getattr(args, "from_analysis", False):
         print(f"[info] Analyzing {root} to derive layer rules...")
         analysis_report = analyze_project(root)
+        announce_budget(analysis_report)
         blueprint = _derive_blueprint(analysis_report)
         layer_block = _render_layer_from_blueprint(blueprint["layer_order"])
         forbid_block = _render_forbid_hints(blueprint["forbidden_hints"])
@@ -505,6 +583,7 @@ def run_init(args: argparse.Namespace) -> int:
 
 def run_trace(args: argparse.Namespace) -> int:
     report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
+    announce_budget(report)
     result = trace_reachability(
         report,
         args.entrypoint,
@@ -528,6 +607,7 @@ def run_trace(args: argparse.Namespace) -> int:
 
 def run_advise(args: argparse.Namespace) -> int:
     report = analyze_project(args.path, parallel=getattr(args, "parallel", None))
+    announce_budget(report)
     print(f"[info] Sending analysis to {args.provider}...")
 
     result = advise_architecture(
@@ -557,6 +637,7 @@ def run_watch(args: argparse.Namespace) -> int:
 
     last_mtimes = _get_project_mtimes(path)
     last_report = analyze_project(path, parallel=getattr(args, "parallel", True))
+    announce_budget(last_report)
     print_summary(last_report)
 
     try:
@@ -566,6 +647,7 @@ def run_watch(args: argparse.Namespace) -> int:
             if current_mtimes != last_mtimes:
                 print(f"\n[watch] {time.strftime('%H:%M:%S')} Change detected. Re-analyzing...")
                 new_report = analyze_project(path, parallel=getattr(args, "parallel", True))
+                announce_budget(new_report)
                 _print_watch_diff(last_report, new_report)
                 last_mtimes = current_mtimes
                 last_report = new_report
@@ -734,12 +816,22 @@ def _build_file_risk_payload(
         for item in report.get("risks", {}).get("top_risk_files", [])
     }
     risk_item = risk_index.get(normalized_target, {})
+    impact = node.get("impact", {})
+    if impact.get("impactedFilesTruncated"):
+        # `archmap risk --json` prints the payload verbatim: keep the full list.
+        from archmap.core.analyzer.impact_analyzer import full_impacted_files
+
+        impact = {
+            **impact,
+            "impactedFiles": full_impacted_files(report, normalized_target),
+        }
+        impact.pop("impactedFilesTruncated", None)
     return {
         "file": normalized_target,
         "incoming": int(node.get("incoming", 0)),
         "outgoing": int(node.get("outgoing", 0)),
         "isCircular": bool(node.get("isCircular", False)),
-        "impact": node.get("impact", {}),
+        "impact": impact,
         "riskScore": int(risk_item.get("riskScore", 0)),
         "signals": list(risk_item.get("signals", [])),
     }
@@ -968,6 +1060,7 @@ def run_expose(args: argparse.Namespace) -> int:
     except (OSError, RuntimeError, ValueError) as exc:
         print(f"[error] {exc}", file=sys.stderr)
         return 1
+    announce_budget(analysis_result)
 
     config = load_project_config(project_path)
     endpoint_refs = scan_endpoint_references(project_path, config)
@@ -1127,6 +1220,7 @@ def run_memory(args: argparse.Namespace) -> int:
     except (OSError, RuntimeError, ValueError) as exc:
         print(f"[error] {exc}", file=sys.stderr)
         return 1
+    announce_budget(report, getattr(args, "quiet", False))
 
     network_snapshot = None
     if getattr(args, "network", True):

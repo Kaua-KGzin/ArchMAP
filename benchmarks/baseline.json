@@ -1,0 +1,441 @@
+{
+  "rows": [
+    {
+      "files": 1000,
+      "language": "python",
+      "shape": "layered",
+      "seconds": 0.642,
+      "peakMb": 5.2,
+      "edges": 3578,
+      "stagesMs": {
+        "discover": 192.6,
+        "parse": 135.9,
+        "cycles": 2.4,
+        "impact": 45.3,
+        "risk": 32.0,
+        "testMapping": 7.2,
+        "centrality": 127.1,
+        "findings": 0.7
+      }
+    },
+    {
+      "files": 5000,
+      "language": "python",
+      "shape": "layered",
+      "seconds": 2.131,
+      "peakMb": 26.6,
+      "edges": 17911,
+      "stagesMs": {
+        "discover": 678.5,
+        "parse": 586.4,
+        "cycles": 11.7,
+        "impact": 210.7,
+        "risk": 85.0,
+        "testMapping": 35.8,
+        "centrality": 302.3,
+        "findings": 3.6
+      }
+    },
+    {
+      "files": 20000,
+      "language": "python",
+      "shape": "layered",
+      "seconds": 13.175,
+      "peakMb": 122.8,
+      "edges": 71803,
+      "stagesMs": {
+        "discover": 5715.7,
+        "parse": 1838.1,
+        "cycles": 65.8,
+        "impact": 1190.7,
+        "risk": 387.7,
+        "testMapping": 351.2,
+        "centrality": 2712.1,
+        "findings": 5.7
+      }
+    },
+    {
+      "files": 50000,
+      "language": "python",
+      "shape": "layered",
+      "seconds": 35.233,
+      "peakMb": 424.2,
+      "edges": 179638,
+      "stagesMs": {
+        "discover": 7967.9,
+        "parse": 5374.7,
+        "cycles": 714.9,
+        "impact": 4302.3,
+        "risk": 1758.6,
+        "testMapping": 469.7,
+        "centrality": 12004.3,
+        "findings": 21.4
+      }
+    },
+    {
+      "files": 1000,
+      "language": "python",
+      "shape": "hub",
+      "seconds": 0.66,
+      "peakMb": 6.6,
+      "edges": 3919,
+      "stagesMs": {
+        "discover": 150.1,
+        "parse": 74.7,
+        "cycles": 1.6,
+        "impact": 35.6,
+        "risk": 14.2,
+        "testMapping": 4.5,
+        "centrality": 330.1,
+        "findings": 1.7
+      }
+    },
+    {
+      "files": 5000,
+      "language": "python",
+      "shape": "hub",
+      "seconds": 2.599,
+      "peakMb": 35.8,
+      "edges": 19919,
+      "stagesMs": {
+        "discover": 668.8,
+        "parse": 570.1,
+        "cycles": 10.3,
+        "impact": 215.7,
+        "risk": 93.1,
+        "testMapping": 32.2,
+        "centrality": 706.6,
+        "findings": 9.6
+      }
+    },
+    {
+      "files": 20000,
+      "language": "python",
+      "shape": "hub",
+      "seconds": 12.692,
+      "peakMb": 178.3,
+      "edges": 79919,
+      "stagesMs": {
+        "discover": 2913.6,
+        "parse": 1737.8,
+        "cycles": 66.5,
+        "impact": 1250.0,
+        "risk": 613.4,
+        "testMapping": 145.8,
+        "centrality": 4741.0,
+        "findings": 51.7
+      }
+    },
+    {
+      "files": 50000,
+      "language": "python",
+      "shape": "hub",
+      "seconds": 38.119,
+      "peakMb": 637.0,
+      "edges": 199919,
+      "stagesMs": {
+        "discover": 7770.0,
+        "parse": 5194.9,
+        "cycles": 152.6,
+        "impact": 3085.1,
+        "risk": 869.7,
+        "testMapping": 331.4,
+        "centrality": 17658.1,
+        "findings": 116.0
+      }
+    },
+    {
+      "files": 1000,
+      "language": "python",
+      "shape": "cycle",
+      "seconds": 1.293,
+      "peakMb": 8.1,
+      "edges": 5000,
+      "stagesMs": {
+        "discover": 166.9,
+        "parse": 84.3,
+        "cycles": 2.4,
+        "impact": 6.3,
+        "risk": 14.9,
+        "testMapping": 4.9,
+        "centrality": 954.3,
+        "findings": 0.2
+      }
+    },
+    {
+      "files": 5000,
+      "language": "python",
+      "shape": "cycle",
+      "seconds": 3.653,
+      "peakMb": 40.0,
+      "edges": 25000,
+      "stagesMs": {
+        "discover": 672.0,
+        "parse": 479.2,
+        "cycles": 12.1,
+        "impact": 44.2,
+        "risk": 103.8,
+        "testMapping": 30.1,
+        "centrality": 1948.0,
+        "findings": 6.1
+      }
+    },
+    {
+      "files": 20000,
+      "language": "python",
+      "shape": "cycle",
+      "seconds": 17.768,
+      "peakMb": 155.6,
+      "edges": 100000,
+      "stagesMs": {
+        "discover": 2907.0,
+        "parse": 1941.1,
+        "cycles": 366.3,
+        "impact": 429.8,
+        "risk": 357.0,
+        "testMapping": 125.6,
+        "centrality": 9482.5,
+        "findings": 33.2
+      }
+    },
+    {
+      "files": 50000,
+      "language": "python",
+      "shape": "cycle",
+      "seconds": 61.582,
+      "peakMb": 396.4,
+      "edges": 250000,
+      "stagesMs": {
+        "discover": 8108.7,
+        "parse": 5141.6,
+        "cycles": 200.8,
+        "impact": 883.1,
+        "risk": 939.7,
+        "testMapping": 876.0,
+        "centrality": 28445.4,
+        "findings": 86.0
+      }
+    },
+    {
+      "files": 1000,
+      "language": "typescript",
+      "shape": "layered",
+      "seconds": 0.593,
+      "peakMb": 5.5,
+      "edges": 3578,
+      "stagesMs": {
+        "discover": 187.7,
+        "parse": 177.8,
+        "cycles": 2.3,
+        "impact": 33.2,
+        "risk": 21.7,
+        "testMapping": 11.5,
+        "centrality": 88.4,
+        "findings": 0.3
+      }
+    },
+    {
+      "files": 5000,
+      "language": "typescript",
+      "shape": "layered",
+      "seconds": 2.313,
+      "peakMb": 26.5,
+      "edges": 17911,
+      "stagesMs": {
+        "discover": 741.8,
+        "parse": 652.4,
+        "cycles": 7.9,
+        "impact": 152.6,
+        "risk": 207.1,
+        "testMapping": 35.0,
+        "centrality": 326.1,
+        "findings": 1.3
+      }
+    },
+    {
+      "files": 20000,
+      "language": "typescript",
+      "shape": "layered",
+      "seconds": 13.195,
+      "peakMb": 130.6,
+      "edges": 71803,
+      "stagesMs": {
+        "discover": 3009.3,
+        "parse": 3572.8,
+        "cycles": 66.5,
+        "impact": 962.0,
+        "risk": 429.6,
+        "testMapping": 140.8,
+        "centrality": 3376.2,
+        "findings": 6.5
+      }
+    },
+    {
+      "files": 50000,
+      "language": "typescript",
+      "shape": "layered",
+      "seconds": 41.959,
+      "peakMb": 431.8,
+      "edges": 179638,
+      "stagesMs": {
+        "discover": 8243.3,
+        "parse": 11413.1,
+        "cycles": 258.1,
+        "impact": 3591.0,
+        "risk": 1153.1,
+        "testMapping": 381.4,
+        "centrality": 13014.1,
+        "findings": 25.0
+      }
+    },
+    {
+      "files": 1000,
+      "language": "typescript",
+      "shape": "hub",
+      "seconds": 0.714,
+      "peakMb": 6.8,
+      "edges": 3919,
+      "stagesMs": {
+        "discover": 156.5,
+        "parse": 121.8,
+        "cycles": 1.5,
+        "impact": 35.9,
+        "risk": 15.2,
+        "testMapping": 6.7,
+        "centrality": 320.0,
+        "findings": 1.8
+      }
+    },
+    {
+      "files": 5000,
+      "language": "typescript",
+      "shape": "hub",
+      "seconds": 2.716,
+      "peakMb": 35.8,
+      "edges": 19919,
+      "stagesMs": {
+        "discover": 769.0,
+        "parse": 581.2,
+        "cycles": 17.7,
+        "impact": 210.6,
+        "risk": 189.9,
+        "testMapping": 34.4,
+        "centrality": 701.1,
+        "findings": 13.2
+      }
+    },
+    {
+      "files": 20000,
+      "language": "typescript",
+      "shape": "hub",
+      "seconds": 14.2,
+      "peakMb": 185.9,
+      "edges": 79919,
+      "stagesMs": {
+        "discover": 3005.1,
+        "parse": 3464.5,
+        "cycles": 63.5,
+        "impact": 866.1,
+        "risk": 743.5,
+        "testMapping": 157.2,
+        "centrality": 4560.9,
+        "findings": 37.0
+      }
+    },
+    {
+      "files": 50000,
+      "language": "typescript",
+      "shape": "hub",
+      "seconds": 34.387,
+      "peakMb": 641.2,
+      "edges": 199919,
+      "stagesMs": {
+        "discover": 6519.3,
+        "parse": 7551.7,
+        "cycles": 126.0,
+        "impact": 2272.2,
+        "risk": 797.5,
+        "testMapping": 304.3,
+        "centrality": 13998.0,
+        "findings": 94.8
+      }
+    },
+    {
+      "files": 1000,
+      "language": "typescript",
+      "shape": "cycle",
+      "seconds": 1.192,
+      "peakMb": 8.1,
+      "edges": 5000,
+      "stagesMs": {
+        "discover": 130.3,
+        "parse": 118.4,
+        "cycles": 2.3,
+        "impact": 5.6,
+        "risk": 13.5,
+        "testMapping": 4.3,
+        "centrality": 868.0,
+        "findings": 0.2
+      }
+    },
+    {
+      "files": 5000,
+      "language": "typescript",
+      "shape": "cycle",
+      "seconds": 2.999,
+      "peakMb": 40.0,
+      "edges": 25000,
+      "stagesMs": {
+        "discover": 572.8,
+        "parse": 593.7,
+        "cycles": 82.2,
+        "impact": 28.2,
+        "risk": 78.8,
+        "testMapping": 31.0,
+        "centrality": 1392.6,
+        "findings": 5.1
+      }
+    },
+    {
+      "files": 20000,
+      "language": "typescript",
+      "shape": "cycle",
+      "seconds": 16.335,
+      "peakMb": 163.4,
+      "edges": 100000,
+      "stagesMs": {
+        "discover": 2811.2,
+        "parse": 3165.5,
+        "cycles": 47.9,
+        "impact": 118.2,
+        "risk": 325.9,
+        "testMapping": 109.5,
+        "centrality": 7015.8,
+        "findings": 26.4
+      }
+    },
+    {
+      "files": 50000,
+      "language": "typescript",
+      "shape": "cycle",
+      "seconds": 54.988,
+      "peakMb": 398.7,
+      "edges": 250000,
+      "stagesMs": {
+        "discover": 6718.4,
+        "parse": 8538.3,
+        "cycles": 163.6,
+        "impact": 354.9,
+        "risk": 855.4,
+        "testMapping": 305.6,
+        "centrality": 22994.9,
+        "findings": 73.9
+      }
+    }
+  ],
+  "machine": {
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "cpuCount": 12
+  }
+}
