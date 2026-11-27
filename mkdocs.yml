@@ -117,6 +117,7 @@ nav:
       - Contributing Guide: contributing.md
       - Code of Conduct: code-of-conduct.md
       - Original Distribution Notice: notice.md
+  - Performance: performance.md
   - Operations:
       - Logging and Artifacts: operations/logging.md
   - Project:

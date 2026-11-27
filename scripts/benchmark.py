@@ -6,6 +6,7 @@ Usage:
     python scripts/benchmark.py
     python scripts/benchmark.py --sizes 1000,5000 --language typescript --shape hub
     python scripts/benchmark.py --json out.json --repeat 3
+    python scripts/benchmark.py --markdown [benchmarks/baseline.json]   # table only, runs nothing
 
 Always runs ``analyze_project(..., use_cache=False)``.
 """
@@ -76,7 +77,35 @@ def run_size(
     }
 
 
+def render_markdown(payload: dict[str, Any]) -> str:
+    """Markdown table (time / peak memory per size) from a saved benchmark JSON."""
+    rows = payload.get("rows", [])
+    sizes = sorted({r["files"] for r in rows})
+    scenarios = sorted({(r["language"], r["shape"]) for r in rows})
+    cells = {(r["language"], r["shape"], r["files"]): r for r in rows}
+    header = ["Scenario"] + [f"{n:,} files" for n in sizes]
+    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    for language, shape in scenarios:
+        parts = [f"{language}, {shape}"]
+        for n in sizes:
+            row = cells.get((language, shape, n))
+            if row is None:
+                parts.append("-")
+                continue
+            peak = f"{row['peakMb']:.0f} MB" if row.get("peakMb") is not None else "n/a"
+            parts.append(f"{row['seconds']:.1f} s / {peak}")
+        lines.append("| " + " | ".join(parts) + " |")
+    return "\n".join(lines)
+
+
 def main() -> None:
+    if "--markdown" in sys.argv[1:]:
+        # Print a table from a saved benchmark file; runs nothing.
+        idx = sys.argv.index("--markdown")
+        rest = sys.argv[idx + 1 :]
+        path = rest[0] if rest and not rest[0].startswith("--") else "benchmarks/baseline.json"
+        print(render_markdown(json.loads(Path(path).read_text(encoding="utf-8"))))
+        return
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     parser.add_argument("--sizes", default=DEFAULT_SIZES, help="comma-separated file counts")
     parser.add_argument("--language", choices=["python", "typescript"], default="python")

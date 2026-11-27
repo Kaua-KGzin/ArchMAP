@@ -3,7 +3,17 @@
 > This file (`docs/roadmap.md`) is the single source. The root `ROADMAP.md`
 > only points here.
 
-## Next — v1.7.0
+## Next — v1.7.0 — predictable cost at scale
+
+Implemented on the v1.7.0 branch; listed in the changelog under Unreleased:
+
+- **Stage timings**, a fast **SCC-based impact analysis** with a 200-entry list
+  cap, and faster discovery and parsing.
+- **`archmap analyze --estimate`**, a progress line with an ETA, and a soft
+  **`--time-budget`** / `[analysis.limits]` with visible reductions
+  (`QUAL-*` findings); a 120 s default budget and a `notice` for MCP.
+- A **CI perf guard** (`scripts/perf_guard.py`) and the new
+  [Performance](performance.md) page.
 
 Carried over from the v1.6.0 plan (not shipped in 1.6.0):
 
@@ -13,6 +23,15 @@ Carried over from the v1.6.0 plan (not shipped in 1.6.0):
 - **PR report follow-ups** — base-analysis failures reported as warnings,
   `git worktree prune` before reuse, job name in the comment marker so matrix
   jobs don't share one comment.
+
+## Next — v1.8.0
+
+- **Incremental analysis**: re-analyze only what changed, so large projects
+  stay fast on every run.
+- **Termux numbers**: measured times and memory for Termux / Android on the
+  [Performance](performance.md) page.
+- **CI-measured baseline row**, which activates the absolute check of the perf
+  guard.
 
 ## Released
 

@@ -58,6 +58,21 @@ refuse anything outside it, so a prompt-injected model can't use them to
 read `~/.ssh` or other files beyond the project. Start the server in the
 directory you want inspected.
 
+### Time budget and `notice`
+
+Ten tools run a full analysis (`get_project_memory`, `get_architecture_summary`,
+`get_file_context`, `impact_analysis`, `run_checks`, `trace_reachability`,
+`get_network_exposure`, `get_relevant_context`, `get_analysis_quality`,
+`list_findings`) and accept an optional `time_budget` argument in seconds. The budget is, in order: the `time_budget` argument,
+`[analysis.limits] time_budget_seconds` in `.archmap.toml`, then a **120 s
+default**. `0` means no limit; negative values are rejected.
+
+The budget is soft (parsing is never cut short). When it forces a reduction
+(impacted-file lists left out, centrality sampled or skipped), the response
+carries a `notice` field saying which stages were reduced and how to get a
+full run (`time_budget=0`). `impact_analysis` always returns the full impacted
+list for the file you ask about. See [Performance](../performance.md).
+
 ## Registering with Claude Code
 
 Add the server to `~/.claude/claude_desktop_config.json`:

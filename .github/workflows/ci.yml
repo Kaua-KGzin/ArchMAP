@@ -79,6 +79,45 @@ jobs:
       - name: Run tests with coverage (tree-sitter active)
         run: python -m pytest
 
+  perf-guard:
+    name: Perf guard (analysis scaling)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Job-level path filters do not exist; decide here. A pull request only
+      # runs the benchmark when src/ or the guard itself differs from the base.
+      # `git diff --quiet` exits 1 when there are changes: that is expected, so
+      # it is only used as an `if` condition (bash steps run with -e).
+      - name: Did src/ change?
+        id: changed
+        run: |
+          run=true
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+            if git diff --quiet "origin/${{ github.base_ref }}" HEAD -- src scripts/perf_guard.py scripts/benchmark.py; then
+              run=false
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python 3.13
+        if: steps.changed.outputs.run == 'true'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        if: steps.changed.outputs.run == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Perf guard
+        if: steps.changed.outputs.run == 'true'
+        run: python scripts/perf_guard.py --baseline benchmarks/baseline.json --files 5000 --shape cycle --max-ratio 2.0
+
   build-package:
     name: Build Python package (wheel + sdist)
     runs-on: ubuntu-latest

@@ -44,3 +44,36 @@ def test_no_memory_skips_traced_pass(monkeypatch):
     row = bench.run_size(20, "python", "layered", repeat=1, measure_memory=False)
     assert tracing == [False]
     assert row["peakMb"] is None
+
+
+def test_markdown_table_comes_from_the_baseline_file(tmp_path):
+    import json
+
+    bench = _load()
+    payload = {
+        "rows": [
+            {"files": 1000, "language": "python", "shape": "cycle",
+             "seconds": 1.234, "peakMb": 8.1},
+            {"files": 5000, "language": "python", "shape": "cycle",
+             "seconds": 3.0, "peakMb": None},
+        ]
+    }
+    table = bench.render_markdown(payload)
+    assert "| Scenario | 1,000 files | 5,000 files |" in table
+    assert "| python, cycle | 1.2 s / 8 MB | 3.0 s / n/a |" in table
+    # The shipped baseline renders without error.
+    shipped = Path(__file__).resolve().parents[1] / "benchmarks" / "baseline.json"
+    assert "20,000 files" in bench.render_markdown(json.loads(shipped.read_text(encoding="utf-8")))
+
+
+def test_performance_page_table_matches_baseline():
+    """docs/performance.md embeds the generated table; no hand-typed numbers."""
+    import json
+
+    bench = _load()
+    root = Path(__file__).resolve().parents[1]
+    table = bench.render_markdown(
+        json.loads((root / "benchmarks" / "baseline.json").read_text(encoding="utf-8"))
+    )
+    page = (root / "docs" / "performance.md").read_text(encoding="utf-8")
+    assert table in page

@@ -167,8 +167,8 @@ def build_parser() -> argparse.ArgumentParser:
             "running out of time, centrality is sampled or skipped and impacted-file "
             "lists are left out; counts, risk and cycles stay exact. Each reduction is "
             "printed and reported as a QUAL finding, and a reduced report is never cached. "
-            "Soft: may overshoot by about one stage. With --estimate, lists the "
-            "reductions that would apply"
+            "The budget is soft: parsing is never cut short, so a run can overshoot. "
+            "With --estimate, lists the reductions that would apply"
         ),
     )
     analyze_parser.add_argument(

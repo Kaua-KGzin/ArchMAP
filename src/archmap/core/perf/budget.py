@@ -3,7 +3,7 @@
 The budget covers the wall time of the whole run, measured from when the
 ``Budget`` is created. It is *soft*: it is checked before each reducible
 stage and inside the loops that already iterate in steps, so a run can
-overshoot by about one stage. Parsing is never cut short.
+overshoot. Parsing is never cut short, and some other stages never check it.
 
 Reducible stages and how each is reduced:
 
