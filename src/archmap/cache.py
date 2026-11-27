@@ -14,26 +14,27 @@ _MAX_CACHE_BYTES = 50 * 1024 * 1024
 _REPORT_SCHEMA = 4
 
 
-def compute_fingerprint(
-    project_root: Path, config: Any, time_budget: float | None = None
-) -> str:
+def compute_fingerprint(project_root: Path, config: Any) -> str:
     """Compute a stable fingerprint for cache invalidation.
 
-    The fingerprint encodes the project config, the effective time budget
-    (``None`` = no limit) and the mtime+size of every source file so that any
-    change — including config edits or file additions and deletions — causes
-    a cache miss.
+    The fingerprint encodes the project config and the mtime+size of every
+    source file so that any change — including config edits or file additions
+    and deletions — causes a cache miss.
+
+    The time budget is deliberately *not* part of it: a run the budget reduced
+    is never written, so every cached report is a full one and can be served to
+    any budget (the CLI, with none, and the MCP server, with 120 s, share one
+    entry). ``[analysis.limits] time_budget_seconds`` is left out for the same
+    reason.
     """
     from archmap import __version__
     from archmap.utils.file_utils import discover_source_files
 
     # The analyzer itself is part of the input: a report produced by an older
     # ArchMAP must not be served after an upgrade that changes the analysis.
-    # So is the budget: a report made under one budget is never served to another.
-    budget = float(time_budget) if time_budget else None
-    header = f"archmap {__version__} schema {_REPORT_SCHEMA} budget {budget!r}\n"
+    header = f"archmap {__version__} schema {_REPORT_SCHEMA}\n"
     config_blob = header + json.dumps(
-        config, sort_keys=True, default=str
+        _without_time_budget(config), sort_keys=True, default=str
     )
 
     # Same ignore set the parser uses: a regenerated file in an ignored
@@ -67,6 +68,20 @@ def compute_fingerprint(
 
     combined = config_blob + "\n" + "\n".join(file_meta_parts)
     return hashlib.sha256(combined.encode("utf-8", errors="replace")).hexdigest()
+
+
+def _without_time_budget(config: Any) -> Any:
+    """``config`` minus ``analysis.limits.time_budget_seconds`` (not an input to a full report)."""
+    if not isinstance(config, dict):
+        return config
+    analysis = config.get("analysis")
+    if not isinstance(analysis, dict):
+        return config
+    limits = analysis.get("limits")
+    if not isinstance(limits, dict) or "time_budget_seconds" not in limits:
+        return config
+    trimmed_limits = {k: v for k, v in limits.items() if k != "time_budget_seconds"}
+    return {**config, "analysis": {**analysis, "limits": trimmed_limits}}
 
 
 def load_cached_report(project_root: Path, fingerprint: str) -> dict | None:

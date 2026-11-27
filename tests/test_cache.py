@@ -185,11 +185,13 @@ def test_parse_project_cache_disabled_via_config(tmp_path: Path) -> None:
     assert not (tmp_path / _CACHE_FILENAME).exists()
 
 
-def test_report_fingerprint_includes_time_budget(tmp_path: Path) -> None:
+def test_report_fingerprint_ignores_time_budget_setting(tmp_path: Path) -> None:
     from archmap.cache import compute_fingerprint
 
     (tmp_path / "a.py").write_text("import os\n")
-    unlimited = compute_fingerprint(tmp_path, {})
-    assert compute_fingerprint(tmp_path, {}, None) == unlimited
-    assert compute_fingerprint(tmp_path, {}, 30) != unlimited
-    assert compute_fingerprint(tmp_path, {}, 30) != compute_fingerprint(tmp_path, {}, 60)
+    unlimited = compute_fingerprint(tmp_path, {"analysis": {"limits": {}}})
+    configured = {"analysis": {"limits": {"time_budget_seconds": 30}}}
+    assert compute_fingerprint(tmp_path, configured) == unlimited
+    # Any other config change still invalidates.
+    other = {"analysis": {"limits": {}, "parallel": False}}
+    assert compute_fingerprint(tmp_path, other) != unlimited

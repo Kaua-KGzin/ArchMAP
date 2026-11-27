@@ -50,8 +50,19 @@ def test_default_budget_is_120_seconds() -> None:
 
 def test_default_budget_applies_and_is_announced_in_the_report(project: Path) -> None:
     payload = _payload(_call(project, "get_architecture_summary"))
-    assert "notice" not in payload  # nothing was reduced
+    # Nothing was reduced, but the default budget is active: the spec wants a notice.
+    assert payload["notice"] == (
+        "Analysis ran under the default 120 s MCP time budget (mcp-default); nothing "
+        "was reduced. Change it with the time_budget argument or [analysis.limits] "
+        "time_budget_seconds in .archmap.toml; 0 means no limit."
+    )
     assert _quality(project)["budget"] == {"seconds": 120.0, "source": "mcp-default"}
+
+
+def test_no_default_notice_for_explicit_or_config_budget(project: Path) -> None:
+    assert "notice" not in _payload(_call(project, "run_checks", time_budget=900))
+    (project / ".archmap.toml").write_text("[analysis.limits]\ntime_budget_seconds = 3600\n")
+    assert "notice" not in _payload(_call(project, "run_checks"))
 
 
 def test_tiny_arg_budget_adds_notice_naming_stages(project: Path) -> None:
@@ -99,13 +110,18 @@ def test_arg_beats_config(project: Path) -> None:
     assert _quality(project)["budget"] == {"seconds": 900, "source": "mcp-arg"}
 
 
-def test_in_memory_cache_key_includes_effective_budget(project: Path) -> None:
+def test_in_memory_cache_reruns_reduced_but_reuses_full(project: Path) -> None:
     reduced = _payload(_call(project, "get_architecture_summary", time_budget=TINY))
     assert "notice" in reduced
+    # A reduced result is never served to a call with another budget.
     full = _payload(_call(project, "get_architecture_summary", time_budget=0))
     assert "notice" not in full
+    assert "budget" not in _quality(project)
+    # A full result is valid for any budget: reused, re-stamped with this call's.
     again = _payload(_call(project, "get_architecture_summary", time_budget=TINY))
-    assert "notice" in again
+    assert "notice" not in again
+    assert _quality(project)["budget"] == {"seconds": TINY, "source": "mcp-arg"}
+    assert _quality(project)["reductions"] == []
 
 
 @pytest.mark.parametrize("bad", [-1, -0.5, "10", True])

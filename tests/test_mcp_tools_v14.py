@@ -71,6 +71,8 @@ def test_analysis_quality_and_findings(project: Path) -> None:
     assert quality["confidenceLevel"] == "high"
     assert "timingsMs" not in quality
     findings = _payload(_call(project, "list_findings", min_severity="critical"))
+    # The 120 s MCP default is active, so the response carries its notice.
+    assert findings.pop("notice").startswith("Analysis ran under the default 120 s")
     assert findings == {"total": 0, "findings": []}
 
 

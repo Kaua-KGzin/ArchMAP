@@ -1,18 +1,25 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
 
 class StageTimer:
-    """Accumulates wall-clock time per named stage, in milliseconds."""
+    """Accumulates wall-clock time per named stage, in milliseconds.
 
-    def __init__(self) -> None:
+    ``on_stage`` (optional) is called with the stage name as each stage starts;
+    the CLI progress line uses it. It only observes, never changes timings.
+    """
+
+    def __init__(self, on_stage: Callable[[str], None] | None = None) -> None:
         self._ms: dict[str, float] = {}
+        self._on_stage = on_stage
 
     @contextmanager
     def stage(self, name: str) -> Iterator[None]:
+        if self._on_stage is not None:
+            self._on_stage(name)
         start = time.perf_counter()
         try:
             yield

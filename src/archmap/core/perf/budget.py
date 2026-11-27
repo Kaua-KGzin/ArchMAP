@@ -22,12 +22,13 @@ from __future__ import annotations
 import math
 import time
 from collections.abc import Callable
-from typing import Literal, TypedDict, get_args
+from typing import Any, Literal, TypedDict, get_args
 
-BudgetSource = Literal["cli", "config", "mcp-default", "mcp-arg"]
+BudgetSource = Literal["cli", "config", "mcp-default", "mcp-arg", "api"]
 CENTRALITY_REDUCED_SAMPLES = 64
 HOW_TO_CHANGE = (
-    "Change it with --time-budget, [analysis.limits] time_budget_seconds, or 0 for no limit"
+    "Change it with --time-budget (CLI) or the time_budget argument (MCP, API), "
+    "[analysis.limits] time_budget_seconds, or 0 for no limit"
 )
 
 
@@ -103,6 +104,26 @@ class Budget:
         if info is None:
             raise ValueError("no time budget is active")
         return reduction_message(reduction, info)
+
+
+def stamp_full_report(report: dict[str, Any], budget: Budget) -> dict[str, Any]:
+    """Re-stamp a cached *full* report with the budget of the current call.
+
+    Only unreduced reports are ever cached, so the stored report is valid for
+    any budget; only ``metrics.analysisQuality.budget`` / ``reductions`` must
+    say which budget this call ran under (both absent when there is none).
+    """
+    quality = report.get("metrics", {}).get("analysisQuality")
+    if not isinstance(quality, dict):
+        return report
+    info = budget.describe()
+    if info is None:
+        quality.pop("budget", None)
+        quality.pop("reductions", None)
+    else:
+        quality["budget"] = info
+        quality["reductions"] = []
+    return report
 
 
 def reduction_message(reduction: Reduction, budget: BudgetInfo) -> str:

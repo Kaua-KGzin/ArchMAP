@@ -38,6 +38,8 @@ from archmap.core.perf.budget import BudgetSource
 
 _cache: dict[str, Any] = {}
 _cache_key: dict[str, str] = {}
+# Effective budget (seconds, ``None`` = no limit) each cached analysis ran under.
+_cache_budget: dict[str, float | None] = {}
 
 
 MCP_DEFAULT_TIME_BUDGET = 120.0
@@ -65,30 +67,48 @@ def _effective_budget(
     return MCP_DEFAULT_TIME_BUDGET, MCP_DEFAULT_TIME_BUDGET, "mcp-default"
 
 
-def _fingerprint(project_path: str, budget: float | None = None) -> str:
+def _fingerprint(project_path: str) -> str:
     # Same fingerprint archmap's on-disk cache uses (config + every source
-    # file's mtime/size + effective budget) - catches source edits, not just
-    # .archmap.toml changes, so a long-lived MCP session doesn't serve stale
-    # data after the AI assistant edits files, nor a reduced result to a call
-    # that asked for a different budget.
+    # file's mtime/size) - catches source edits, not just .archmap.toml
+    # changes, so a long-lived MCP session doesn't serve stale data after the
+    # AI assistant edits files. The budget is not part of it (see _get_analysis).
     from archmap.cache import compute_fingerprint
     from archmap.config import load_project_config
 
     root = Path(project_path).resolve()
     config = load_project_config(root)
-    return compute_fingerprint(root, config, budget)
+    return compute_fingerprint(root, config)
+
+
+def _is_reduced(result: dict) -> bool:
+    quality = result.get("metrics", {}).get("analysisQuality", {})
+    return bool(quality.get("reductions"))
 
 
 def _get_analysis(project_path: str, time_budget: float | None = None) -> Any:
-    effective, to_pass, source = _effective_budget(project_path, time_budget)
-    fingerprint = _fingerprint(project_path, effective)
-    if project_path not in _cache or _cache_key.get(project_path) != fingerprint:
-        from archmap import analyze_project
+    """The analysis for this call, from memory when it is still valid.
 
-        _cache[project_path] = analyze_project(
-            project_path, time_budget=to_pass, budget_source=source
-        )
-        _cache_key[project_path] = fingerprint
+    A full (unreduced) report is valid for any budget, so it is reused and only
+    re-stamped with this call's budget. A reduced one is reused only by a call
+    with the same effective budget; any other budget runs the analysis again.
+    """
+    from archmap.core.perf.budget import Budget, stamp_full_report
+
+    effective, to_pass, source = _effective_budget(project_path, time_budget)
+    fingerprint = _fingerprint(project_path)
+    cached = _cache.get(project_path)
+    if cached is not None and _cache_key.get(project_path) == fingerprint:
+        if not _is_reduced(cached):
+            return stamp_full_report(cached, Budget(effective, source=source))
+        if _cache_budget.get(project_path) == effective:
+            return cached
+    from archmap import analyze_project
+
+    _cache[project_path] = analyze_project(
+        project_path, time_budget=to_pass, budget_source=source
+    )
+    _cache_key[project_path] = fingerprint
+    _cache_budget[project_path] = effective
     return _cache[project_path]
 
 
@@ -105,21 +125,39 @@ def _parse_time_budget(args: dict) -> float | None:
 
 
 def _budget_notice(project_path: str) -> str | None:
-    """Tell the caller when the analysis behind a response was reduced."""
+    """The ``notice`` for a response backed by the cached analysis of ``project_path``."""
     result = _cache.get(project_path)
     if not result:
         return None
-    quality = result.get("metrics", {}).get("analysisQuality", {})
+    return _notice_for(result.get("metrics", {}).get("analysisQuality", {}))
+
+
+def _notice_for(quality: dict, *, whole_seconds: float | None = None) -> str | None:
+    """Tell the caller when a reduction happened or the MCP default budget is active.
+
+    ``whole_seconds`` overrides the budget shown (``diff_architecture`` gives
+    each ref half of it).
+    """
     reductions = quality.get("reductions")
     budget = quality.get("budget")
-    if not reductions or not budget:
+    if not budget:
         return None
-    stages = ", ".join(dict.fromkeys(r["stage"] for r in reductions))
-    return (
-        f"Analysis was reduced by the {budget['seconds']:g} s time budget "
-        f"({budget['source']}): {stages}. For a full run pass time_budget=0 or set "
-        "[analysis.limits] time_budget_seconds in .archmap.toml."
-    )
+    seconds = whole_seconds if whole_seconds is not None else budget["seconds"]
+    if reductions:
+        stages = ", ".join(dict.fromkeys(r["stage"] for r in reductions))
+        return (
+            f"Analysis was reduced by the {seconds:g} s time budget "
+            f"({budget['source']}): {stages}. For a full run pass time_budget=0 or set "
+            "[analysis.limits] time_budget_seconds in .archmap.toml."
+        )
+    if budget["source"] == "mcp-default":
+        return (
+            f"Analysis ran under the default {seconds:g} s MCP time budget "
+            "(mcp-default); nothing was reduced. Change it with the time_budget "
+            "argument or [analysis.limits] time_budget_seconds in .archmap.toml; "
+            "0 means no limit."
+        )
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -221,16 +259,39 @@ def _tool_trace_reachability(
 
 
 def _tool_diff_architecture(
-    project_path: str, repo: str, base_ref: str, head_ref: str
+    project_path: str,
+    repo: str,
+    base_ref: str,
+    head_ref: str,
+    time_budget: float | None = None,
 ) -> dict:
     from archmap.core.analyzer import analyze_git_ref, diff_reports
+    from archmap.core.analyzer.diff_analyzer import ref_budget
 
     repo_path = repo or project_path
-    base_report = analyze_git_ref(repo_path, base_ref)
+    # Same precedence as every analysis tool; each ref gets half of the budget.
+    effective, _to_pass, source = _effective_budget(repo_path, time_budget)
+    base_report = analyze_git_ref(repo_path, base_ref, budget=ref_budget(effective, source))
     base_report["ref"] = base_ref
-    head_report = analyze_git_ref(repo_path, head_ref)
+    head_report = analyze_git_ref(repo_path, head_ref, budget=ref_budget(effective, source))
     head_report["ref"] = head_ref
-    return diff_reports(base_report, head_report)
+    result = diff_reports(base_report, head_report)
+    notice = _diff_notice(base_report, head_report, effective)
+    if notice:
+        result["notice"] = notice + " Each ref gets half of the budget."
+    return result
+
+
+def _diff_notice(base: dict, head: dict, whole_seconds: float | None) -> str | None:
+    qualities = [r.get("metrics", {}).get("analysisQuality", {}) for r in (base, head)]
+    budget = next((q["budget"] for q in qualities if q.get("budget")), None)
+    if budget is None:
+        return None
+    merged = {
+        "budget": budget,
+        "reductions": [r for q in qualities for r in q.get("reductions", [])],
+    }
+    return _notice_for(merged, whole_seconds=whole_seconds)
 
 
 def _tool_get_network_exposure(
@@ -790,11 +851,12 @@ _TOOLS = [
 
 
 # Tools backed by a full analysis run: they accept ``time_budget`` and carry the
-# reduction ``notice``.
+# budget ``notice`` (on a reduction, or when the 120 s MCP default is active).
 _ANALYSIS_TOOLS = frozenset({
     "get_project_memory", "get_architecture_summary", "get_file_context",
     "impact_analysis", "run_checks", "trace_reachability", "get_network_exposure",
     "get_relevant_context", "get_analysis_quality", "list_findings",
+    "diff_architecture",
 })
 _TIME_BUDGET_SCHEMA = {
     "type": "number",
@@ -880,6 +942,7 @@ def _dispatch(message: dict, default_path: str) -> dict | None:
                     args.get("repo") or project_path,
                     args.get("base_ref") or "HEAD~1",
                     args.get("head_ref") or "HEAD",
+                    tb,
                 )
             elif tool_name == "get_network_exposure":
                 target = args.get("target", "")
@@ -936,7 +999,12 @@ def _dispatch(message: dict, default_path: str) -> dict | None:
         except Exception as exc:  # noqa: BLE001
             return _err(req_id, -32603, f"Tool execution failed: {exc}")
 
-        if tool_name in _ANALYSIS_TOOLS and isinstance(data, dict):
+        # diff_architecture builds its own notice from the two ref analyses.
+        if (
+            tool_name in _ANALYSIS_TOOLS
+            and tool_name != "diff_architecture"
+            and isinstance(data, dict)
+        ):
             notice = _budget_notice(project_path)
             if notice:
                 data = {**data, "notice": notice}

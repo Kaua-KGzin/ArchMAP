@@ -10,8 +10,9 @@ from archmap.config import load_project_config
 from archmap.core.analyzer.dependency_graph import analyze_graph
 from archmap.core.graph.graph_builder import build_graph
 from archmap.core.parser import parse_project
-from archmap.core.perf.budget import Budget, BudgetSource
+from archmap.core.perf.budget import Budget, BudgetSource, stamp_full_report
 from archmap.core.perf.progress import Progress
+from archmap.core.perf.timing import StageTimer
 
 __all__ = ["analyze_project"]
 
@@ -29,10 +30,12 @@ def analyze_project(
     ``time_budget`` is a soft limit in seconds for the whole run (``0`` = no
     limit; negative raises ``ValueError``). ``None`` falls back to
     ``[analysis.limits] time_budget_seconds``. ``budget_source`` names where an
-    explicit ``time_budget`` came from (``"cli"``, ``"mcp-default"``, ``"mcp-arg"``);
-    a budget taken from the config is always ``"config"``. A run the budget
-    reduced is never written to the cache. ``progress`` (default ``None`` = no
-    progress output) only reports; it never changes the report.
+    explicit ``time_budget`` came from (``"cli"``, ``"mcp-default"``, ``"mcp-arg"``,
+    ``"api"``); a budget taken from the config is always ``"config"``. A run the
+    budget reduced is never written to the cache, so a cache hit is a full report
+    whatever the budget; it is re-stamped with the current one. ``progress``
+    (default ``None`` = no progress output) only reports; it never changes the
+    report.
     """
     project_root = Path(project_path).resolve()
     if not project_root.exists():
@@ -47,10 +50,11 @@ def analyze_project(
     )
 
     if use_cache:
-        fingerprint = compute_fingerprint(project_root, config, budget.seconds)
+        # One entry for every budget: only full reports are ever written.
+        fingerprint = compute_fingerprint(project_root, config)
         cached = load_cached_report(project_root, fingerprint)
         if cached is not None:
-            return cached
+            return stamp_full_report(cached, budget)
 
     use_parallel = parallel if parallel is not None else config["analysis"]["parallel"]
     on_done: Callable[[], None] | None = None
@@ -88,6 +92,8 @@ def analyze_project(
         layer_order=config["risks"]["layer_order"],
         forbidden_rules=config["architecture"]["rules"]["forbid"],
         allowed_rules=config["architecture"]["rules"]["allow"],
+        # Each analysis stage updates the progress line with a shrinking ETA.
+        timer=StageTimer(on_stage=progress.stage if progress is not None else None),
         budget=budget,
     )
 

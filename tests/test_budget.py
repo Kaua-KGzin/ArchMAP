@@ -17,7 +17,10 @@ from archmap.core.parser import parse_project
 from archmap.core.perf.budget import CENTRALITY_REDUCED_SAMPLES, Budget
 from archmap.core.perf.synthetic import generate_project, generate_sources
 
-EVIDENCE = "Change it with --time-budget, [analysis.limits] time_budget_seconds, or 0 for no limit"
+EVIDENCE = (
+    "Change it with --time-budget (CLI) or the time_budget argument (MCP, API), "
+    "[analysis.limits] time_budget_seconds, or 0 for no limit"
+)
 
 
 class FakeClock:
@@ -124,7 +127,8 @@ def test_tiny_budget_reduces_and_is_not_cached(big_project: Path) -> None:
         assert EVIDENCE in finding["evidence"]
 
     config = load_project_config(big_project)
-    assert load_cached_report(big_project, compute_fingerprint(big_project, config, 0.001)) is None
+    # A reduced run is never written: there is no cache entry at all.
+    assert load_cached_report(big_project, compute_fingerprint(big_project, config)) is None
 
 
 def test_no_budget_report_is_unchanged_and_cached(tmp_path: Path) -> None:

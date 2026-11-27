@@ -179,7 +179,7 @@ def test_trace_reachability_calls_analyzer(
 def test_diff_architecture_uses_repo_and_refs(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_analyze_git_ref(repo_path: str, ref: str) -> dict:
+    def fake_analyze_git_ref(repo_path: str, ref: str, budget: object = None) -> dict:
         captured.setdefault("refs", []).append((repo_path, ref))
         return {"ref": ref, "metrics": {}}
 
@@ -201,7 +201,7 @@ def test_diff_architecture_uses_repo_and_refs(monkeypatch: pytest.MonkeyPatch) -
 def test_diff_architecture_defaults_repo_to_project_path(monkeypatch: pytest.MonkeyPatch) -> None:
     seen_repos: list[str] = []
 
-    def fake_analyze_git_ref(repo_path: str, ref: str) -> dict:
+    def fake_analyze_git_ref(repo_path: str, ref: str, budget: object = None) -> dict:
         seen_repos.append(repo_path)
         return {}
 
@@ -440,7 +440,7 @@ def test_dispatch_trace_reachability_round_trip(
 def test_dispatch_diff_architecture_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "archmap.core.analyzer.analyze_git_ref",
-        lambda repo_path, ref: {"ref": ref},
+        lambda repo_path, ref, budget=None: {"ref": ref},
     )
     monkeypatch.setattr(
         "archmap.core.analyzer.diff_reports",
